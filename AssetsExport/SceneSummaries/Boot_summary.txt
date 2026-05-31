@@ -1,0 +1,17 @@
+﻿SCENE SUMMARY
+Name: Boot
+Path: Assets/Scenes/Boot.unity
+
+GameObject: Main Camera
+  ActiveSelf: True
+  ActiveInHierarchy: True
+  Tag: MainCamera
+  Layer: Default (0)
+  LocalPosition: (0.00, 0.00, -10.00)
+  LocalRotationEuler: (0.00, 0.00, 0.00)
+  LocalScale: (1.00, 1.00, 1.00)
+  Components:
+    Transform
+    Camera
+    AudioListener
+

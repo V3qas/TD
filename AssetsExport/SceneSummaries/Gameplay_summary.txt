@@ -1,0 +1,59 @@
+﻿SCENE SUMMARY
+Name: Gameplay
+Path: Assets/Scenes/Gameplay.unity
+
+GameObject: Main Camera
+  ActiveSelf: True
+  ActiveInHierarchy: True
+  Tag: MainCamera
+  Layer: Default (0)
+  LocalPosition: (4.50, 2.50, -10.00)
+  LocalRotationEuler: (0.00, 0.00, 0.00)
+  LocalScale: (1.00, 1.00, 1.00)
+  Components:
+    Transform
+    Camera
+    AudioListener
+
+GameObject: LevelLoader
+  ActiveSelf: True
+  ActiveInHierarchy: True
+  Tag: Untagged
+  Layer: Default (0)
+  LocalPosition: (0.00, 0.00, 0.00)
+  LocalRotationEuler: (0.00, 0.00, 0.00)
+  LocalScale: (1.00, 1.00, 1.00)
+  Components:
+    Transform
+    LevelLoader
+      levelData: LevelData_1_1 [LevelData] -> Assets/ScriptableObjects/LevelData_1_1.asset
+      gridManager: GridRoot [GridManager]
+
+GameObject: GridRoot
+  ActiveSelf: True
+  ActiveInHierarchy: True
+  Tag: Untagged
+  Layer: Default (0)
+  LocalPosition: (0.00, 0.00, 0.00)
+  LocalRotationEuler: (0.00, 0.00, 0.00)
+  LocalScale: (1.00, 1.00, 1.00)
+  Components:
+    Transform
+    GridManager
+      cellSize: 1
+      cellPrefab: null
+
+GameObject: BuildManager
+  ActiveSelf: True
+  ActiveInHierarchy: True
+  Tag: Untagged
+  Layer: Default (0)
+  LocalPosition: (0.00, 0.00, 0.00)
+  LocalRotationEuler: (0.00, 0.00, 0.00)
+  LocalScale: (1.00, 1.00, 1.00)
+  Components:
+    Transform
+    BuildManager
+      mainCamera: Main Camera [Camera]
+      gridManager: GridRoot [GridManager]
+

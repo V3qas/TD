@@ -1,0 +1,10 @@
+﻿SCRIPTABLE OBJECT SUMMARY
+Name: LevelData_1_1
+Path: Assets/ScriptableObjects/LevelData_1_1.asset
+Type: LevelData
+
+width: 10
+height: 6
+startCell: (0, 2)
+goalCell: (9, 2)
+blockedCells: []

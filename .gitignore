@@ -1,0 +1,52 @@
+# Unity generated files
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+UserSettings/
+MemoryCaptures/
+
+# Auto-generated VS / Rider / VSCode files
+.vscode/
+.vs/
+.idea/
+*.sln
+*.csproj
+*.unityproj
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.opendb
+*.VC.db
+
+# Build results
+*.apk
+*.aab
+*.exe
+*.app
+*.msi
+
+# Asset store tools
+Assets/AssetStoreTools*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Ignore these Unity folders (large or ephemeral)
+/[Ll]ibrary/
+/[Tt]emp/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+
+# Uncomment if you use JetBrains Rider
+# .idea/
+
+# End of file

@@ -1,0 +1,52 @@
+﻿ASSET PATH: Assets/Scripts/Core/BuildManager.cs
+FILE TYPE: .cs
+
+using UnityEngine;
+
+public class BuildManager : MonoBehaviour
+{
+    [SerializeField] private Camera mainCamera;
+    [SerializeField] private GridManager gridManager;
+
+    private void Update()
+    {
+        if (Input.GetMouseButtonDown(0))
+        {
+            TryBuildAtMousePosition();
+        }
+    }
+
+    private void TryBuildAtMousePosition()
+    {
+        if (mainCamera == null)
+        {
+            Debug.LogError("BuildManager: Main Camera fehlt.");
+            return;
+        }
+
+        if (gridManager == null)
+        {
+            Debug.LogError("BuildManager: GridManager fehlt.");
+            return;
+        }
+
+        Vector3 mouseScreenPosition = Input.mousePosition;
+        Vector3 worldPosition = mainCamera.ScreenToWorldPoint(mouseScreenPosition);
+        worldPosition.z = 0f;
+
+        Vector2Int cellPosition = gridManager.WorldToCell(worldPosition);
+
+        bool canBuild = gridManager.CanBuildAt(cellPosition);
+        Debug.Log($"Click on {cellPosition} | CanBuild: {canBuild}");
+
+        if (!canBuild)
+            return;
+
+        bool didBlock = gridManager.TryBlockCell(cellPosition);
+        if (didBlock)
+        {
+            gridManager.RefreshGridVisuals();
+            Debug.Log($"Cell blocked at {cellPosition}");
+        }
+    }
+}

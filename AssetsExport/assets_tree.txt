@@ -1,0 +1,24 @@
+﻿ASSETS TREE
+
+[Folder] Assets/Scripts
+  [Folder] Assets/Scripts/Core
+    [File] BuildManager.cs
+  [Folder] Assets/Scripts/Grid
+    [File] GridCell.cs
+    [File] GridManager.cs
+  [Folder] Assets/Scripts/Level
+    [File] LevelData.cs
+    [File] LevelLoader.cs
+  [Folder] Assets/Scripts/Pathfinding
+    [File] Pathfinder.cs
+
+[Folder] Assets/Scenes
+  [File] Boot.unity
+  [File] Gameplay.unity
+  [File] Menu.unity
+
+[Folder] Assets/ScriptableObjects
+  [File] LevelData_1_1.asset
+
+[Folder] Assets/Prefabs
+

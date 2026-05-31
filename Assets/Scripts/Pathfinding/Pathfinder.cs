@@ -1,0 +1,79 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Pathfinder
+{
+    private readonly GridManager gridManager;
+
+    public Pathfinder(GridManager gridManager)
+    {
+        this.gridManager = gridManager;
+    }
+
+    public List<GridCell> FindPath(Vector2Int start, Vector2Int goal)
+    {
+        GridCell startCell = gridManager.GetCell(start);
+        GridCell goalCell = gridManager.GetCell(goal);
+
+        if (startCell == null || goalCell == null)
+            return null;
+
+        if (!gridManager.CanEnemyWalkOn(startCell) || !gridManager.CanEnemyWalkOn(goalCell))
+            return null;
+
+        Queue<GridCell> frontier = new Queue<GridCell>();
+        Dictionary<GridCell, GridCell> cameFrom = new Dictionary<GridCell, GridCell>();
+
+        frontier.Enqueue(startCell);
+        cameFrom[startCell] = null;
+
+        while (frontier.Count > 0)
+        {
+            GridCell current = frontier.Dequeue();
+
+            if (current == goalCell)
+            {
+                return ReconstructPath(cameFrom, goalCell);
+            }
+
+            List<GridCell> neighbors = gridManager.GetNeighbors(current);
+
+            for (int i = 0; i < neighbors.Count; i++)
+            {
+                GridCell neighbor = neighbors[i];
+
+                if (!gridManager.CanEnemyWalkOn(neighbor))
+                    continue;
+
+                if (cameFrom.ContainsKey(neighbor))
+                    continue;
+
+                frontier.Enqueue(neighbor);
+                cameFrom[neighbor] = current;
+            }
+        }
+
+        return null;
+    }
+
+    public bool HasPath(Vector2Int start, Vector2Int goal)
+    {
+        List<GridCell> path = FindPath(start, goal);
+        return path != null && path.Count > 0;
+    }
+
+    private List<GridCell> ReconstructPath(Dictionary<GridCell, GridCell> cameFrom, GridCell goalCell)
+    {
+        List<GridCell> path = new List<GridCell>();
+        GridCell current = goalCell;
+
+        while (current != null)
+        {
+            path.Add(current);
+            current = cameFrom[current];
+        }
+
+        path.Reverse();
+        return path;
+    }
+}

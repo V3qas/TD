@@ -1,0 +1,197 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Tower : MonoBehaviour
+{
+    private TowerData data;
+    private TowerUpgradeData upgradeData;
+    private int currentUpgradeLevel;
+    private float attackTimer;
+    private int totalInvested;
+
+    public TowerData Data => data;
+    public int CurrentUpgradeLevel => currentUpgradeLevel;
+    public float Damage => EffectiveDamage;
+    public float AttackSpeed => EffectiveAttackSpeed;
+    public float Range => EffectiveRange;
+
+    // ── Effektive Stats (Basis + kumulierte Upgrade-Boni) ────────────────────
+
+    private float EffectiveDamage
+    {
+        get
+        {
+            float total = data.damage;
+            int cap = Mathf.Min(currentUpgradeLevel, upgradeData != null ? upgradeData.levels.Count : 0);
+            for (int i = 0; i < cap; i++)
+                total += upgradeData.levels[i].damageBonus;
+            return total;
+        }
+    }
+
+    private float EffectiveAttackSpeed
+    {
+        get
+        {
+            float total = data.attackSpeed;
+            int cap = Mathf.Min(currentUpgradeLevel, upgradeData != null ? upgradeData.levels.Count : 0);
+            for (int i = 0; i < cap; i++)
+                total += upgradeData.levels[i].attackSpeedBonus;
+            return Mathf.Max(0.01f, total); // verhindert Division durch 0
+        }
+    }
+
+    private float EffectiveRange
+    {
+        get
+        {
+            float total = data.range;
+            int cap = Mathf.Min(currentUpgradeLevel, upgradeData != null ? upgradeData.levels.Count : 0);
+            for (int i = 0; i < cap; i++)
+                total += upgradeData.levels[i].rangeBonus;
+            return total;
+        }
+    }
+
+    /// <summary>
+    /// Gibt den aktuell gültigen BulletData zurück.
+    /// Iteriert die Upgrade-Stufen von oben nach unten und nimmt das erste Override.
+    /// </summary>
+    private BulletData EffectiveBulletData
+    {
+        get
+        {
+            if (upgradeData != null)
+            {
+                for (int i = currentUpgradeLevel - 1; i >= 0; i--)
+                {
+                    if (upgradeData.levels[i].overrideBulletData != null)
+                        return upgradeData.levels[i].overrideBulletData;
+                }
+            }
+            return data.bulletData;
+        }
+    }
+
+    // ── Initialisierung ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Initialisiert den Turm. Muss direkt nach Instantiate aufgerufen werden.
+    /// </summary>
+    /// <param name="towerData">Pflicht: Basis-Werte des Turms.</param>
+    /// <param name="towerUpgradeData">Optional: Upgrade-Pfad. Null = keine Upgrades möglich.</param>
+    public void Initialize(TowerData towerData, TowerUpgradeData towerUpgradeData = null)
+    {
+        data = towerData;
+        upgradeData = towerUpgradeData;
+        currentUpgradeLevel = 0;
+        attackTimer = 0f;
+        totalInvested = towerData != null ? towerData.cost : 0;
+    }
+
+    // ── Upgrades ─────────────────────────────────────────────────────────────
+
+    public bool CanUpgrade()
+    {
+        return upgradeData != null && currentUpgradeLevel < upgradeData.levels.Count;
+    }
+
+    /// <summary>Gibt die Kosten der nächsten Upgrade-Stufe zurück, oder -1 wenn kein Upgrade möglich.</summary>
+    public int GetNextUpgradeCost()
+    {
+        if (!CanUpgrade())
+            return -1;
+        return upgradeData.levels[currentUpgradeLevel].cost;
+    }
+
+    /// <summary>Führt das nächste Upgrade durch. Gibt false zurück, wenn kein Upgrade verfügbar.</summary>
+    public bool TryUpgrade()
+    {
+        if (!CanUpgrade())
+            return false;
+
+        totalInvested += upgradeData.levels[currentUpgradeLevel].cost;
+        currentUpgradeLevel++;
+        return true;
+    }
+
+    /// <summary>Gibt den Verkaufswert zurück (50% des investierten Goldes).</summary>
+    public int GetSellValue()
+    {
+        return Mathf.RoundToInt(totalInvested * 0.5f);
+    }
+
+    // ── Kampflogik ───────────────────────────────────────────────────────────
+
+    private void Update()
+    {
+        if (data == null)
+            return;
+
+        attackTimer -= Time.deltaTime;
+
+        if (attackTimer <= 0f)
+        {
+            Enemy target = FindNearestEnemy();
+            if (target != null)
+            {
+                Shoot(target);
+                attackTimer = 1f / EffectiveAttackSpeed;
+            }
+        }
+    }
+
+    private Enemy FindNearestEnemy()
+    {
+        // Iteriert ueber das zentrale Enemy-Registry statt jeden Frame
+        // FindObjectsByType aufzurufen (alloziert + scannt die ganze Szene).
+        IReadOnlyList<Enemy> enemies = Enemy.ActiveEnemies;
+        Enemy nearest = null;
+        float nearestSqrDist = EffectiveRange * EffectiveRange;
+        Vector3 position = transform.position;
+
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            Enemy enemy = enemies[i];
+            if (enemy == null || enemy.IsDead)
+                continue;
+
+            float sqrDist = (position - enemy.transform.position).sqrMagnitude;
+            if (sqrDist <= nearestSqrDist)
+            {
+                nearestSqrDist = sqrDist;
+                nearest = enemy;
+            }
+        }
+
+        return nearest;
+    }
+
+    private void Shoot(Enemy target)
+    {
+        BulletData bulletData = EffectiveBulletData;
+
+        if (bulletData == null)
+        {
+            Debug.LogWarning($"Tower '{data.towerName}': Kein BulletData zugewiesen.");
+            return;
+        }
+
+        if (bulletData.bulletPrefab == null)
+        {
+            Debug.LogWarning($"Tower '{data.towerName}': BulletData '{bulletData.bulletName}' hat kein Prefab.");
+            return;
+        }
+
+        GameObject bulletObject = PrefabPool.Spawn(bulletData.bulletPrefab, transform.position, Quaternion.identity);
+        Bullet bullet = bulletObject.GetComponent<Bullet>();
+
+        if (bullet != null)
+            bullet.Initialize(bulletData, EffectiveDamage, target);
+        else
+        {
+            Debug.LogWarning($"Tower '{data.towerName}': Bullet-Prefab hat keine Bullet-Komponente.");
+            PrefabPool.Release(bulletObject);
+        }
+    }
+}

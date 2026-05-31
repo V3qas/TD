@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 470056dc897b7974ca3973d8a8f116ed, type: 3}
+  m_Name: MainMenuConfig_Main
+  m_EditorClassIdentifier: Assembly-CSharp::MainMenuConfig
+  title: Tower Defense
+  mainButtons:
+  - label: Single Campaign
+    action: 0
+    isEnabled: 1
+  - label: Infinite
+    action: 1
+    isEnabled: 1
+  - label: Challenge
+    action: 2
+    isEnabled: 1
+  - label: Tower Upgrade
+    action: 3
+    isEnabled: 1
+  - label: Map Editor
+    action: 5
+    isEnabled: 1
+  - label: Custom Maps
+    action: 6
+    isEnabled: 1
+  - label: Options
+    action: 4
+    isEnabled: 1
+  campaignTitle: Single Campaign
+  campaignLevels:
+  - label: Level 1
+    levelData: {fileID: 11400000, guid: 1a9a16c38d6f7d3478dd20f0a3c366a1, type: 2}
+    mapSeed: ''
+    isUnlocked: 1
