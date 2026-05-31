@@ -46,6 +46,10 @@ Thumbs.db
 /[Bb]uilds/
 /[Ll]ogs/
 
+# Local build output (ignore heavy generated binaries)
+buildOutput/
+[Bb]uildOutput/
+
 # Uncomment if you use JetBrains Rider
 # .idea/
 
