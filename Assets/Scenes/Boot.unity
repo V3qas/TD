@@ -240,7 +240,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 43674591231ee504ea1c7c99e22d77d4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TitleScreenController
-  splashSprite: {fileID: -2440559661605890594, guid: a138058e7fc074d4183c7c84a2d79a3d, type: 3}
+  splashSprite: {fileID: 7064631625748757826, guid: 9ba83f17faf192246bb11677b32c1013, type: 3}
   menuSceneName: Menu
   fadeDuration: 0.8
   pressTextBlinkSpeed: 1.4

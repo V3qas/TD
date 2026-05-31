@@ -295,8 +295,20 @@ public class MainMenuController : MonoBehaviour
             case MainMenuAction.Options:
                 ShowPlaceholder(buttonConfig.label);
                 break;
+                case MainMenuAction.Exit:
+                QuitApplication();
+                break;
         }
     }
+
+            private void QuitApplication()
+            {
+        #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+        #else
+            Application.Quit();
+        #endif
+            }
 
     private void ShowCampaignMenu()
     {
@@ -383,19 +395,31 @@ public class MainMenuController : MonoBehaviour
 
     private List<MainMenuButtonConfig> GetMainButtons()
     {
-        if (config != null && config.mainButtons != null && config.mainButtons.Count > 0)
-            return config.mainButtons;
+        List<MainMenuButtonConfig> buttons;
 
-        return new List<MainMenuButtonConfig>
+        if (config != null && config.mainButtons != null && config.mainButtons.Count > 0)
         {
-            new MainMenuButtonConfig("Single Campaign", MainMenuAction.SingleCampaign),
-            new MainMenuButtonConfig("Infinite", MainMenuAction.Infinite),
-            new MainMenuButtonConfig("Challenge", MainMenuAction.Challenge),
-            new MainMenuButtonConfig("Tower Upgrade", MainMenuAction.TowerUpgrade),
-            new MainMenuButtonConfig("Map Editor", MainMenuAction.MapEditor),
-            new MainMenuButtonConfig("Custom Maps", MainMenuAction.CustomMaps),
-            new MainMenuButtonConfig("Options", MainMenuAction.Options)
-        };
+            buttons = new List<MainMenuButtonConfig>(config.mainButtons);
+        }
+        else
+        {
+            buttons = new List<MainMenuButtonConfig>
+            {
+                new MainMenuButtonConfig("Single Campaign", MainMenuAction.SingleCampaign),
+                new MainMenuButtonConfig("Infinite", MainMenuAction.Infinite),
+                new MainMenuButtonConfig("Challenge", MainMenuAction.Challenge),
+                new MainMenuButtonConfig("Tower Upgrade", MainMenuAction.TowerUpgrade),
+                new MainMenuButtonConfig("Map Editor", MainMenuAction.MapEditor),
+                new MainMenuButtonConfig("Custom Maps", MainMenuAction.CustomMaps),
+                new MainMenuButtonConfig("Options", MainMenuAction.Options)
+            };
+        }
+
+        // Ensure there is always an Exit button
+        if (!buttons.Exists(b => b.action == MainMenuAction.Exit))
+            buttons.Add(new MainMenuButtonConfig("Exit", MainMenuAction.Exit));
+
+        return buttons;
     }
 
     private List<CampaignLevelConfig> GetCampaignLevels()

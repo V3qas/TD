@@ -16,7 +16,8 @@ public class MainMenuConfig : ScriptableObject
         new MainMenuButtonConfig("Tower Upgrade", MainMenuAction.TowerUpgrade),
         new MainMenuButtonConfig("Map Editor", MainMenuAction.MapEditor),
         new MainMenuButtonConfig("Custom Maps", MainMenuAction.CustomMaps),
-        new MainMenuButtonConfig("Options", MainMenuAction.Options)
+        new MainMenuButtonConfig("Options", MainMenuAction.Options),
+        new MainMenuButtonConfig("Exit", MainMenuAction.Exit)
     };
 
     [Header("Campaign")]
@@ -36,6 +37,7 @@ public enum MainMenuAction
     Options,
     MapEditor,
     CustomMaps
+    ,Exit
 }
 
 [Serializable]
