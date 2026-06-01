@@ -52,6 +52,7 @@
   <Project Path="Unity.InputSystem.DocCodeSamples.csproj" />
   <Project Path="Unity.2D.Common.Runtime.csproj" />
   <Project Path="Unity.Multiplayer.Center.Common.csproj" />
+  <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="Unity.InputSystem.ForUI.csproj" />
   <Project Path="Unity.Collections.CodeGen.csproj" />
   <Project Path="Unity.Mathematics.Editor.csproj" />
@@ -62,7 +63,6 @@
   <Project Path="Unity.VisualScripting.Shared.Editor.csproj" />
   <Project Path="Unity.2D.Aseprite.Common.csproj" />
   <Project Path="Unity.PlasticSCM.Editor.Entities.csproj" />
-  <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="Unity.Collections.Editor.csproj" />
   <Project Path="Unity.2D.Triangulation.Runtime.csproj" />
 </Solution>

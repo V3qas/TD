@@ -68,6 +68,11 @@ public class GridManager : MonoBehaviour
         CreatePreviewVisuals();
     }
 
+    public void ClearPreviewVisuals()
+    {
+        DestroyPreviewVisuals();
+    }
+
     private void BuildGridInternal(LevelMapDefinition definition, bool validateMap)
     {
         ClearGrid();
@@ -150,7 +155,7 @@ public class GridManager : MonoBehaviour
 
     public Vector3 CellToWorld(Vector2Int cellPosition)
     {
-        return new Vector3(cellPosition.x * cellSize, cellPosition.y * cellSize, 0f);
+        return new Vector3((cellPosition.x + 0.5f) * cellSize, (cellPosition.y + 0.5f) * cellSize, 0f);
     }
 
     public bool IsReservedPathCell(Vector2Int cellPosition)
@@ -342,13 +347,7 @@ public class GridManager : MonoBehaviour
 
     private void ClearGrid()
     {
-        // Destroy any temporary preview visuals
-        for (int i = 0; i < previewCells.Count; i++)
-        {
-            if (previewCells[i] != null)
-                Destroy(previewCells[i]);
-        }
-        previewCells.Clear();
+        DestroyPreviewVisuals();
 
         reservedPathCells.Clear();
         cachedEnemyPath = null;
@@ -359,13 +358,7 @@ public class GridManager : MonoBehaviour
 
     private void CreatePreviewVisuals()
     {
-        // Remove any existing preview objects first
-        for (int i = 0; i < previewCells.Count; i++)
-        {
-            if (previewCells[i] != null)
-                Destroy(previewCells[i]);
-        }
-        previewCells.Clear();
+        DestroyPreviewVisuals();
 
         if (grid == null)
             return;
@@ -390,6 +383,7 @@ public class GridManager : MonoBehaviour
 
                     SpriteRenderer sr = cellObj.AddComponent<SpriteRenderer>();
                     sr.sprite = GetOrCreatePreviewSprite();
+                    sr.sortingOrder = -1;
                 }
 
                 // ensure tile covers the configured cell size
@@ -397,7 +391,11 @@ public class GridManager : MonoBehaviour
 
                 SpriteRenderer renderer = cellObj.GetComponent<SpriteRenderer>();
                 if (renderer != null)
+                {
                     renderer.color = GetPreviewCellColor(pos);
+                    if (renderer.sortingOrder == 0)
+                        renderer.sortingOrder = -1;
+                }
 
                 previewCells.Add(cellObj);
             }
@@ -437,10 +435,45 @@ public class GridManager : MonoBehaviour
             return previewSprite;
 
         Texture2D texture = new Texture2D(1, 1);
+        texture.hideFlags = HideFlags.HideAndDontSave;
         texture.SetPixel(0, 0, Color.white);
         texture.Apply();
 
         previewSprite = Sprite.Create(texture, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
+        previewSprite.hideFlags = HideFlags.HideAndDontSave;
         return previewSprite;
+    }
+
+    private void DestroyPreviewVisuals()
+    {
+        for (int i = 0; i < previewCells.Count; i++)
+        {
+            if (previewCells[i] != null)
+                DestroyUnityObject(previewCells[i]);
+        }
+        previewCells.Clear();
+    }
+
+    private void OnDestroy()
+    {
+        if (previewSprite != null)
+        {
+            Texture2D texture = previewSprite.texture;
+            DestroyUnityObject(previewSprite);
+            if (texture != null)
+                DestroyUnityObject(texture);
+            previewSprite = null;
+        }
+    }
+
+    private static void DestroyUnityObject(UnityEngine.Object objectToDestroy)
+    {
+        if (objectToDestroy == null)
+            return;
+
+        if (Application.isPlaying)
+            Destroy(objectToDestroy);
+        else
+            DestroyImmediate(objectToDestroy);
     }
 }

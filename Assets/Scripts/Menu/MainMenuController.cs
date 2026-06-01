@@ -301,14 +301,16 @@ public class MainMenuController : MonoBehaviour
         }
     }
 
-            private void QuitApplication()
-            {
-        #if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-        #else
-            Application.Quit();
-        #endif
-            }
+    private void QuitApplication()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#elif UNITY_WEBGL
+        Debug.Log("MainMenuController: Quit not supported in WebGL builds.");
+#else
+        Application.Quit();
+#endif
+    }
 
     private void ShowCampaignMenu()
     {

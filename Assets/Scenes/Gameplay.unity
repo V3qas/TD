@@ -342,7 +342,7 @@ GameObject:
   - component: {fileID: 1624066898}
   - component: {fileID: 1624066900}
   m_Layer: 0
-  m_Name: MainMenu
+  m_Name: MapEditorRoot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

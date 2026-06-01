@@ -144,6 +144,7 @@ public class RuntimeMapEditorController : MonoBehaviour
     {
         isOpen = false;
         buildManager?.ClearSelectedTowerToBuild();
+        gridManager?.ClearPreviewVisuals();
 
         if (editorRoot != null)
             editorRoot.SetActive(false);

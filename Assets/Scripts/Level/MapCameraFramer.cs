@@ -59,8 +59,8 @@ public static class MapCameraFramer
         float orthographicSize = fitOrthographicSize / clampedOverzoomFactor;
 
         Vector2 center = new Vector2(
-            (definition.width - 1f) * safeCellSize * 0.5f,
-            (definition.height - 1f) * safeCellSize * 0.5f);
+            definition.width * safeCellSize * 0.5f,
+            definition.height * safeCellSize * 0.5f);
 
         float halfVisibleHeight = orthographicSize;
         float halfVisibleWidth = orthographicSize * aspect;

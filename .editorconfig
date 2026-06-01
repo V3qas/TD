@@ -1,0 +1,89 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.cs]
+indent_style = space
+indent_size = 4
+dotnet_sort_system_directives_first = true
+
+# Prefer PascalCase for types/methods and camelCase for locals/params/private fields.
+# Existing underscore-prefixed private fields are allowed, but new code should follow the surrounding file style.
+dotnet_naming_rule.private_fields_camel_case.symbols = private_fields
+dotnet_naming_rule.private_fields_camel_case.style = camel_style
+dotnet_naming_rule.private_fields_camel_case.severity = suggestion
+
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+
+dotnet_naming_rule.methods_pascal_case.symbols = methods
+dotnet_naming_rule.methods_pascal_case.style = pascal_style
+dotnet_naming_rule.methods_pascal_case.severity = suggestion
+
+dotnet_naming_symbols.methods.applicable_kinds = method
+
+dotnet_naming_style.pascal_style.capitalization = pascal_case
+
+dotnet_naming_rule.locals_camel_case.symbols = locals
+dotnet_naming_rule.locals_camel_case.style = camel_style
+dotnet_naming_rule.locals_camel_case.severity = suggestion
+
+dotnet_naming_symbols.locals.applicable_kinds = local
+dotnet_naming_style.camel_style.capitalization = camel_case
+
+# var preferences
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = false:suggestion
+
+# Braces & layout (Allman) — suggestion only to avoid noise on legacy code
+csharp_prefer_braces = true:suggestion
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_between_query_expression_clauses = true
+
+# Indentation
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_indent_labels = one_less_than_current
+
+# Spaces
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_parentheses = false
+
+# Modern C# language features
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+csharp_style_inlined_variable_declaration = true:suggestion
+csharp_style_throw_expression = true:suggestion
+csharp_style_conditional_delegate_call = true:suggestion
+csharp_style_expression_bodied_methods = false:silent
+csharp_style_expression_bodied_properties = true:silent
+
+# Naming/quality severities — kept as suggestion until the codebase is migrated
+dotnet_naming_rule.private_fields_camel_case.severity = suggestion
+dotnet_naming_rule.methods_pascal_case.severity = suggestion
+dotnet_naming_rule.locals_camel_case.severity = suggestion
+dotnet_code_quality_unused_parameters = all:suggestion
+dotnet_diagnostic.IDE0051.severity = suggestion
+dotnet_diagnostic.IDE0052.severity = suggestion
+
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:suggestion
+dotnet_style_readonly_field = true:suggestion
+
+[*.{json,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[*.{md,markdown}]
+trim_trailing_whitespace = false
