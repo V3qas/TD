@@ -11,6 +11,7 @@ public static class GameSession
         SelectedLevelData = levelData;
         SelectedMapDefinition = null;
         SelectedMapSeed = string.Empty;
+        SelectedDifficulty = new DifficultySettings();
     }
 
     public static bool SelectMapSeed(string mapSeed, out string error)
@@ -29,6 +30,7 @@ public static class GameSession
         SelectedMapSeed = !string.IsNullOrWhiteSpace(mapSeed) && SelectedMapDefinition != null
             ? mapSeed
             : SelectedMapDefinition != null ? LevelMapSeedUtility.Encode(SelectedMapDefinition) : string.Empty;
+        SelectedDifficulty = new DifficultySettings();
     }
 
     public static void ClearSelectedLevel()
@@ -36,6 +38,7 @@ public static class GameSession
         SelectedLevelData = null;
         SelectedMapDefinition = null;
         SelectedMapSeed = string.Empty;
+        SelectedDifficulty = new DifficultySettings();
     }
 
     public static void BeginTestRun(DifficultyLevel difficulty)
@@ -47,6 +50,7 @@ public static class GameSession
     public static void EndTestRun()
     {
         IsEditorTestRun = false;
+        SelectedDifficulty = new DifficultySettings();
     }
 
     public static void SelectDifficulty(DifficultySettings settings)

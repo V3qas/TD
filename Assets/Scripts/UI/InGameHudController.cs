@@ -33,6 +33,8 @@ public class InGameHudController : MonoBehaviour
     private Text contextTitleText;
     private Text contextBodyText;
     private Image towerIconImage;
+    private Button upgradeButton;
+    private Text upgradeButtonText;
     private Button sellButton;
     private Text sellButtonText;
     private Button backToEditorButton;
@@ -127,6 +129,8 @@ public class InGameHudController : MonoBehaviour
                 sellButtonText.text = $"Verkaufen ({tower.GetSellValue()} Gold)";
         }
 
+        RefreshUpgradeButton();
+
         if (towerListPanel != null)
             towerListPanel.SetActive(false);
     }
@@ -137,6 +141,9 @@ public class InGameHudController : MonoBehaviour
 
         if (sellButton != null)
             sellButton.gameObject.SetActive(false);
+
+        if (upgradeButton != null)
+            upgradeButton.gameObject.SetActive(false);
 
         contextTitleText.text = "Turmauswahl";
         contextBodyText.text = "Waehle einen Turm aus der Liste, um ihn im Ghostmode zu platzieren.";
@@ -286,6 +293,10 @@ public class InGameHudController : MonoBehaviour
 
         contextBodyText = CreateText("ContextBody", parent, "Kein Turm ausgewaehlt.", 16, TextAnchor.UpperLeft, new Color(0.82f, 0.84f, 0.88f));
         contextBodyText.gameObject.AddComponent<LayoutElement>().preferredHeight = 150f;
+
+        upgradeButton = CreateButton(parent, "Upgrade", UpgradeSelectedTower, true);
+        upgradeButtonText = upgradeButton.GetComponentInChildren<Text>();
+        upgradeButton.gameObject.SetActive(false);
 
         sellButton = CreateButton(parent, "Verkaufen", SellSelectedTower, true);
         sellButtonText = sellButton.GetComponentInChildren<Text>();
@@ -441,6 +452,30 @@ public class InGameHudController : MonoBehaviour
             if (towerBuildButton.labelText != null)
                 towerBuildButton.labelText.text = GetTowerButtonLabel(towerBuildButton.towerData);
         }
+
+        RefreshUpgradeButton();
+    }
+
+    private void RefreshUpgradeButton()
+    {
+        if (upgradeButton == null)
+            return;
+
+        if (currentSelectedTower == null)
+        {
+            upgradeButton.gameObject.SetActive(false);
+            return;
+        }
+
+        int cost = currentSelectedTower.GetNextUpgradeCost();
+        bool canUpgrade = cost >= 0;
+        bool canAfford = gameState == null || gameState.Money >= cost;
+
+        upgradeButton.gameObject.SetActive(canUpgrade);
+        upgradeButton.interactable = canUpgrade && canAfford;
+
+        if (upgradeButtonText != null)
+            upgradeButtonText.text = canUpgrade ? $"Upgrade ({cost} Gold)" : "Upgrade max";
     }
 
     private string GetTowerButtonLabel(TowerData towerData)
@@ -488,5 +523,34 @@ public class InGameHudController : MonoBehaviour
         towerSelectionController?.DeselectTower();
         currentSelectedTower = null;
         ClearContext();
+    }
+
+    private void UpgradeSelectedTower()
+    {
+        if (currentSelectedTower == null)
+            return;
+
+        int cost = currentSelectedTower.GetNextUpgradeCost();
+        if (cost < 0)
+        {
+            RefreshUpgradeButton();
+            return;
+        }
+
+        if (gameState != null && !gameState.TrySpendMoney(cost))
+        {
+            RefreshUpgradeButton();
+            return;
+        }
+
+        if (!currentSelectedTower.TryUpgrade())
+        {
+            gameState?.AddMoney(cost);
+            RefreshUpgradeButton();
+            return;
+        }
+
+        ShowTower(currentSelectedTower);
+        towerSelectionController?.RefreshTowerRange(currentSelectedTower);
     }
 }

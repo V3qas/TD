@@ -44,13 +44,13 @@ public class GridManager : MonoBehaviour
     {
         if (levelData == null)
         {
-            Debug.LogError("GridManager: LevelData fehlt.");
+            Debug.LogError("GridManager: LevelData is missing.");
             return;
         }
 
         if (!levelData.TryGetMapDefinition(out LevelMapDefinition definition, out string validationError))
         {
-            Debug.LogError($"GridManager: LevelData ist ungueltig ({validationError}).");
+            Debug.LogError($"GridManager: LevelData is invalid ({validationError}).");
             return;
         }
 
@@ -79,13 +79,13 @@ public class GridManager : MonoBehaviour
 
         if (definition == null)
         {
-            Debug.LogError("GridManager: Map-Daten fehlen.");
+            Debug.LogError("GridManager: Map data is missing.");
             return;
         }
 
         if (validateMap && !LevelMapValidator.Validate(definition, false, out string validationError))
         {
-            Debug.LogError($"GridManager: Map-Daten sind ungueltig ({validationError}).");
+            Debug.LogError($"GridManager: Map data is invalid ({validationError}).");
             return;
         }
 
@@ -234,8 +234,7 @@ public class GridManager : MonoBehaviour
         if (cell == null)
             return true;
 
-        // Fast-Path: Wenn die Zelle nicht auf dem aktuellen Gegnerpfad liegt,
-        // kann ihre Belegung den Pfad gar nicht blockieren → kein BFS nötig.
+        // Fast path: cells outside the current enemy path cannot block it.
         if (cachedEnemyPath != null && cachedEnemyPath.Count > 0
             && !cachedEnemyPathLookup.Contains(cellPosition))
         {
@@ -291,7 +290,7 @@ public class GridManager : MonoBehaviour
         if (path == null || path.Count == 0)
         {
             if (warnIfNoPath)
-                Debug.LogWarning("GridManager: Kein reservierter Gegnerpfad gefunden.");
+                Debug.LogWarning("GridManager: No reserved enemy path found.");
 
             cachedEnemyPath = null;
             cachedEnemyPathLookup.Clear();

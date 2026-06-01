@@ -10,13 +10,13 @@ public class BuildManager : MonoBehaviour
     [SerializeField] private GridManager gridManager;
     [SerializeField] private GameState gameState;
 
-    [Header("Bauen")]
+    [Header("Build")]
     [SerializeField] private TowerData towerToBuild;
 
-    [Tooltip("Diese Tower erscheinen im rechten Ingame-Menue als baubare Auswahl.")]
+    [Tooltip("Towers shown as build options in the in-game menu.")]
     [SerializeField] private List<TowerData> availableTowers = new List<TowerData>();
 
-    [Tooltip("Optional: Upgrade-Pfad für den platzierten Turm")]
+    [Tooltip("Optional upgrade path assigned to placed towers.")]
     [SerializeField] private TowerUpgradeData towerUpgradeData;
 
     [Header("Ghost Preview")]
@@ -141,13 +141,13 @@ public class BuildManager : MonoBehaviour
     {
         if (mainCamera == null)
         {
-            Debug.LogError("BuildManager: Main Camera fehlt.");
+            Debug.LogError("BuildManager: Main Camera is missing.");
             return;
         }
 
         if (gridManager == null)
         {
-            Debug.LogError("BuildManager: GridManager fehlt.");
+            Debug.LogError("BuildManager: GridManager is missing.");
             return;
         }
 
@@ -158,7 +158,7 @@ public class BuildManager : MonoBehaviour
 
         if (towerToBuild.towerPrefab == null)
         {
-            Debug.LogError($"BuildManager: TowerData '{towerToBuild.towerName}' hat kein Prefab.");
+            Debug.LogError($"BuildManager: TowerData '{towerToBuild.towerName}' has no prefab.");
             return;
         }
 
@@ -173,7 +173,7 @@ public class BuildManager : MonoBehaviour
 
         if (gameState != null && !gameState.TrySpendMoney(towerToBuild.cost))
         {
-            Debug.Log("BuildManager: Nicht genug Geld fuer diesen Turm.");
+            Debug.Log("BuildManager: Not enough money for this tower.");
             return;
         }
 
@@ -195,7 +195,7 @@ public class BuildManager : MonoBehaviour
     {
         if (towerToBuild.towerPrefab == null)
         {
-            Debug.LogError($"BuildManager: TowerData '{towerToBuild.towerName}' hat kein Prefab.");
+            Debug.LogError($"BuildManager: TowerData '{towerToBuild.towerName}' has no prefab.");
             return false;
         }
 
@@ -211,7 +211,7 @@ public class BuildManager : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"BuildManager: Tower-Prefab '{towerToBuild.towerPrefab.name}' hat keine Tower-Komponente.");
+            Debug.LogWarning($"BuildManager: Tower prefab '{towerToBuild.towerPrefab.name}' has no Tower component.");
             return true;
         }
     }
@@ -322,7 +322,13 @@ public class BuildManager : MonoBehaviour
         foreach (Tower tower in towers)
         {
             if (tower != null)
+            {
+                Vector2Int cell = gridManager != null ? gridManager.WorldToCell(tower.transform.position) : default;
+                if (gridManager != null)
+                    gridManager.ClearOccupiedCell(cell);
+
                 Destroy(tower.gameObject);
+            }
         }
     }
 }

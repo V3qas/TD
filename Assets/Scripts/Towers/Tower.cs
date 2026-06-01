@@ -22,9 +22,10 @@ public class Tower : MonoBehaviour
         get
         {
             float total = data.damage;
-            int cap = Mathf.Min(currentUpgradeLevel, upgradeData != null ? upgradeData.levels.Count : 0);
+            int cap = Mathf.Min(currentUpgradeLevel, upgradeData != null && upgradeData.levels != null ? upgradeData.levels.Count : 0);
             for (int i = 0; i < cap; i++)
-                total += upgradeData.levels[i].damageBonus;
+                if (upgradeData.levels[i] != null)
+                    total += upgradeData.levels[i].damageBonus;
             return total;
         }
     }
@@ -34,9 +35,10 @@ public class Tower : MonoBehaviour
         get
         {
             float total = data.attackSpeed;
-            int cap = Mathf.Min(currentUpgradeLevel, upgradeData != null ? upgradeData.levels.Count : 0);
+            int cap = Mathf.Min(currentUpgradeLevel, upgradeData != null && upgradeData.levels != null ? upgradeData.levels.Count : 0);
             for (int i = 0; i < cap; i++)
-                total += upgradeData.levels[i].attackSpeedBonus;
+                if (upgradeData.levels[i] != null)
+                    total += upgradeData.levels[i].attackSpeedBonus;
             return Mathf.Max(0.01f, total); // verhindert Division durch 0
         }
     }
@@ -46,9 +48,10 @@ public class Tower : MonoBehaviour
         get
         {
             float total = data.range;
-            int cap = Mathf.Min(currentUpgradeLevel, upgradeData != null ? upgradeData.levels.Count : 0);
+            int cap = Mathf.Min(currentUpgradeLevel, upgradeData != null && upgradeData.levels != null ? upgradeData.levels.Count : 0);
             for (int i = 0; i < cap; i++)
-                total += upgradeData.levels[i].rangeBonus;
+                if (upgradeData.levels[i] != null)
+                    total += upgradeData.levels[i].rangeBonus;
             return total;
         }
     }
@@ -61,11 +64,12 @@ public class Tower : MonoBehaviour
     {
         get
         {
-            if (upgradeData != null)
+            if (upgradeData != null && upgradeData.levels != null)
             {
-                for (int i = currentUpgradeLevel - 1; i >= 0; i--)
+                int cap = Mathf.Min(currentUpgradeLevel, upgradeData.levels.Count);
+                for (int i = cap - 1; i >= 0; i--)
                 {
-                    if (upgradeData.levels[i].overrideBulletData != null)
+                    if (upgradeData.levels[i] != null && upgradeData.levels[i].overrideBulletData != null)
                         return upgradeData.levels[i].overrideBulletData;
                 }
             }
@@ -93,7 +97,10 @@ public class Tower : MonoBehaviour
 
     public bool CanUpgrade()
     {
-        return upgradeData != null && currentUpgradeLevel < upgradeData.levels.Count;
+        return upgradeData != null
+            && upgradeData.levels != null
+            && currentUpgradeLevel < upgradeData.levels.Count
+            && upgradeData.levels[currentUpgradeLevel] != null;
     }
 
     /// <summary>Gibt die Kosten der nächsten Upgrade-Stufe zurück, oder -1 wenn kein Upgrade möglich.</summary>
@@ -173,13 +180,13 @@ public class Tower : MonoBehaviour
 
         if (bulletData == null)
         {
-            Debug.LogWarning($"Tower '{data.towerName}': Kein BulletData zugewiesen.");
+            Debug.LogWarning($"Tower '{data.towerName}': No BulletData assigned.");
             return;
         }
 
         if (bulletData.bulletPrefab == null)
         {
-            Debug.LogWarning($"Tower '{data.towerName}': BulletData '{bulletData.bulletName}' hat kein Prefab.");
+            Debug.LogWarning($"Tower '{data.towerName}': BulletData '{bulletData.bulletName}' has no prefab.");
             return;
         }
 
@@ -190,7 +197,7 @@ public class Tower : MonoBehaviour
             bullet.Initialize(bulletData, EffectiveDamage, target);
         else
         {
-            Debug.LogWarning($"Tower '{data.towerName}': Bullet-Prefab hat keine Bullet-Komponente.");
+            Debug.LogWarning($"Tower '{data.towerName}': Bullet prefab has no Bullet component.");
             PrefabPool.Release(bulletObject);
         }
     }

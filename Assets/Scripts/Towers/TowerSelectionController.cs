@@ -91,4 +91,15 @@ public class TowerSelectionController : MonoBehaviour
     {
         HideRangeIndicator();
     }
+
+    public void RefreshTowerRange(Tower tower)
+    {
+        if (tower == null)
+        {
+            HideRangeIndicator();
+            return;
+        }
+
+        GetOrCreateRangeIndicator().Show(tower.transform.position, tower.Range, selectedRangeColor);
+    }
 }

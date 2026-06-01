@@ -63,7 +63,7 @@ public class LevelLoader : MonoBehaviour
         levelData = selectedLevel;
         if (!levelData.TryGetMapDefinition(out LevelMapDefinition definition, out string validationError))
         {
-            Debug.LogError($"LevelLoader: LevelData ist ungueltig ({validationError}).");
+            Debug.LogError($"LevelLoader: LevelData is invalid ({validationError}).");
             return;
         }
 
@@ -77,7 +77,7 @@ public class LevelLoader : MonoBehaviour
     {
         if (!LevelMapSeedUtility.TryDecode(mapSeed, out LevelMapDefinition definition, out string error))
         {
-            Debug.LogError($"LevelLoader: Map seed ist ungueltig ({error}).");
+            Debug.LogError($"LevelLoader: Map seed is invalid ({error}).");
             return false;
         }
 
@@ -89,7 +89,7 @@ public class LevelLoader : MonoBehaviour
     {
         if (definition == null)
         {
-            Debug.LogError("LevelLoader: Map-Daten fehlen.");
+            Debug.LogError("LevelLoader: Map data is missing.");
             return;
         }
 

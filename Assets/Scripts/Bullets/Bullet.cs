@@ -7,9 +7,6 @@ public class Bullet : MonoBehaviour
     private Enemy target;
     private bool hasHit;
 
-    /// <summary>
-    /// Initialisiert das Projektil. Muss direkt nach Instantiate aufgerufen werden.
-    /// </summary>
     public void Initialize(BulletData bulletData, float damage, Enemy target)
     {
         this.data = bulletData;
@@ -20,8 +17,7 @@ public class Bullet : MonoBehaviour
 
     private void OnDisable()
     {
-        // Beim Zurueckgeben in den Pool Zustand zuruecksetzen, damit naechste
-        // Wiederverwendung wie eine frische Instanz wirkt.
+        // Reset pooled state so the next spawn behaves like a fresh instance.
         target = null;
         hasHit = false;
         damage = 0f;
@@ -32,7 +28,6 @@ public class Bullet : MonoBehaviour
         if (hasHit)
             return;
 
-        // Ziel vernichtet bevor Bullet ankam
         if (target == null)
         {
             PrefabPool.Release(gameObject);

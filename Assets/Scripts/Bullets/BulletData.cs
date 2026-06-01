@@ -6,33 +6,33 @@ public class BulletData : ScriptableObject
     [Header("Info")]
     public string bulletName;
 
-    [Header("Bewegung")]
-    [Tooltip("Fluggeschwindigkeit in Units/Sekunde")]
+    [Header("Movement")]
+    [Tooltip("Flight speed in units per second.")]
     public float travelSpeed = 8f;
 
-    [Header("Schaden")]
-    [Tooltip("Multiplikator auf den Turm-Grundschaden (1 = 100 %, 1.5 = 150 %)")]
+    [Header("Damage")]
+    [Tooltip("Multiplier applied to the tower base damage.")]
     public float damageMultiplier = 1f;
 
-    [Header("Spezialeffekte")]
-    [Tooltip("Trifft alle Gegner im Radius um den Aufprallpunkt (0 = kein Splash)")]
+    [Header("Special Effects")]
+    [Tooltip("Hits all enemies in the impact radius. Zero disables splash.")]
     public float splashRadius = 0f;
 
-    [Tooltip("Durchdringt Gegner und fliegt weiter bis zum Ende der Reichweite")]
+    [Tooltip("Passes through enemies and continues until its range ends.")]
     public bool isPiercing = false;
 
-    [Header("Slow-Effekt")]
-    [Tooltip("Geschwindigkeitsfaktor nach dem Treffer (1 = kein Slow, 0.5 = halbe Geschwindigkeit)")]
+    [Header("Slow Effect")]
+    [Tooltip("Speed factor after impact. One disables slow.")]
     [Range(0.1f, 1f)]
     public float slowFactor = 1f;
 
-    [Tooltip("Dauer des Slow in Sekunden (0 = kein Slow)")]
+    [Tooltip("Slow duration in seconds. Zero disables slow.")]
     public float slowDuration = 0f;
 
     [Header("Visuals")]
-    [Tooltip("Prefab des Projektils – muss eine Bullet-Komponente haben")]
+    [Tooltip("Projectile prefab. Must contain a Bullet component.")]
     public GameObject bulletPrefab;
 
-    [Tooltip("Optionaler Animator für die Einschlag-Animation")]
+    [Tooltip("Optional animator for impact animations.")]
     public RuntimeAnimatorController hitAnimator;
 }

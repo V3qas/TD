@@ -28,7 +28,7 @@ public class LevelData : ScriptableObject
             if (LevelMapSeedUtility.TryDecode(mapSeed, out LevelMapDefinition seedDefinition, out string seedError))
                 return seedDefinition;
 
-            Debug.LogWarning($"LevelData '{name}': Map seed ist ungueltig ({seedError}). Legacy-Felder werden verwendet.");
+            Debug.LogWarning($"LevelData '{name}': Map seed is invalid ({seedError}). Falling back to legacy fields.");
         }
 
         return LevelMapDefinition.FromLegacy(width, height, startCell, goalCell, blockedCells, pathCells);

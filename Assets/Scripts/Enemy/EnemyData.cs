@@ -7,19 +7,19 @@ public class EnemyData : ScriptableObject
     public string enemyName;
 
     [Header("Stats")]
-    [Tooltip("Gesamte Lebenspunkte")]
+    [Tooltip("Total hit points.")]
     public float maxHealth = 100f;
 
-    [Tooltip("Bewegungsgeschwindigkeit in Units/Sekunde")]
+    [Tooltip("Movement speed in units per second.")]
     public float speed = 2f;
 
-    [Tooltip("Schutzschild – wird vor den HP abgezogen. Kein Rüstungsbonus auf Schild.")]
+    [Tooltip("Shield points. Shield absorbs damage before health and ignores armor.")]
     public float shield = 0f;
 
-    [Tooltip("Flache Schadensreduzierung pro Treffer (gilt nach Shield-Berechnung)")]
+    [Tooltip("Flat damage reduction per hit after shield damage.")]
     public float armor = 0f;
 
     [Header("Reward")]
-    [Tooltip("Gold, das der Spieler beim Töten erhält")]
+    [Tooltip("Gold awarded when this enemy is killed.")]
     public int reward = 10;
 }

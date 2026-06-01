@@ -6,27 +6,27 @@ public class TowerData : ScriptableObject
     [Header("Info")]
     public string towerName;
 
-    [Tooltip("Icon fuer die spaetere Anzeige im Ingame-Menue")]
+    [Tooltip("Icon shown in the in-game menu.")]
     public Sprite icon;
 
-    [Tooltip("Kosten beim Platzieren dieses Turms")]
+    [Tooltip("Cost to place this tower.")]
     public int cost = 50;
 
-    [Header("Kampf")]
-    [Tooltip("Grundschaden pro Schuss")]
+    [Header("Combat")]
+    [Tooltip("Base damage per shot.")]
     public float damage = 20f;
 
-    [Tooltip("Angriffe pro Sekunde")]
+    [Tooltip("Attacks per second.")]
     public float attackSpeed = 1f;
 
-    [Tooltip("Reichweite in Units")]
+    [Tooltip("Range in units.")]
     public float range = 3f;
 
-    [Header("Projektil")]
-    [Tooltip("Bullet-Typ, den dieser Turm standardmäßig verschießt")]
+    [Header("Projectile")]
+    [Tooltip("Default bullet type fired by this tower.")]
     public BulletData bulletData;
 
     [Header("Prefabs")]
-    [Tooltip("Prefab des Turms – muss eine Tower-Komponente haben")]
+    [Tooltip("Tower prefab. Must contain a Tower component.")]
     public GameObject towerPrefab;
 }

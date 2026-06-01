@@ -352,7 +352,7 @@ public class MainMenuController : MonoBehaviour
         LevelData selectedLevel = levelConfig.levelData;
         if (selectedLevel == null)
         {
-            Debug.LogError("MainMenuController: Kein LevelData fuer diesen Level-Button zugewiesen.");
+            Debug.LogError("MainMenuController: No LevelData assigned to this level button.");
             return;
         }
 
@@ -372,7 +372,7 @@ public class MainMenuController : MonoBehaviour
     {
         if (!GameSession.SelectMapSeed(mapSeed, out string error))
         {
-            Debug.LogError($"MainMenuController: Map-Seed '{label}' ist ungueltig ({error}).");
+            Debug.LogError($"MainMenuController: Map seed '{label}' is invalid ({error}).");
             return;
         }
 

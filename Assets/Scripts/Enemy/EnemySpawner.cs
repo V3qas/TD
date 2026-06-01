@@ -16,7 +16,7 @@ public class EnemySpawnEntry
     [Min(0)] public int baseAmount = 5;
     [Min(0)] public int amountPerRound = 1;
 
-    [Tooltip("Sekunden bis zum naechsten Spawn dieses Gegners")]
+    [Tooltip("Seconds until the next spawn of this enemy.")]
     [Min(0.05f)] public float spawnInterval = 2f;
 }
 
@@ -30,13 +30,13 @@ public class EnemySpawner : MonoBehaviour
     [SerializeField] private EnemyData enemyData;
     [SerializeField] private GameObject enemyPrefab;
 
-    [Tooltip("Sekunden zwischen zwei Spawns")]
+    [Tooltip("Seconds between spawns.")]
     [SerializeField] private float spawnInterval = 2f;
 
-    [Tooltip("Wenn aktiv, startet der Spawner automatisch sobald ein Grid existiert.")]
+    [Tooltip("When enabled, spawning starts automatically once a grid exists.")]
     [SerializeField] private bool startAutomatically = true;
 
-    [Tooltip("Pause zwischen zwei Runden")]
+    [Tooltip("Pause between rounds.")]
     [SerializeField] private float timeBetweenRounds = 5f;
 
     [Header("Round Enemy Types")]
@@ -144,7 +144,7 @@ public class EnemySpawner : MonoBehaviour
     {
         if (gridManager == null)
         {
-            Debug.LogError("EnemySpawner: GridManager fehlt.");
+            Debug.LogError("EnemySpawner: GridManager is missing.");
             yield break;
         }
 
@@ -169,7 +169,7 @@ public class EnemySpawner : MonoBehaviour
 
         if (spawnQueue.Count == 0)
         {
-            Debug.LogError("EnemySpawner: Keine gueltigen Enemy-Spawn-Eintraege konfiguriert.");
+            Debug.LogError("EnemySpawner: No valid enemy spawn entries configured.");
             isSpawning = false;
             return;
         }
@@ -183,17 +183,16 @@ public class EnemySpawner : MonoBehaviour
     {
         if (gridManager == null)
         {
-            Debug.LogError("EnemySpawner: GridManager fehlt.");
+            Debug.LogError("EnemySpawner: GridManager is missing.");
             return;
         }
 
-        // Pfad direkt vom GridManager beziehen (wird dort beim Grid-Aufbau
-        // und nach jeder Belegungsänderung gecached).
+        // Use the path cached by GridManager during grid build and occupancy changes.
         cachedPath = gridManager.GetCachedEnemyPathWorld();
 
         if (cachedPath == null || cachedPath.Count == 0)
         {
-            Debug.LogError("EnemySpawner: Kein Pfad vom Start zum Ziel gefunden.");
+            Debug.LogError("EnemySpawner: No path from start to goal found.");
             cachedPath = null;
             return;
         }
@@ -216,7 +215,7 @@ public class EnemySpawner : MonoBehaviour
 
         cachedPath = newPath;
 
-        // Bereits aktive Gegner auf neuen Pfad umsetzen.
+        // Move active enemies to the updated path.
         for (int i = spawnedEnemies.Count - 1; i >= 0; i--)
         {
             Enemy enemy = spawnedEnemies[i];
@@ -288,7 +287,7 @@ public class EnemySpawner : MonoBehaviour
     {
         if (!IsValidSpawnEntry(spawnEntry))
         {
-            Debug.LogError("EnemySpawner: Ungueltiger Spawn-Eintrag.");
+            Debug.LogError("EnemySpawner: Invalid spawn entry.");
             return;
         }
 
@@ -297,7 +296,7 @@ public class EnemySpawner : MonoBehaviour
 
         if (enemy == null)
         {
-            Debug.LogWarning("EnemySpawner: Enemy-Prefab hat keine Enemy-Komponente.");
+            Debug.LogWarning("EnemySpawner: Enemy prefab has no Enemy component.");
             PrefabPool.Release(enemyObject);
             return;
         }
@@ -334,7 +333,7 @@ public class EnemySpawner : MonoBehaviour
 
     private void ClearSpawnedEnemies()
     {
-        // Lokale Kopie iterieren, da UnregisterEnemy aus spawnedEnemies entfernt.
+        // Iterate backwards because UnregisterEnemy removes from spawnedEnemies.
         for (int i = spawnedEnemies.Count - 1; i >= 0; i--)
         {
             Enemy enemy = spawnedEnemies[i];
@@ -347,8 +346,7 @@ public class EnemySpawner : MonoBehaviour
 
         spawnedEnemies.Clear();
 
-        // Sicherheitsnetz: alle Enemies, die der Spawner nicht trackt (z.B. aus
-        // einem früheren Run), ebenfalls entfernen.
+        // Also remove stray enemies from earlier runs that are no longer tracked.
         Enemy[] strays = FindObjectsByType<Enemy>(FindObjectsInactive.Exclude);
         for (int i = 0; i < strays.Length; i++)
         {

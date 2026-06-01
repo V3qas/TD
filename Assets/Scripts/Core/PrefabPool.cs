@@ -1,13 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
+using UnityEngine.SceneManagement;
 
-/// <summary>
-/// Zentraler Pool fuer beliebige Prefab-Instanzen. Pro Prefab wird intern ein
-/// eigener <see cref="ObjectPool{T}"/> verwaltet. Eine zurueckgegebene Instanz
-/// muss am Prefab erkannt werden koennen, deshalb merken wir uns die Quelle
-/// per <see cref="PooledObject"/>-Komponente.
-/// </summary>
 public static class PrefabPool
 {
     private const int DefaultCapacity = 16;
@@ -16,12 +11,16 @@ public static class PrefabPool
     private static readonly Dictionary<GameObject, ObjectPool<GameObject>> pools = new();
     private static Transform parent;
 
-    /// <summary>Holt eine Instanz aus dem Pool (oder erzeugt sie). Aktiviert sie und positioniert sie.</summary>
+    static PrefabPool()
+    {
+        SceneManager.sceneUnloaded += HandleSceneUnloaded;
+    }
+
     public static GameObject Spawn(GameObject prefab, Vector3 position, Quaternion rotation)
     {
         if (prefab == null)
         {
-            Debug.LogError("PrefabPool.Spawn: prefab ist null.");
+            Debug.LogError("PrefabPool.Spawn: Prefab is null.");
             return null;
         }
 
@@ -44,17 +43,20 @@ public static class PrefabPool
             return;
         }
 
-        // Fallback: nicht gepoolt -> hart zerstoeren.
         Object.Destroy(instance);
     }
 
-    /// <summary>Loescht alle Pools (z.B. beim Szenenwechsel).</summary>
     public static void Clear()
     {
         foreach (KeyValuePair<GameObject, ObjectPool<GameObject>> kvp in pools)
             kvp.Value.Dispose();
         pools.Clear();
         parent = null;
+    }
+
+    private static void HandleSceneUnloaded(Scene scene)
+    {
+        Clear();
     }
 
     private static ObjectPool<GameObject> GetOrCreatePool(GameObject prefab)
@@ -104,7 +106,6 @@ public static class PrefabPool
     }
 }
 
-/// <summary>Marker-Komponente, die jede gepoolte Instanz mit ihrem Quell-Prefab verknuepft.</summary>
 public class PooledObject : MonoBehaviour
 {
     public GameObject SourcePrefab;

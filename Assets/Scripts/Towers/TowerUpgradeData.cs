@@ -11,19 +11,19 @@ public class TowerUpgradeData : ScriptableObject
         [Header("Info")]
         public string upgradeName;
 
-        [Tooltip("Kosten dieser Upgrade-Stufe in Währungseinheiten")]
+        [Tooltip("Cost of this upgrade level.")]
         public int cost;
 
-        [Header("Stat-Boni (additiv auf den vorherigen Stand)")]
+        [Header("Stat Bonuses")]
         public float damageBonus;
         public float attackSpeedBonus;
         public float rangeBonus;
 
-        [Header("Projektil-Austausch")]
-        [Tooltip("Leer lassen, um den aktuellen Bullet-Typ beizubehalten")]
+        [Header("Projectile Override")]
+        [Tooltip("Leave empty to keep the current bullet type.")]
         public BulletData overrideBulletData;
     }
 
-    [Tooltip("Upgrade-Stufen in aufsteigender Reihenfolge (Index 0 = erste Verbesserung)")]
+    [Tooltip("Upgrade levels in ascending order. Index zero is the first upgrade.")]
     public List<UpgradeLevel> levels = new List<UpgradeLevel>();
 }
