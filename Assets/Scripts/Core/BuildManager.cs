@@ -230,13 +230,20 @@ public class BuildManager : MonoBehaviour
         Vector3 worldPosition = gridManager.CellToWorld(cellPosition);
         bool canPlace = gridManager.CanBuildAt(cellPosition) && CanAfford(towerToBuild);
 
+        // Mirror the runtime range bonus that BuildAtCell applies after
+        // placement, so the ghost preview and range indicator already show
+        // the boosted range while the player hovers Elevated terrain.
+        float ghostRange = towerToBuild.range;
+        if (gridManager.GetGroundType(cellPosition) == GroundType.Elevated)
+            ghostRange += 1f;
+
         if (ghostObject != null)
         {
             ghostObject.transform.position = worldPosition;
             ApplyGhostColor(canPlace ? validGhostColor : invalidGhostColor);
         }
 
-        GetOrCreateGhostRangeIndicator().Show(worldPosition, towerToBuild.range, canPlace ? validRangeColor : invalidRangeColor);
+        GetOrCreateGhostRangeIndicator().Show(worldPosition, ghostRange, canPlace ? validRangeColor : invalidRangeColor);
     }
 
     private Vector2Int GetMouseCellPosition()

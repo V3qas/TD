@@ -161,8 +161,10 @@ public class Tower : MonoBehaviour
     /// <summary>
     /// Targeting priority:
     ///  1. Marked Destructibles in range — the player has explicitly told the
-    ///     towers to break these, so they take precedence.
+    ///     towers to break these, so they take precedence over enemies.
     ///  2. Nearest enemy in range.
+    ///  3. Unmarked Destructibles in range — fallback so towers don't idle
+    ///     when the only valid targets are blocking blocks.
     /// </summary>
     private IDamageable FindNearestTarget()
     {
@@ -204,7 +206,25 @@ public class Tower : MonoBehaviour
             }
         }
 
-        return nearest;
+        if (nearest != null)
+            return nearest;
+
+        // Fallback: any Destructible in range, marked or not.
+        Destructible nearestAny = null;
+        float nearestAnySqr = rangeSqr;
+        IReadOnlyList<Destructible> all = Destructible.ActiveTargets;
+        for (int i = 0; i < all.Count; i++)
+        {
+            Destructible d = all[i];
+            if (d == null || d.IsDead) continue;
+            float sqr = (position - d.WorldPosition).sqrMagnitude;
+            if (sqr <= nearestAnySqr)
+            {
+                nearestAnySqr = sqr;
+                nearestAny = d;
+            }
+        }
+        return nearestAny;
     }
 
     private void Shoot(IDamageable target)

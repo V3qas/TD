@@ -14,6 +14,9 @@ public class Destructible : MonoBehaviour, IDamageable
     private static readonly List<Destructible> markedTargets = new List<Destructible>();
     public static IReadOnlyList<Destructible> MarkedTargets => markedTargets;
 
+    private static readonly List<Destructible> activeTargets = new List<Destructible>();
+    public static IReadOnlyList<Destructible> ActiveTargets => activeTargets;
+
     private float maxHealth;
     private float currentHealth;
     private int reward;
@@ -37,6 +40,9 @@ public class Destructible : MonoBehaviour, IDamageable
         spriteRenderer = renderer;
         isMarked = false;
         UpdateMarkedVisual();
+
+        if (!activeTargets.Contains(this))
+            activeTargets.Add(this);
 
         if (healthBar == null)
             healthBar = HealthBar.AttachTo(transform);
@@ -96,6 +102,7 @@ public class Destructible : MonoBehaviour, IDamageable
             markedTargets.Remove(this);
             isMarked = false;
         }
+        activeTargets.Remove(this);
     }
 
     private void UpdateMarkedVisual()
