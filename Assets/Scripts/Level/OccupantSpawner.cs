@@ -22,6 +22,7 @@ public class OccupantSpawner : MonoBehaviour
     [SerializeField] private GridManager gridManager;
     [SerializeField] private Camera clickCamera;
     [SerializeField] private BuildManager buildManager;
+    [SerializeField] private bool verboseClickLogging = false;
 
     private static Sprite cachedQuadSprite;
     private readonly List<GameObject> spawned = new List<GameObject>();
@@ -39,29 +40,56 @@ public class OccupantSpawner : MonoBehaviour
         if (Mouse.current == null) return;
         if (!Mouse.current.leftButton.wasPressedThisFrame) return;
 
-        // Don't toggle marks while the player is actively placing a tower —
-        // the BuildManager already consumes that click for placement.
-        if (buildManager != null && buildManager.IsPlacingTower) return;
+        if (buildManager != null && buildManager.IsPlacingTower)
+        {
+            if (verboseClickLogging) Debug.Log("[OccupantSpawner] Click ignored: tower placement active.");
+            return;
+        }
 
-        // Ignore clicks over UI.
-        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+        {
+            if (verboseClickLogging) Debug.Log("[OccupantSpawner] Click ignored: pointer over UI.");
+            return;
+        }
 
         Camera cam = clickCamera != null ? clickCamera : Camera.main;
-        if (cam == null) return;
+        if (cam == null)
+        {
+            if (verboseClickLogging) Debug.LogWarning("[OccupantSpawner] No camera found.");
+            return;
+        }
 
         Vector2 screenPos = Mouse.current.position.ReadValue();
         Vector3 worldPosition = cam.ScreenToWorldPoint(screenPos);
         Vector2 point = new Vector2(worldPosition.x, worldPosition.y);
 
-        // OverlapPointAll so a tower or other collider stacked on top of a
-        // destructible never blocks the click.
         Collider2D[] hits = Physics2D.OverlapPointAll(point);
+        if (verboseClickLogging) Debug.Log($"[OccupantSpawner] Click at {point} hit {hits.Length} colliders. Active destructibles: {Destructible.ActiveTargets.Count}");
+
         for (int i = 0; i < hits.Length; i++)
         {
             Destructible destructible = hits[i].GetComponentInParent<Destructible>();
             if (destructible != null)
             {
                 destructible.ToggleMarked();
+                if (verboseClickLogging) Debug.Log($"[OccupantSpawner] Toggled mark on {destructible.name}, marked={destructible.IsMarked}.");
+                return;
+            }
+        }
+
+        // Fallback: distance-based hit test against the registry, in case the
+        // physics raycast misses (collider disabled, layer mismatch, etc.).
+        IReadOnlyList<Destructible> active = Destructible.ActiveTargets;
+        float halfCell = gridManager != null ? gridManager.CellSize * 0.5f : 0.5f;
+        for (int i = 0; i < active.Count; i++)
+        {
+            Destructible d = active[i];
+            if (d == null) continue;
+            Vector2 dp = d.transform.position;
+            if (Mathf.Abs(dp.x - point.x) <= halfCell && Mathf.Abs(dp.y - point.y) <= halfCell)
+            {
+                d.ToggleMarked();
+                if (verboseClickLogging) Debug.Log($"[OccupantSpawner] Fallback toggled {d.name}, marked={d.IsMarked}.");
                 return;
             }
         }
