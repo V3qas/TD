@@ -207,6 +207,8 @@ public class BuildManager : MonoBehaviour
         if (tower != null)
         {
             tower.Initialize(towerToBuild, towerUpgradeData);
+            if (gridManager.GetGroundType(cellPosition) == GroundType.Elevated)
+                tower.SetTerrainRangeBonus(1f);
             return true;
         }
         else

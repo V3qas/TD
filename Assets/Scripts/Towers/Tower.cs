@@ -8,6 +8,7 @@ public class Tower : MonoBehaviour
     private int currentUpgradeLevel;
     private float attackTimer;
     private int totalInvested;
+    private float terrainRangeBonus;
 
     public TowerData Data => data;
     public int CurrentUpgradeLevel => currentUpgradeLevel;
@@ -47,13 +48,22 @@ public class Tower : MonoBehaviour
     {
         get
         {
-            float total = data.range;
+            float total = data.range + terrainRangeBonus;
             int cap = Mathf.Min(currentUpgradeLevel, upgradeData != null && upgradeData.levels != null ? upgradeData.levels.Count : 0);
             for (int i = 0; i < cap; i++)
                 if (upgradeData.levels[i] != null)
                     total += upgradeData.levels[i].rangeBonus;
             return total;
         }
+    }
+
+    /// <summary>
+    /// Adds a flat range bonus from the terrain the tower stands on (e.g. +1
+    /// when placed on Elevated ground). Set once after placement.
+    /// </summary>
+    public void SetTerrainRangeBonus(float bonus)
+    {
+        terrainRangeBonus = bonus;
     }
 
     /// <summary>

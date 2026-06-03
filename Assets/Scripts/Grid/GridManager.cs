@@ -11,6 +11,7 @@ public class GridManager : MonoBehaviour
 
     private GridCell[,] grid;
     private readonly HashSet<Vector2Int> reservedPathCells = new HashSet<Vector2Int>();
+    private readonly Dictionary<Vector2Int, GroundType> runtimeGroundOverrides = new Dictionary<Vector2Int, GroundType>();
 
     // Runtime preview objects created by BuildGridPreview
     private readonly List<GameObject> previewCells = new List<GameObject>();
@@ -138,6 +139,16 @@ public class GridManager : MonoBehaviour
             }
         }
 
+        runtimeGroundOverrides.Clear();
+        if (normalizedDefinition.groundOverrides != null)
+        {
+            for (int i = 0; i < normalizedDefinition.groundOverrides.Count; i++)
+            {
+                GroundOverrideEntry entry = normalizedDefinition.groundOverrides[i];
+                runtimeGroundOverrides[entry.cell] = entry.type;
+            }
+        }
+
         grid = new GridCell[normalizedDefinition.width, normalizedDefinition.height];
 
         for (int row = 0; row < normalizedDefinition.height; row++)
@@ -239,7 +250,26 @@ public class GridManager : MonoBehaviour
         if (cell.IsBlocked || cell.IsOccupied)
             return false;
 
+        // Water and Lava ground overrides occupy the cell visually and block placement.
+        GroundType ground = GetGroundType(cellPosition);
+        if (ground == GroundType.Water || ground == GroundType.Lava)
+            return false;
+
         return !WouldOccupyingCellBlockPath(cellPosition);
+    }
+
+    /// <summary>
+    /// Returns the ground type for a cell, defaulting to <see cref="GroundType.Ground"/>
+    /// when no override is set. Path cells always read as <see cref="GroundType.Path"/>.
+    /// </summary>
+    public GroundType GetGroundType(Vector2Int cellPosition)
+    {
+        if (runtimeGroundOverrides.TryGetValue(cellPosition, out GroundType type))
+            return type;
+        GridCell cell = GetCell(cellPosition);
+        if (cell != null && cell.IsPath)
+            return GroundType.Path;
+        return GroundType.Ground;
     }
 
     public bool TryOccupyCell(Vector2Int cellPosition)
