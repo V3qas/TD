@@ -55,3 +55,7 @@ buildOutput/
 
 # End of file
 UnityTestRun.log
+
+# Regenerable export from Tools > Export > Export Assets Folder To TXT
+AssetsExport/
+
