@@ -4,10 +4,10 @@ public class Bullet : MonoBehaviour
 {
     private BulletData data;
     private float damage;
-    private Enemy target;
+    private IDamageable target;
     private bool hasHit;
 
-    public void Initialize(BulletData bulletData, float damage, Enemy target)
+    public void Initialize(BulletData bulletData, float damage, IDamageable target)
     {
         this.data = bulletData;
         this.damage = damage;
@@ -28,18 +28,19 @@ public class Bullet : MonoBehaviour
         if (hasHit)
             return;
 
-        if (target == null)
+        if (target == null || target.IsDead)
         {
             PrefabPool.Release(gameObject);
             return;
         }
 
-        Vector3 direction = target.transform.position - transform.position;
+        Vector3 targetPosition = target.WorldPosition;
+        Vector3 direction = targetPosition - transform.position;
         float step = data.travelSpeed * Time.deltaTime;
 
         if (direction.magnitude <= step)
         {
-            transform.position = target.transform.position;
+            transform.position = targetPosition;
             OnReachedTarget();
         }
         else
@@ -65,21 +66,21 @@ public class Bullet : MonoBehaviour
         Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, data.splashRadius);
         foreach (Collider2D hit in hits)
         {
-            Enemy enemy = hit.GetComponent<Enemy>();
-            if (enemy != null)
-                ApplyHit(enemy);
+            IDamageable damageable = hit.GetComponent<IDamageable>();
+            if (damageable != null)
+                ApplyHit(damageable);
         }
     }
 
-    private void ApplyHit(Enemy enemy)
+    private void ApplyHit(IDamageable victim)
     {
-        if (enemy == null || enemy.IsDead)
+        if (victim == null || victim.IsDead)
             return;
 
         float finalDamage = damage * data.damageMultiplier;
-        enemy.TakeDamage(finalDamage);
+        victim.TakeDamage(finalDamage);
 
-        if (data.slowDuration > 0f && data.slowFactor < 1f)
+        if (data.slowDuration > 0f && data.slowFactor < 1f && victim is Enemy enemy)
             enemy.ApplySlow(data.slowFactor, data.slowDuration);
     }
 }

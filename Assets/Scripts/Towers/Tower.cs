@@ -139,7 +139,7 @@ public class Tower : MonoBehaviour
 
         if (attackTimer <= 0f)
         {
-            Enemy target = FindNearestEnemy();
+            IDamageable target = FindNearestTarget();
             if (target != null)
             {
                 Shoot(target);
@@ -148,14 +148,37 @@ public class Tower : MonoBehaviour
         }
     }
 
-    private Enemy FindNearestEnemy()
+    /// <summary>
+    /// Targeting priority:
+    ///  1. Marked Destructibles in range — the player has explicitly told the
+    ///     towers to break these, so they take precedence.
+    ///  2. Nearest enemy in range.
+    /// </summary>
+    private IDamageable FindNearestTarget()
     {
-        // Iteriert ueber das zentrale Enemy-Registry statt jeden Frame
-        // FindObjectsByType aufzurufen (alloziert + scannt die ganze Szene).
+        Vector3 position = transform.position;
+        float rangeSqr = EffectiveRange * EffectiveRange;
+
+        IReadOnlyList<Destructible> markedTargets = Destructible.MarkedTargets;
+        Destructible nearestMarked = null;
+        float nearestMarkedSqr = rangeSqr;
+        for (int i = 0; i < markedTargets.Count; i++)
+        {
+            Destructible marked = markedTargets[i];
+            if (marked == null || marked.IsDead) continue;
+            float sqr = (position - marked.WorldPosition).sqrMagnitude;
+            if (sqr <= nearestMarkedSqr)
+            {
+                nearestMarkedSqr = sqr;
+                nearestMarked = marked;
+            }
+        }
+        if (nearestMarked != null)
+            return nearestMarked;
+
         IReadOnlyList<Enemy> enemies = Enemy.ActiveEnemies;
         Enemy nearest = null;
-        float nearestSqrDist = EffectiveRange * EffectiveRange;
-        Vector3 position = transform.position;
+        float nearestSqrDist = rangeSqr;
 
         for (int i = 0; i < enemies.Count; i++)
         {
@@ -174,7 +197,7 @@ public class Tower : MonoBehaviour
         return nearest;
     }
 
-    private void Shoot(Enemy target)
+    private void Shoot(IDamageable target)
     {
         BulletData bulletData = EffectiveBulletData;
 
