@@ -28,6 +28,22 @@ Comments
 - Comments are allowed only to explain *why* something non-obvious exists, or to reference external constraints (APIs, engine bugs, platform quirks).
 - Prefer documented design notes in `docs/` over many inline comments.
 
+Documentation maintenance
+- The single source of truth for the high-level architecture is [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+- Any change that adds, removes, renames, or alters the contract of:
+  - a public type, method, property, event, or static API,
+  - a subsystem (folder under `Assets/Scripts/`),
+  - a scene boundary or cross-scene state container,
+  - a ScriptableObject schema (`TowerData`, `EnemyData`, `BulletData`, `LevelData`,
+    `TowerUpgradeData`, `MainMenuConfig`), or
+  - a runtime flow described in `docs/ARCHITECTURE.md`,
+  must be reflected in `docs/ARCHITECTURE.md` in the **same** commit / PR.
+- When code is removed or renamed, the corresponding lines in the docs must be removed
+  or updated — never leave stale entries behind.
+- Append a dated one-line entry to the "Change Log" section at the bottom of
+  `docs/ARCHITECTURE.md` for every doc-affecting change.
+- Internal-only refactors (no public API change) do not require doc updates.
+
 Git conventions
 - Language: English for commit messages and PR descriptions.
 - Commit message format: short imperative summary (<=50 chars), blank line, optional body. Prefer Conventional Commits: `type(scope): subject`.
