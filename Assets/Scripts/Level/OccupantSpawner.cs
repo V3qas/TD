@@ -121,22 +121,59 @@ public class OccupantSpawner : MonoBehaviour
     private void HandleMapLoaded(LevelMapDefinition definition)
     {
         ClearSpawned();
-        if (definition == null || definition.occupants == null) return;
-        if (gridManager == null) return;
-
-        for (int i = 0; i < definition.occupants.Count; i++)
+        if (definition == null)
         {
-            OccupantEntry entry = definition.occupants[i];
-            switch (entry.type)
+            Debug.LogWarning("[OccupantSpawner] HandleMapLoaded called with null definition.");
+            return;
+        }
+        if (gridManager == null)
+        {
+            Debug.LogWarning("[OccupantSpawner] HandleMapLoaded called but gridManager is null.");
+            return;
+        }
+
+        int occupantCount = definition.occupants != null ? definition.occupants.Count : 0;
+        int legacyBlockedCount = definition.blockedCells != null ? definition.blockedCells.Count : 0;
+        Debug.Log($"[OccupantSpawner] HandleMapLoaded: occupants={occupantCount}, legacy blockedCells={legacyBlockedCount}.");
+
+        if (definition.occupants != null)
+        {
+            for (int i = 0; i < definition.occupants.Count; i++)
             {
-                case OccupantType.Rock:
-                    SpawnRock(entry);
-                    break;
-                case OccupantType.Destructible:
-                    SpawnDestructible(entry);
-                    break;
+                OccupantEntry entry = definition.occupants[i];
+                switch (entry.type)
+                {
+                    case OccupantType.Rock:
+                        SpawnRock(entry);
+                        break;
+                    case OccupantType.Destructible:
+                        SpawnDestructible(entry);
+                        break;
+                }
             }
         }
+
+        // Legacy fallback: spawn rocks for any blockedCells that aren't already
+        // covered by an occupants entry, so old maps keep working visually.
+        if (definition.blockedCells != null)
+        {
+            for (int i = 0; i < definition.blockedCells.Count; i++)
+            {
+                Vector2Int cell = definition.blockedCells[i];
+                bool alreadyCovered = false;
+                if (definition.occupants != null)
+                {
+                    for (int j = 0; j < definition.occupants.Count; j++)
+                    {
+                        if (definition.occupants[j].cell == cell) { alreadyCovered = true; break; }
+                    }
+                }
+                if (!alreadyCovered)
+                    SpawnRock(new OccupantEntry { cell = cell, type = OccupantType.Rock });
+            }
+        }
+
+        Debug.Log($"[OccupantSpawner] After spawn: {spawned.Count} objects, {Destructible.ActiveTargets.Count} active destructibles.");
     }
 
     private void ClearSpawned()
