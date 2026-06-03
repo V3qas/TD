@@ -148,6 +148,73 @@ public class LevelMapEditorWindow : EditorWindow
                     EditorGUIUtility.systemCopyBuffer = LevelMapSeedUtility.Encode(BuildDefinition());
             }
         }
+
+        EditorGUILayout.Space(4f);
+        EditorGUILayout.LabelField("Zufallsgenerator", EditorStyles.boldLabel);
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            if (GUILayout.Button("Pfad generieren"))
+                GenerateRandomPath();
+            if (GUILayout.Button("Blöcke streuen"))
+                ScatterRandomBlocks();
+            if (GUILayout.Button("Komplette Map"))
+                GenerateFullRandomMap();
+        }
+    }
+
+    private int ResolveIntegerSeed()
+    {
+        if (int.TryParse(seedInput, out int parsed) && parsed != 0)
+            return parsed;
+        return UnityEngine.Random.Range(1, int.MaxValue);
+    }
+
+    private void GenerateRandomPath()
+    {
+        if (mapDefinition == null) return;
+        int seed = ResolveIntegerSeed();
+        List<Vector2Int> path = MapGenerator.GeneratePath(
+            mapDefinition.width, mapDefinition.height,
+            mapDefinition.startCell, mapDefinition.goalCell, seed);
+
+        if (path == null || path.Count == 0)
+        {
+            EditorUtility.DisplayDialog("Pfadgenerator", "Kein Pfad gefunden. Anderen Seed versuchen.", "OK");
+            return;
+        }
+
+        pathCells.Clear();
+        foreach (Vector2Int cell in path) pathCells.Add(cell);
+        pathCells.Add(mapDefinition.startCell);
+        pathCells.Add(mapDefinition.goalCell);
+
+        foreach (Vector2Int cell in path)
+        {
+            occupants.Remove(cell);
+            groundOverrides.Remove(cell);
+        }
+        MarkDirty();
+    }
+
+    private void ScatterRandomBlocks()
+    {
+        if (mapDefinition == null) return;
+        LevelMapDefinition definition = BuildDefinition();
+        MapGenerator.ScatterParams parameters = MapGenerator.ScatterParams.Default;
+        parameters.destructibleHp = destructibleHp;
+        parameters.destructibleReward = destructibleReward;
+        MapGenerator.ScatterBlocks(definition, ResolveIntegerSeed(), parameters);
+        definition.Normalize();
+        LoadDefinition(definition);
+    }
+
+    private void GenerateFullRandomMap()
+    {
+        MapGenerator.ScatterParams parameters = MapGenerator.ScatterParams.Default;
+        parameters.destructibleHp = destructibleHp;
+        parameters.destructibleReward = destructibleReward;
+        LevelMapDefinition generated = MapGenerator.GenerateFullMap(newWidth, newHeight, ResolveIntegerSeed(), parameters);
+        LoadDefinition(generated);
     }
 
     private void DrawValidation()

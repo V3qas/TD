@@ -356,6 +356,81 @@ public class RuntimeMapEditorController : MonoBehaviour
         seedInput = CreateInputField(parent, string.Empty, 13, 88f, true);
         CreateButton(parent, "Seed laden", LoadSeedFromInput, true);
         CreateButton(parent, "Seed kopieren", CopySeedToClipboard, true);
+
+        CreateText("GenTitle", parent, "Generieren", 14, TextAnchor.MiddleLeft, new Color(0.8f, 0.85f, 0.9f))
+            .gameObject.AddComponent<LayoutElement>().preferredHeight = 22f;
+
+        CreateButton(parent, "Pfad generieren", GenerateRandomPath, true);
+        CreateButton(parent, "Blöcke streuen", ScatterRandomBlocks, true);
+        CreateButton(parent, "Komplette Map", GenerateFullRandomMap, true);
+    }
+
+    private int ResolveSeed()
+    {
+        if (seedInput != null && int.TryParse(seedInput.text, out int parsed) && parsed != 0)
+            return parsed;
+        return UnityEngine.Random.Range(1, int.MaxValue);
+    }
+
+    private void GenerateRandomPath()
+    {
+        if (mapDefinition == null) return;
+        int seed = ResolveSeed();
+        List<Vector2Int> path = MapGenerator.GeneratePath(
+            mapDefinition.width, mapDefinition.height,
+            mapDefinition.startCell, mapDefinition.goalCell, seed);
+
+        if (path == null || path.Count == 0)
+        {
+            SetValidation(false, "Pfadgenerator hat keinen Weg gefunden. Anderen Seed versuchen.");
+            return;
+        }
+
+        pathCells.Clear();
+        foreach (Vector2Int cell in path)
+            pathCells.Add(cell);
+        pathCells.Add(mapDefinition.startCell);
+        pathCells.Add(mapDefinition.goalCell);
+
+        // remove now-overlapping occupants/grounds
+        foreach (Vector2Int cell in path)
+        {
+            occupants.Remove(cell);
+            groundOverrides.Remove(cell);
+        }
+
+        RefreshSeedText();
+        RebuildPreview();
+        RefreshValidation();
+    }
+
+    private void ScatterRandomBlocks()
+    {
+        if (mapDefinition == null) return;
+        LevelMapDefinition definition = BuildDefinition();
+        int seed = ResolveSeed();
+        MapGenerator.ScatterParams parameters = MapGenerator.ScatterParams.Default;
+        parameters.destructibleHp = ParsePositiveInput(destructibleHpInput, DefaultDestructibleHp);
+        parameters.destructibleReward = ParseNonNegativeInput(destructibleRewardInput, DefaultDestructibleReward);
+        MapGenerator.ScatterBlocks(definition, seed, parameters);
+        definition.Normalize();
+        LoadDefinition(definition);
+        RebuildPreview();
+        RefreshValidation();
+    }
+
+    private void GenerateFullRandomMap()
+    {
+        if (mapDefinition == null) return;
+        int seed = ResolveSeed();
+        MapGenerator.ScatterParams parameters = MapGenerator.ScatterParams.Default;
+        parameters.destructibleHp = ParsePositiveInput(destructibleHpInput, DefaultDestructibleHp);
+        parameters.destructibleReward = ParseNonNegativeInput(destructibleRewardInput, DefaultDestructibleReward);
+        LevelMapDefinition generated = MapGenerator.GenerateFullMap(mapDefinition.width, mapDefinition.height, seed, parameters);
+        LoadDefinition(generated);
+        RebuildPreview();
+        FrameCameraOnMap(mapDefinition, EditorNavWidth);
+        RefreshValidation();
     }
 
     private void BuildActionControls(Transform parent)
