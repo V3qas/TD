@@ -1,10 +1,16 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// Spawns Rock and Destructible GameObjects from a level definition's
 /// occupants list. Subscribes to <see cref="LevelLoader"/> events so it works
 /// for both campaign loads and editor test runs.
+///
+/// Also routes left-clicks to Destructible.ToggleMarked using the new Input
+/// System (Unity's built-in OnMouseDown is unreliable when the new Input
+/// System is the active backend, so we do the raycast ourselves).
 ///
 /// Visuals: runtime-generated 1x1 white sprites tinted per occupant type. The
 /// theme system in Phase 7 may swap these for proper sprites.
@@ -14,6 +20,8 @@ public class OccupantSpawner : MonoBehaviour
 {
     [SerializeField] private LevelLoader levelLoader;
     [SerializeField] private GridManager gridManager;
+    [SerializeField] private Camera clickCamera;
+    [SerializeField] private BuildManager buildManager;
 
     private static Sprite cachedQuadSprite;
     private readonly List<GameObject> spawned = new List<GameObject>();
@@ -22,6 +30,32 @@ public class OccupantSpawner : MonoBehaviour
     {
         if (levelLoader == null) levelLoader = FindAnyObjectByType<LevelLoader>();
         if (gridManager == null) gridManager = FindAnyObjectByType<GridManager>();
+        if (clickCamera == null) clickCamera = Camera.main;
+        if (buildManager == null) buildManager = FindAnyObjectByType<BuildManager>();
+    }
+
+    private void Update()
+    {
+        if (Mouse.current == null) return;
+        if (!Mouse.current.leftButton.wasPressedThisFrame) return;
+
+        // Don't toggle marks while the player is actively placing a tower —
+        // the BuildManager already consumes that click for placement.
+        if (buildManager != null && buildManager.IsPlacingTower) return;
+
+        // Ignore clicks over UI.
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+
+        Camera cam = clickCamera != null ? clickCamera : Camera.main;
+        if (cam == null) return;
+
+        Vector2 screenPos = Mouse.current.position.ReadValue();
+        Vector3 world = cam.ScreenToWorldPoint(screenPos);
+        Collider2D hit = Physics2D.OverlapPoint(world);
+        if (hit == null) return;
+
+        Destructible destructible = hit.GetComponent<Destructible>();
+        if (destructible != null) destructible.ToggleMarked();
     }
 
     private void OnEnable()

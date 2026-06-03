@@ -65,11 +65,6 @@ public class Destructible : MonoBehaviour, IDamageable
         Destroy(gameObject);
     }
 
-    private void OnMouseDown()
-    {
-        ToggleMarked();
-    }
-
     public void ToggleMarked()
     {
         if (IsDead) return;
