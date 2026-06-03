@@ -3,10 +3,42 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
+public enum GroundType : byte
+{
+    Ground = 0,
+    Path = 1,
+    Elevated = 2,
+    Water = 3,
+    Lava = 4
+}
+
+public enum OccupantType : byte
+{
+    None = 0,
+    Rock = 1,
+    Destructible = 2
+}
+
+[Serializable]
+public class GroundOverrideEntry
+{
+    public Vector2Int cell;
+    public GroundType type;
+}
+
+[Serializable]
+public class OccupantEntry
+{
+    public Vector2Int cell;
+    public OccupantType type;
+    public int maxHp;   // 0 means indestructible (used by Rock)
+    public int reward;  // money awarded on destruction (Destructible)
+}
+
 [Serializable]
 public class LevelMapDefinition
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
     public const int MaxSize = 500;
 
     public int version = CurrentVersion;
@@ -14,8 +46,17 @@ public class LevelMapDefinition
     public int height = 6;
     public Vector2Int startCell = new Vector2Int(0, 2);
     public Vector2Int goalCell = new Vector2Int(9, 2);
+
+    // Legacy field. Still serialized for backward compatibility with v1 seeds.
+    // New code should use 'occupants' (Rock) and read via TryGetOccupant.
     public List<Vector2Int> blockedCells = new List<Vector2Int>();
     public List<Vector2Int> pathCells = new List<Vector2Int>();
+
+    // New (v2): non-Ground/Path tiles. Default ground = Ground, so only overrides are stored.
+    public List<GroundOverrideEntry> groundOverrides = new List<GroundOverrideEntry>();
+
+    // New (v2): things sitting on top of a tile (Rock, Destructible).
+    public List<OccupantEntry> occupants = new List<OccupantEntry>();
 
     public bool HasExplicitPath => pathCells != null && pathCells.Count > 0;
 
@@ -52,8 +93,50 @@ public class LevelMapDefinition
             startCell = startCell,
             goalCell = goalCell,
             blockedCells = blockedCells != null ? new List<Vector2Int>(blockedCells) : new List<Vector2Int>(),
-            pathCells = pathCells != null ? new List<Vector2Int>(pathCells) : new List<Vector2Int>()
+            pathCells = pathCells != null ? new List<Vector2Int>(pathCells) : new List<Vector2Int>(),
+            groundOverrides = CloneGroundOverrides(groundOverrides),
+            occupants = CloneOccupants(occupants)
         };
+    }
+
+    private static List<GroundOverrideEntry> CloneGroundOverrides(List<GroundOverrideEntry> source)
+    {
+        List<GroundOverrideEntry> copy = new List<GroundOverrideEntry>();
+        if (source == null)
+            return copy;
+
+        foreach (GroundOverrideEntry entry in source)
+        {
+            if (entry == null)
+                continue;
+
+            copy.Add(new GroundOverrideEntry { cell = entry.cell, type = entry.type });
+        }
+
+        return copy;
+    }
+
+    private static List<OccupantEntry> CloneOccupants(List<OccupantEntry> source)
+    {
+        List<OccupantEntry> copy = new List<OccupantEntry>();
+        if (source == null)
+            return copy;
+
+        foreach (OccupantEntry entry in source)
+        {
+            if (entry == null)
+                continue;
+
+            copy.Add(new OccupantEntry
+            {
+                cell = entry.cell,
+                type = entry.type,
+                maxHp = entry.maxHp,
+                reward = entry.reward
+            });
+        }
+
+        return copy;
     }
 
     public LevelMapDefinition CloneNormalized()
@@ -92,6 +175,165 @@ public class LevelMapDefinition
             pathCells = new List<Vector2Int>(pathSet);
             SortCells(pathCells);
         }
+
+        NormalizeGroundOverrides();
+        NormalizeOccupants();
+    }
+
+    private void NormalizeGroundOverrides()
+    {
+        if (groundOverrides == null)
+        {
+            groundOverrides = new List<GroundOverrideEntry>();
+            return;
+        }
+
+        Dictionary<Vector2Int, GroundType> unique = new Dictionary<Vector2Int, GroundType>();
+        HashSet<Vector2Int> pathSet = new HashSet<Vector2Int>(pathCells ?? new List<Vector2Int>());
+        pathSet.Add(startCell);
+        pathSet.Add(goalCell);
+
+        foreach (GroundOverrideEntry entry in groundOverrides)
+        {
+            if (entry == null)
+                continue;
+
+            if (!IsInBounds(entry.cell))
+                continue;
+
+            // Plain Ground/Path are not overrides; drop them.
+            if (entry.type == GroundType.Ground || entry.type == GroundType.Path)
+                continue;
+
+            // Path tiles must remain Path; drop conflicting overrides.
+            if (pathSet.Contains(entry.cell))
+                continue;
+
+            unique[entry.cell] = entry.type;
+        }
+
+        List<GroundOverrideEntry> normalized = new List<GroundOverrideEntry>(unique.Count);
+        foreach (KeyValuePair<Vector2Int, GroundType> pair in unique)
+            normalized.Add(new GroundOverrideEntry { cell = pair.Key, type = pair.Value });
+
+        normalized.Sort((a, b) =>
+        {
+            int rowCompare = a.cell.y.CompareTo(b.cell.y);
+            return rowCompare != 0 ? rowCompare : a.cell.x.CompareTo(b.cell.x);
+        });
+
+        groundOverrides = normalized;
+    }
+
+    private void NormalizeOccupants()
+    {
+        if (occupants == null)
+        {
+            occupants = new List<OccupantEntry>();
+            return;
+        }
+
+        Dictionary<Vector2Int, OccupantEntry> unique = new Dictionary<Vector2Int, OccupantEntry>();
+        HashSet<Vector2Int> pathSet = new HashSet<Vector2Int>(pathCells ?? new List<Vector2Int>());
+        pathSet.Add(startCell);
+        pathSet.Add(goalCell);
+
+        foreach (OccupantEntry entry in occupants)
+        {
+            if (entry == null)
+                continue;
+
+            if (entry.type == OccupantType.None)
+                continue;
+
+            if (!IsInBounds(entry.cell))
+                continue;
+
+            // Occupants cannot sit on path tiles, start, or goal.
+            if (pathSet.Contains(entry.cell))
+                continue;
+
+            unique[entry.cell] = new OccupantEntry
+            {
+                cell = entry.cell,
+                type = entry.type,
+                maxHp = Mathf.Max(0, entry.maxHp),
+                reward = Mathf.Max(0, entry.reward)
+            };
+        }
+
+        List<OccupantEntry> normalized = new List<OccupantEntry>(unique.Values);
+        normalized.Sort((a, b) =>
+        {
+            int rowCompare = a.cell.y.CompareTo(b.cell.y);
+            return rowCompare != 0 ? rowCompare : a.cell.x.CompareTo(b.cell.x);
+        });
+
+        occupants = normalized;
+    }
+
+    public GroundType GetGround(Vector2Int cell)
+    {
+        if (!IsInBounds(cell))
+            return GroundType.Ground;
+
+        if (cell == startCell || cell == goalCell)
+            return GroundType.Path;
+
+        if (pathCells != null && pathCells.Contains(cell))
+            return GroundType.Path;
+
+        if (groundOverrides != null)
+        {
+            foreach (GroundOverrideEntry entry in groundOverrides)
+            {
+                if (entry != null && entry.cell == cell)
+                    return entry.type;
+            }
+        }
+
+        return GroundType.Ground;
+    }
+
+    public bool TryGetOccupant(Vector2Int cell, out OccupantEntry occupant)
+    {
+        occupant = null;
+
+        if (occupants == null)
+            return false;
+
+        foreach (OccupantEntry entry in occupants)
+        {
+            if (entry != null && entry.cell == cell)
+            {
+                occupant = entry;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public bool IsBuildable(Vector2Int cell)
+    {
+        if (!IsInBounds(cell))
+            return false;
+
+        if (cell == startCell || cell == goalCell)
+            return false;
+
+        GroundType ground = GetGround(cell);
+        if (ground == GroundType.Path || ground == GroundType.Water || ground == GroundType.Lava)
+            return false;
+
+        if (TryGetOccupant(cell, out _))
+            return false;
+
+        // Legacy blocker compat: cells in blockedCells act like an indestructible occupant.
+        if (blockedCells != null && blockedCells.Contains(cell))
+            return false;
+
+        return true;
     }
 
     public bool IsInBounds(Vector2Int cell)
@@ -392,6 +634,12 @@ public static class LevelMapValidator
             return false;
         }
 
+        if (!ValidateGroundOverrides(definition, blockedCells, out message))
+            return false;
+
+        if (!ValidateOccupants(definition, blockedCells, out message))
+            return false;
+
         bool hasExplicitPath = definition.pathCells != null && definition.pathCells.Count > 0;
         if (requireExplicitPath && !hasExplicitPath)
         {
@@ -527,6 +775,111 @@ public static class LevelMapValidator
             }
 
             cellSet.Add(cell);
+        }
+
+        return true;
+    }
+
+    private static bool ValidateGroundOverrides(LevelMapDefinition definition, HashSet<Vector2Int> blockedCells, out string message)
+    {
+        message = string.Empty;
+
+        if (definition.groundOverrides == null || definition.groundOverrides.Count == 0)
+            return true;
+
+        HashSet<Vector2Int> pathSet = new HashSet<Vector2Int>(definition.pathCells ?? new List<Vector2Int>());
+        pathSet.Add(definition.startCell);
+        pathSet.Add(definition.goalCell);
+
+        HashSet<Vector2Int> seen = new HashSet<Vector2Int>();
+        foreach (GroundOverrideEntry entry in definition.groundOverrides)
+        {
+            if (entry == null)
+                continue;
+
+            if (!IsInBounds(entry.cell, definition.width, definition.height))
+            {
+                message = $"Gelaende-Tile {entry.cell} liegt ausserhalb der Map.";
+                return false;
+            }
+
+            if (entry.type == GroundType.Ground || entry.type == GroundType.Path)
+            {
+                message = $"Gelaende-Override fuer {entry.cell} darf nicht 'Ground' oder 'Path' sein.";
+                return false;
+            }
+
+            if (pathSet.Contains(entry.cell))
+            {
+                message = $"Gelaende-Override darf nicht auf einer Pfad-Zelle liegen ({entry.cell}).";
+                return false;
+            }
+
+            if (blockedCells.Contains(entry.cell))
+            {
+                message = $"Gelaende-Override und Blocker ueberlappen sich bei {entry.cell}.";
+                return false;
+            }
+
+            if (!seen.Add(entry.cell))
+            {
+                message = $"Gelaende-Override-Zelle {entry.cell} ist doppelt vorhanden.";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ValidateOccupants(LevelMapDefinition definition, HashSet<Vector2Int> blockedCells, out string message)
+    {
+        message = string.Empty;
+
+        if (definition.occupants == null || definition.occupants.Count == 0)
+            return true;
+
+        HashSet<Vector2Int> pathSet = new HashSet<Vector2Int>(definition.pathCells ?? new List<Vector2Int>());
+        pathSet.Add(definition.startCell);
+        pathSet.Add(definition.goalCell);
+
+        HashSet<Vector2Int> seen = new HashSet<Vector2Int>();
+        foreach (OccupantEntry entry in definition.occupants)
+        {
+            if (entry == null)
+                continue;
+
+            if (entry.type == OccupantType.None)
+                continue;
+
+            if (!IsInBounds(entry.cell, definition.width, definition.height))
+            {
+                message = $"Objekt-Tile {entry.cell} liegt ausserhalb der Map.";
+                return false;
+            }
+
+            if (pathSet.Contains(entry.cell))
+            {
+                message = $"Objekt darf nicht auf einer Pfad-Zelle liegen ({entry.cell}).";
+                return false;
+            }
+
+            if (blockedCells.Contains(entry.cell))
+            {
+                message = $"Objekt und Blocker ueberlappen sich bei {entry.cell}.";
+                return false;
+            }
+
+            if (entry.type == OccupantType.Destructible && entry.maxHp <= 0)
+            {
+                message = $"Zerstoerbares Objekt bei {entry.cell} braucht maxHp > 0.";
+                return false;
+            }
+
+            if (!seen.Add(entry.cell))
+            {
+                message = $"Objekt-Zelle {entry.cell} ist doppelt vorhanden.";
+                return false;
+            }
         }
 
         return true;

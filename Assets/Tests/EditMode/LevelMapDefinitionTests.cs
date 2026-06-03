@@ -138,4 +138,123 @@ public class LevelMapDefinitionTests
         Assert.AreEqual(0, definition.blockedCells.Count, "Start cell and out-of-bounds should be removed.");
         Assert.AreEqual(LevelMapDefinition.CurrentVersion, definition.version);
     }
+
+    [Test]
+    public void GetGround_ReturnsPathForPathCellsAndStartGoal()
+    {
+        LevelMapDefinition definition = new LevelMapDefinition
+        {
+            width = 5,
+            height = 3,
+            startCell = new Vector2Int(0, 1),
+            goalCell = new Vector2Int(4, 1),
+            pathCells = new List<Vector2Int> { new Vector2Int(2, 1) }
+        };
+        definition.Normalize();
+
+        Assert.AreEqual(GroundType.Path, definition.GetGround(new Vector2Int(0, 1)));
+        Assert.AreEqual(GroundType.Path, definition.GetGround(new Vector2Int(4, 1)));
+        Assert.AreEqual(GroundType.Path, definition.GetGround(new Vector2Int(2, 1)));
+        Assert.AreEqual(GroundType.Ground, definition.GetGround(new Vector2Int(2, 0)));
+    }
+
+    [Test]
+    public void GetGround_ReturnsOverrideTypeForElevatedAndWater()
+    {
+        LevelMapDefinition definition = new LevelMapDefinition
+        {
+            width = 4,
+            height = 4,
+            startCell = new Vector2Int(0, 0),
+            goalCell = new Vector2Int(3, 3),
+            groundOverrides = new List<GroundOverrideEntry>
+            {
+                new GroundOverrideEntry { cell = new Vector2Int(1, 1), type = GroundType.Elevated },
+                new GroundOverrideEntry { cell = new Vector2Int(2, 2), type = GroundType.Water }
+            }
+        };
+        definition.Normalize();
+
+        Assert.AreEqual(GroundType.Elevated, definition.GetGround(new Vector2Int(1, 1)));
+        Assert.AreEqual(GroundType.Water, definition.GetGround(new Vector2Int(2, 2)));
+    }
+
+    [Test]
+    public void Normalize_DropsGroundOverrideThatOverlapsPath()
+    {
+        LevelMapDefinition definition = new LevelMapDefinition
+        {
+            width = 4,
+            height = 3,
+            startCell = new Vector2Int(0, 1),
+            goalCell = new Vector2Int(3, 1),
+            pathCells = new List<Vector2Int> { new Vector2Int(1, 1) },
+            groundOverrides = new List<GroundOverrideEntry>
+            {
+                new GroundOverrideEntry { cell = new Vector2Int(1, 1), type = GroundType.Water },
+                new GroundOverrideEntry { cell = new Vector2Int(2, 0), type = GroundType.Lava }
+            }
+        };
+
+        definition.Normalize();
+
+        Assert.AreEqual(1, definition.groundOverrides.Count);
+        Assert.AreEqual(new Vector2Int(2, 0), definition.groundOverrides[0].cell);
+    }
+
+    [Test]
+    public void Normalize_DropsOccupantsOnPathOrOutOfBounds()
+    {
+        LevelMapDefinition definition = new LevelMapDefinition
+        {
+            width = 4,
+            height = 3,
+            startCell = new Vector2Int(0, 1),
+            goalCell = new Vector2Int(3, 1),
+            pathCells = new List<Vector2Int> { new Vector2Int(1, 1) },
+            occupants = new List<OccupantEntry>
+            {
+                new OccupantEntry { cell = new Vector2Int(1, 1), type = OccupantType.Rock },
+                new OccupantEntry { cell = new Vector2Int(99, 99), type = OccupantType.Destructible, maxHp = 50 },
+                new OccupantEntry { cell = new Vector2Int(2, 0), type = OccupantType.Destructible, maxHp = 100, reward = 10 }
+            }
+        };
+
+        definition.Normalize();
+
+        Assert.AreEqual(1, definition.occupants.Count);
+        Assert.AreEqual(new Vector2Int(2, 0), definition.occupants[0].cell);
+        Assert.AreEqual(OccupantType.Destructible, definition.occupants[0].type);
+    }
+
+    [Test]
+    public void IsBuildable_RespectsGroundAndOccupants()
+    {
+        LevelMapDefinition definition = new LevelMapDefinition
+        {
+            width = 4,
+            height = 3,
+            startCell = new Vector2Int(0, 1),
+            goalCell = new Vector2Int(3, 1),
+            pathCells = new List<Vector2Int> { new Vector2Int(1, 1), new Vector2Int(2, 1) },
+            groundOverrides = new List<GroundOverrideEntry>
+            {
+                new GroundOverrideEntry { cell = new Vector2Int(0, 2), type = GroundType.Water },
+                new GroundOverrideEntry { cell = new Vector2Int(3, 2), type = GroundType.Elevated }
+            },
+            occupants = new List<OccupantEntry>
+            {
+                new OccupantEntry { cell = new Vector2Int(2, 0), type = OccupantType.Rock }
+            }
+        };
+        definition.Normalize();
+
+        Assert.IsFalse(definition.IsBuildable(definition.startCell), "Start is not buildable.");
+        Assert.IsFalse(definition.IsBuildable(definition.goalCell), "Goal is not buildable.");
+        Assert.IsFalse(definition.IsBuildable(new Vector2Int(1, 1)), "Path is not buildable.");
+        Assert.IsFalse(definition.IsBuildable(new Vector2Int(0, 2)), "Water is not buildable.");
+        Assert.IsTrue(definition.IsBuildable(new Vector2Int(3, 2)), "Elevated is buildable.");
+        Assert.IsFalse(definition.IsBuildable(new Vector2Int(2, 0)), "Rock occupant blocks build.");
+        Assert.IsTrue(definition.IsBuildable(new Vector2Int(0, 0)), "Plain ground is buildable.");
+    }
 }
