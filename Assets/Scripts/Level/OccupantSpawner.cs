@@ -50,12 +50,21 @@ public class OccupantSpawner : MonoBehaviour
         if (cam == null) return;
 
         Vector2 screenPos = Mouse.current.position.ReadValue();
-        Vector3 world = cam.ScreenToWorldPoint(screenPos);
-        Collider2D hit = Physics2D.OverlapPoint(world);
-        if (hit == null) return;
+        Vector3 worldPosition = cam.ScreenToWorldPoint(screenPos);
+        Vector2 point = new Vector2(worldPosition.x, worldPosition.y);
 
-        Destructible destructible = hit.GetComponent<Destructible>();
-        if (destructible != null) destructible.ToggleMarked();
+        // OverlapPointAll so a tower or other collider stacked on top of a
+        // destructible never blocks the click.
+        Collider2D[] hits = Physics2D.OverlapPointAll(point);
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Destructible destructible = hits[i].GetComponentInParent<Destructible>();
+            if (destructible != null)
+            {
+                destructible.ToggleMarked();
+                return;
+            }
+        }
     }
 
     private void OnEnable()
