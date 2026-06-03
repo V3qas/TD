@@ -73,8 +73,8 @@ public class OccupantSpawner : MonoBehaviour
             Destructible destructible = hits[i].GetComponentInParent<Destructible>();
             if (destructible != null)
             {
-                destructible.ToggleMarked();
-                if (verboseClickLogging) Debug.Log($"[OccupantSpawner] Toggled mark on {destructible.name}, marked={destructible.IsMarked}.");
+                destructible.Mark();
+                if (verboseClickLogging) Debug.Log($"[OccupantSpawner] Focused {destructible.name}.");
                 return;
             }
         }
@@ -90,11 +90,14 @@ public class OccupantSpawner : MonoBehaviour
             Vector2 dp = d.transform.position;
             if (Mathf.Abs(dp.x - point.x) <= halfCell && Mathf.Abs(dp.y - point.y) <= halfCell)
             {
-                d.ToggleMarked();
-                if (verboseClickLogging) Debug.Log($"[OccupantSpawner] Fallback toggled {d.name}, marked={d.IsMarked}.");
+                d.Mark();
+                if (verboseClickLogging) Debug.Log($"[OccupantSpawner] Fallback focused {d.name}.");
                 return;
             }
         }
+
+        Destructible.ClearMarkedTargets();
+        if (verboseClickLogging) Debug.Log("[OccupantSpawner] Cleared destructible focus.");
     }
 
     private void OnEnable()
@@ -102,6 +105,11 @@ public class OccupantSpawner : MonoBehaviour
         if (levelLoader == null) return;
         levelLoader.OnMapLoaded += HandleMapLoaded;
         levelLoader.OnLevelLoaded += HandleLevelLoaded;
+
+        // If this component is enabled after LevelLoader has already fired its
+        // load event, catch up from the loader's current map snapshot.
+        if (levelLoader.HasLoadedLevel && levelLoader.LoadedMapDefinition != null)
+            HandleMapLoaded(levelLoader.LoadedMapDefinition);
     }
 
     private void OnDisable()
@@ -215,9 +223,40 @@ public class OccupantSpawner : MonoBehaviour
         renderer.sortingOrder = 5;
 
         Destructible destructible = blockObject.GetComponent<Destructible>();
-        destructible.Initialize(entry.maxHp, entry.reward, renderer);
+        destructible.Initialize(entry.maxHp, entry.reward, renderer, gridManager, entry.cell, SpawnDefaultGround);
 
         spawned.Add(blockObject);
+    }
+
+    private void SpawnDefaultGround(Vector2Int cell, Vector3 worldPosition)
+    {
+        GameObject groundObject = new GameObject($"Ground_Default_{cell.x}_{cell.y}", typeof(SpriteRenderer));
+        groundObject.transform.SetParent(transform, false);
+        groundObject.transform.position = worldPosition;
+        groundObject.transform.localScale = new Vector3(gridManager != null ? gridManager.CellSize : 1f, gridManager != null ? gridManager.CellSize : 1f, 1f);
+
+        SpriteRenderer renderer = groundObject.GetComponent<SpriteRenderer>();
+        ApplyGroundVisual(renderer, GroundType.Ground);
+        renderer.sortingOrder = -10;
+
+        spawned.Add(groundObject);
+    }
+
+    private static void ApplyGroundVisual(SpriteRenderer renderer, GroundType type)
+    {
+        if (renderer == null)
+            return;
+
+        MapThemeDefinition theme = MapThemeApplier.Active != null ? MapThemeApplier.Active.ActiveTheme : null;
+        if (theme != null && theme.TryGetGroundVisual(type, out MapThemeDefinition.GroundVisual visual))
+        {
+            renderer.sprite = visual.sprite != null ? visual.sprite : GetOrCreateQuadSprite();
+            renderer.color = visual.tint.a > 0f ? visual.tint : Color.white;
+            return;
+        }
+
+        renderer.sprite = GetOrCreateQuadSprite();
+        renderer.color = Color.white;
     }
 
     private static Sprite GetOrCreateQuadSprite()

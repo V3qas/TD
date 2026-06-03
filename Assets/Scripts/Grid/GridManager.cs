@@ -299,6 +299,16 @@ public class GridManager : MonoBehaviour
         RecomputeCachedPath();
     }
 
+    public void ClearBlockedCell(Vector2Int cellPosition)
+    {
+        GridCell cell = GetCell(cellPosition);
+        if (cell == null || !cell.IsBlocked)
+            return;
+
+        cell.SetBlocked(false);
+        RecomputeCachedPath();
+    }
+
     public bool WouldOccupyingCellBlockPath(Vector2Int cellPosition)
     {
         GridCell cell = GetCell(cellPosition);

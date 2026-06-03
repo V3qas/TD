@@ -34,6 +34,12 @@ public class Bullet : MonoBehaviour
             return;
         }
 
+        if (target is Destructible destructible && !destructible.IsMarked)
+        {
+            PrefabPool.Release(gameObject);
+            return;
+        }
+
         Vector3 targetPosition = target.WorldPosition;
         Vector3 direction = targetPosition - transform.position;
         float step = data.travelSpeed * Time.deltaTime;
@@ -75,6 +81,9 @@ public class Bullet : MonoBehaviour
     private void ApplyHit(IDamageable victim)
     {
         if (victim == null || victim.IsDead)
+            return;
+
+        if (victim is Destructible destructible && !destructible.IsMarked)
             return;
 
         float finalDamage = damage * data.damageMultiplier;
