@@ -185,8 +185,17 @@ public class RuntimeMapEditorController : MonoBehaviour
         }
 
         CloseEditor();
-        gridManager.BuildGridPreview(definition);
-        FrameCameraOnMap(definition, InGameHudController.PanelWidth);
+        if (levelLoader != null)
+        {
+            // Routes through LevelLoader so OccupantSpawner / GroundOverlaySpawner
+            // / MapThemeApplier all receive OnMapLoaded and can spawn their objects.
+            levelLoader.LoadMap(definition);
+        }
+        else
+        {
+            gridManager.BuildGridPreview(definition);
+            FrameCameraOnMap(definition, InGameHudController.PanelWidth);
+        }
         hudController?.Show();
         enemySpawner?.RestartSpawningFromRound(1);
     }
