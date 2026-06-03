@@ -67,7 +67,7 @@ public class LevelLoader : MonoBehaviour
             return;
         }
 
-        gridManager.BuildGrid(definition);
+        BuildGridForCurrentSession(definition);
         FrameCameraOnMap(definition);
         HasLoadedLevel = true;
         OnLevelLoaded?.Invoke(levelData);
@@ -101,10 +101,21 @@ public class LevelLoader : MonoBehaviour
 
         levelData = null;
         LevelMapDefinition normalizedDefinition = definition.CloneNormalized();
-        gridManager.BuildGrid(normalizedDefinition);
+        BuildGridForCurrentSession(normalizedDefinition);
         FrameCameraOnMap(normalizedDefinition);
         HasLoadedLevel = true;
         OnMapLoaded?.Invoke(normalizedDefinition);
+    }
+
+    private void BuildGridForCurrentSession(LevelMapDefinition definition)
+    {
+        // Editor test runs render the authored map directly via the preview visuals,
+        // since gameplay does not yet spawn its own tile sprites. Campaign play keeps
+        // the headless build to honour the no-debug-visuals-in-gameplay rule.
+        if (GameSession.IsEditorTestRun)
+            gridManager.BuildGridPreview(definition);
+        else
+            gridManager.BuildGrid(definition);
     }
 
     private void FrameCameraOnMap(LevelMapDefinition definition)

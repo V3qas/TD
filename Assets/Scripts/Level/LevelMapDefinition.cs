@@ -218,8 +218,11 @@ public class CustomMapCollection
 
 public static class CustomMapStorage
 {
-    private const string PlayerPrefsKey = "TD.CustomMaps.v1";
+    private const string LegacyPlayerPrefsKey = "TD.CustomMaps.v1";
+    private const string FileName = "customMaps.json";
     private const int MaxCustomMaps = 100;
+
+    private static string FilePath => System.IO.Path.Combine(Application.persistentDataPath, FileName);
 
     public static List<CustomMapEntry> GetAll()
     {
@@ -269,11 +272,27 @@ public static class CustomMapStorage
 
     private static CustomMapCollection LoadCollection()
     {
-        string json = PlayerPrefs.GetString(PlayerPrefsKey, string.Empty);
+        string json = ReadFromDisk();
 
+        // First-run migration: pull data from PlayerPrefs and persist it as a file.
         if (string.IsNullOrWhiteSpace(json))
-            return new CustomMapCollection();
+        {
+            string legacyJson = PlayerPrefs.GetString(LegacyPlayerPrefsKey, string.Empty);
+            if (!string.IsNullOrWhiteSpace(legacyJson))
+            {
+                CustomMapCollection migrated = ParseCollection(legacyJson);
+                SaveCollection(migrated);
+                return migrated;
+            }
 
+            return new CustomMapCollection();
+        }
+
+        return ParseCollection(json);
+    }
+
+    private static CustomMapCollection ParseCollection(string json)
+    {
         try
         {
             CustomMapCollection collection = JsonUtility.FromJson<CustomMapCollection>(json);
@@ -285,10 +304,39 @@ public static class CustomMapStorage
         }
     }
 
+    private static string ReadFromDisk()
+    {
+        try
+        {
+            string path = FilePath;
+            return System.IO.File.Exists(path) ? System.IO.File.ReadAllText(path) : string.Empty;
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogWarning($"CustomMapStorage: failed to read '{FileName}' ({exception.Message}).");
+            return string.Empty;
+        }
+    }
+
     private static void SaveCollection(CustomMapCollection collection)
     {
-        PlayerPrefs.SetString(PlayerPrefsKey, JsonUtility.ToJson(collection));
-        PlayerPrefs.Save();
+        string json = JsonUtility.ToJson(collection, true);
+
+        try
+        {
+            string path = FilePath;
+            string directory = System.IO.Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(directory) && !System.IO.Directory.Exists(directory))
+                System.IO.Directory.CreateDirectory(directory);
+
+            System.IO.File.WriteAllText(path, json);
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogError($"CustomMapStorage: failed to write '{FileName}' ({exception.Message}). Falling back to PlayerPrefs.");
+            PlayerPrefs.SetString(LegacyPlayerPrefsKey, json);
+            PlayerPrefs.Save();
+        }
     }
 }
 

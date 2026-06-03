@@ -36,8 +36,8 @@ public class RuntimeMapEditorController : MonoBehaviour
     [SerializeField] private MapCameraController mapCameraController;
     [SerializeField] private Font font;
     [SerializeField] private string menuSceneName = "Menu";
-    [SerializeField] private int defaultWidth = 10;
-    [SerializeField] private int defaultHeight = 6;
+    private const int defaultWidth = 44;
+    private const int defaultHeight = 32;
 
     private readonly Dictionary<MapEditorTool, Button> toolButtons = new Dictionary<MapEditorTool, Button>();
     private readonly Dictionary<DifficultyLevel, Button> difficultyButtons = new Dictionary<DifficultyLevel, Button>();
@@ -175,7 +175,7 @@ public class RuntimeMapEditorController : MonoBehaviour
         }
 
         CloseEditor();
-        gridManager.BuildGrid(definition);
+        gridManager.BuildGridPreview(definition);
         FrameCameraOnMap(definition, InGameHudController.PanelWidth);
         hudController?.Show();
         enemySpawner?.RestartSpawningFromRound(1);

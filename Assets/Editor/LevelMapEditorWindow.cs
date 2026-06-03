@@ -35,8 +35,8 @@ public class LevelMapEditorWindow : EditorWindow
     private string validationMessage = string.Empty;
     private bool isValid;
     private bool validationDirty = true;
-    private int newWidth = 10;
-    private int newHeight = 6;
+    private int newWidth = 44;
+    private int newHeight = 32;
     private float cellSize = 18f;
 
     [MenuItem("Tools/Tower Defense/Map Editor")]
