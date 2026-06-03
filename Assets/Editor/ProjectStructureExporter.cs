@@ -47,22 +47,24 @@ public static class AssetsStructureExporter
 
         string summaryPath = Path.Combine(exportRoot, "assets_summary.txt");
         string treePath = Path.Combine(exportRoot, "assets_tree.txt");
-        string fileContentsFolder = Path.Combine(exportRoot, "FileContents");
+        string projectInfoPath = Path.Combine(exportRoot, "project_info.txt");
         string sceneSummariesFolder = Path.Combine(exportRoot, "SceneSummaries");
         string assetSummariesFolder = Path.Combine(exportRoot, "AssetSummaries");
+        string prefabSummariesFolder = Path.Combine(exportRoot, "PrefabSummaries");
 
-        Directory.CreateDirectory(fileContentsFolder);
         Directory.CreateDirectory(sceneSummariesFolder);
         Directory.CreateDirectory(assetSummariesFolder);
+        Directory.CreateDirectory(prefabSummariesFolder);
 
         SceneSetup[] originalSceneSetup = EditorSceneManager.GetSceneManagerSetup();
 
         try
         {
             ExportAssetsTree(treePath);
-            ExportAssetsFiles(fileContentsFolder);
             ExportSceneSummaries(sceneSummariesFolder);
             ExportScriptableObjectSummaries(assetSummariesFolder);
+            ExportPrefabSummaries(prefabSummariesFolder);
+            ExportProjectInfo(projectInfoPath);
             ExportSummary(summaryPath);
 
             AssetDatabase.Refresh();
@@ -130,46 +132,119 @@ public static class AssetsStructureExporter
         }
     }
 
-    private static void ExportAssetsFiles(string contentFolder)
+    private static void ExportPrefabSummaries(string prefabSummariesFolder)
     {
-        foreach (string extension in IncludedExtensions)
-        {
-            ExportFilesByExtension(contentFolder, extension);
-        }
-    }
+        string[] prefabGuids = AssetDatabase.FindAssets("t:Prefab", new[] { "Assets/Prefabs" });
 
-    private static void ExportFilesByExtension(string contentFolder, string extension)
-    {
-        IEnumerable<string> files = GetIncludedFiles()
-            .Where(path => Path.GetExtension(path).Equals(extension, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
-
-        foreach (string fullPath in files)
+        foreach (string guid in prefabGuids)
         {
-            if (!File.Exists(fullPath))
+            string assetPath = AssetDatabase.GUIDToAssetPath(guid);
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+
+            if (prefab == null)
                 continue;
 
-            string relativePath = GetRelativeAssetsPath(fullPath);
-            string safeRelativeName = MakeSafeFileName(relativePath) + ".txt";
-            string outputPath = Path.Combine(contentFolder, safeRelativeName);
-
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"ASSET PATH: {relativePath}");
-            sb.AppendLine($"FILE TYPE: {extension}");
+            sb.AppendLine("PREFAB SUMMARY");
+            sb.AppendLine($"Name: {prefab.name}");
+            sb.AppendLine($"Path: {assetPath}");
             sb.AppendLine();
 
-            try
-            {
-                string content = File.ReadAllText(fullPath, Encoding.UTF8);
-                sb.AppendLine(content);
-            }
-            catch (Exception ex)
-            {
-                sb.AppendLine($"<Could not read file: {ex.Message}>");
-            }
+            AppendGameObjectSummary(sb, prefab, 0);
+
+            string outputPath = Path.Combine(
+                prefabSummariesFolder,
+                $"{MakeSafeFileName(prefab.name)}_summary.txt"
+            );
 
             File.WriteAllText(outputPath, sb.ToString(), Encoding.UTF8);
         }
+    }
+
+    private static void ExportProjectInfo(string outputPath)
+    {
+        string projectRoot = Directory.GetParent(Application.dataPath)!.FullName;
+        StringBuilder sb = new StringBuilder();
+
+        sb.AppendLine("PROJECT INFO");
+        sb.AppendLine();
+        sb.AppendLine($"Unity Version: {Application.unityVersion}");
+        sb.AppendLine($"Product Name: {Application.productName}");
+        sb.AppendLine($"Company Name: {Application.companyName}");
+        sb.AppendLine();
+
+        sb.AppendLine("Build Settings Scenes (in order):");
+        EditorBuildSettingsScene[] buildScenes = EditorBuildSettings.scenes;
+        for (int i = 0; i < buildScenes.Length; i++)
+        {
+            EditorBuildSettingsScene s = buildScenes[i];
+            sb.AppendLine($"  [{i}] enabled={s.enabled} {s.path}");
+        }
+        sb.AppendLine();
+
+        sb.AppendLine("Tags:");
+        foreach (string tag in UnityEditorInternal.InternalEditorUtility.tags)
+        {
+            sb.AppendLine($"  - {tag}");
+        }
+        sb.AppendLine();
+
+        sb.AppendLine("Layers:");
+        for (int i = 0; i < 32; i++)
+        {
+            string name = LayerMask.LayerToName(i);
+            if (!string.IsNullOrEmpty(name))
+                sb.AppendLine($"  [{i}] {name}");
+        }
+        sb.AppendLine();
+
+        sb.AppendLine("Sorting Layers:");
+        foreach (UnityEngine.SortingLayer layer in UnityEngine.SortingLayer.layers)
+        {
+            sb.AppendLine($"  [{layer.id}] {layer.name} (value={layer.value})");
+        }
+        sb.AppendLine();
+
+        sb.AppendLine("Assembly Definitions (.asmdef):");
+        string[] asmdefGuids = AssetDatabase.FindAssets("t:AssemblyDefinitionAsset", new[] { "Assets" });
+        foreach (string guid in asmdefGuids)
+        {
+            string asmdefPath = AssetDatabase.GUIDToAssetPath(guid);
+            sb.AppendLine($"  {asmdefPath}");
+            try
+            {
+                string json = File.ReadAllText(Path.Combine(projectRoot, asmdefPath), Encoding.UTF8);
+                foreach (string line in json.Split('\n'))
+                {
+                    sb.AppendLine($"    {line.TrimEnd('\r')}");
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"    <unreadable: {ex.Message}>");
+            }
+        }
+        sb.AppendLine();
+
+        string manifestPath = Path.Combine(projectRoot, "Packages", "manifest.json");
+        if (File.Exists(manifestPath))
+        {
+            sb.AppendLine("Packages/manifest.json:");
+            try
+            {
+                foreach (string line in File.ReadAllLines(manifestPath, Encoding.UTF8))
+                {
+                    sb.AppendLine($"  {line}");
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"  <unreadable: {ex.Message}>");
+            }
+            sb.AppendLine();
+        }
+
+        File.WriteAllText(outputPath, sb.ToString(), Encoding.UTF8);
     }
 
     private static void ExportSceneSummaries(string sceneSummariesFolder)
@@ -380,9 +455,10 @@ public static class AssetsStructureExporter
 
         sb.AppendLine("Generated Outputs:");
         sb.AppendLine("- assets_tree.txt");
+        sb.AppendLine("- project_info.txt");
         sb.AppendLine("- SceneSummaries/*");
         sb.AppendLine("- AssetSummaries/*");
-        sb.AppendLine("- FileContents/*");
+        sb.AppendLine("- PrefabSummaries/*");
         sb.AppendLine();
 
         sb.AppendLine("Hinweis:");
@@ -390,6 +466,8 @@ public static class AssetsStructureExporter
         sb.AppendLine("- .meta-Dateien werden ignoriert");
         sb.AppendLine("- Szenen werden nur temporär zum Lesen geöffnet");
         sb.AppendLine("- Die vorherige Szenenkonfiguration wird am Ende wiederhergestellt");
+        sb.AppendLine("- Roh-Dateiinhalte (.cs/.unity/.asset/.prefab) werden NICHT mehr exportiert,");
+        sb.AppendLine("  da sie 1:1 im Repo liegen. Stattdessen Summaries fuer Szenen/SOs/Prefabs.");
 
         File.WriteAllText(outputPath, sb.ToString(), Encoding.UTF8);
     }
