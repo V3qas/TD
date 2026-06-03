@@ -21,6 +21,12 @@ public class LevelData : ScriptableObject
     [Header("Enemy Path")]
     public List<Vector2Int> pathCells = new List<Vector2Int>();
 
+    [Header("Ground Overrides")]
+    public List<GroundOverrideEntry> groundOverrides = new List<GroundOverrideEntry>();
+
+    [Header("Occupants")]
+    public List<OccupantEntry> occupants = new List<OccupantEntry>();
+
     public LevelMapDefinition GetMapDefinition()
     {
         if (!string.IsNullOrWhiteSpace(mapSeed))
@@ -31,7 +37,11 @@ public class LevelData : ScriptableObject
             Debug.LogWarning($"LevelData '{name}': Map seed is invalid ({seedError}). Falling back to legacy fields.");
         }
 
-        return LevelMapDefinition.FromLegacy(width, height, startCell, goalCell, blockedCells, pathCells);
+        LevelMapDefinition definition = LevelMapDefinition.FromLegacy(width, height, startCell, goalCell, blockedCells, pathCells);
+        definition.groundOverrides = CloneGroundOverrides(groundOverrides);
+        definition.occupants = CloneOccupants(occupants);
+        definition.Normalize();
+        return definition;
     }
 
     public bool TryGetMapDefinition(out LevelMapDefinition definition, out string error)
@@ -53,6 +63,8 @@ public class LevelData : ScriptableObject
         goalCell = normalizedDefinition.goalCell;
         blockedCells = new List<Vector2Int>(normalizedDefinition.blockedCells);
         pathCells = new List<Vector2Int>(normalizedDefinition.pathCells);
+        groundOverrides = CloneGroundOverrides(normalizedDefinition.groundOverrides);
+        occupants = CloneOccupants(normalizedDefinition.occupants);
 
         if (updateSeed)
             mapSeed = LevelMapSeedUtility.Encode(normalizedDefinition);
@@ -62,5 +74,45 @@ public class LevelData : ScriptableObject
     {
         width = Mathf.Clamp(width, 1, LevelMapDefinition.MaxSize);
         height = Mathf.Clamp(height, 1, LevelMapDefinition.MaxSize);
+    }
+
+    private static List<GroundOverrideEntry> CloneGroundOverrides(List<GroundOverrideEntry> source)
+    {
+        List<GroundOverrideEntry> copy = new List<GroundOverrideEntry>();
+        if (source == null)
+            return copy;
+
+        foreach (GroundOverrideEntry entry in source)
+        {
+            if (entry == null)
+                continue;
+
+            copy.Add(new GroundOverrideEntry { cell = entry.cell, type = entry.type });
+        }
+
+        return copy;
+    }
+
+    private static List<OccupantEntry> CloneOccupants(List<OccupantEntry> source)
+    {
+        List<OccupantEntry> copy = new List<OccupantEntry>();
+        if (source == null)
+            return copy;
+
+        foreach (OccupantEntry entry in source)
+        {
+            if (entry == null)
+                continue;
+
+            copy.Add(new OccupantEntry
+            {
+                cell = entry.cell,
+                type = entry.type,
+                maxHp = entry.maxHp,
+                reward = entry.reward
+            });
+        }
+
+        return copy;
     }
 }

@@ -21,6 +21,7 @@ public class LevelLoader : MonoBehaviour
     public event Action<LevelMapDefinition> OnMapLoaded;
 
     public LevelData DefaultLevelData => levelData;
+    public LevelMapDefinition LoadedMapDefinition => loadedMapDefinition != null ? loadedMapDefinition.CloneNormalized() : null;
     public bool HasLoadedLevel { get; private set; }
 
     private void Start()
