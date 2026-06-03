@@ -25,8 +25,34 @@ public class LevelLoader : MonoBehaviour
 
     private void Start()
     {
+        EnsureRuntimeHelpers();
         if (!GameSession.IsMapEditorSession)
             LoadSelectedOrDefaultLevel();
+    }
+
+    /// <summary>
+    /// Adds OccupantSpawner / GroundOverlaySpawner / MapThemeApplier to the
+    /// LevelLoader GameObject at runtime if the scene author hasn't placed
+    /// them yet. This way a fresh scene "just works" — the player can click
+    /// destructibles and see Water/Lava/Elevated visuals out of the box.
+    /// </summary>
+    private void EnsureRuntimeHelpers()
+    {
+        if (FindAnyObjectByType<OccupantSpawner>() == null)
+        {
+            Debug.Log("[LevelLoader] No OccupantSpawner in scene — adding one to LevelLoader.");
+            gameObject.AddComponent<OccupantSpawner>();
+        }
+        if (FindAnyObjectByType<GroundOverlaySpawner>() == null)
+        {
+            Debug.Log("[LevelLoader] No GroundOverlaySpawner in scene — adding one to LevelLoader.");
+            gameObject.AddComponent<GroundOverlaySpawner>();
+        }
+        if (FindAnyObjectByType<MapThemeApplier>() == null)
+        {
+            Debug.Log("[LevelLoader] No MapThemeApplier in scene — adding one to LevelLoader.");
+            gameObject.AddComponent<MapThemeApplier>();
+        }
     }
 
     private void LateUpdate()

@@ -150,6 +150,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: TD.Runtime::OccupantSpawner
   levelLoader: {fileID: 1780857830}
   gridManager: {fileID: 943782627}
+  clickCamera: {fileID: 0}
+  buildManager: {fileID: 965241985}
+  verboseClickLogging: 1
 --- !u!4 &67420558
 Transform:
   m_ObjectHideFlags: 0

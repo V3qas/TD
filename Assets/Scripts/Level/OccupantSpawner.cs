@@ -33,12 +33,14 @@ public class OccupantSpawner : MonoBehaviour
         if (gridManager == null) gridManager = FindAnyObjectByType<GridManager>();
         if (clickCamera == null) clickCamera = Camera.main;
         if (buildManager == null) buildManager = FindAnyObjectByType<BuildManager>();
+        Debug.Log($"[OccupantSpawner] Awake on '{gameObject.name}'. levelLoader={(levelLoader!=null)} gridManager={(gridManager!=null)} camera={(clickCamera!=null)} mouseAvailable={(Mouse.current!=null)}");
     }
 
     private void Update()
     {
         if (Mouse.current == null) return;
         if (!Mouse.current.leftButton.wasPressedThisFrame) return;
+        Debug.Log("[OccupantSpawner] LMB detected.");
 
         if (buildManager != null && buildManager.IsPlacingTower)
         {
