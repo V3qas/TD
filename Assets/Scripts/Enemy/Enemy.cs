@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Enemy : MonoBehaviour
+public class Enemy : MonoBehaviour, IDamageable
 {
     /// <summary>Wird gefeuert, wenn der Gegner stirbt. Parameter: dieser Enemy.</summary>
     public event Action<Enemy> OnDied;
@@ -26,11 +26,13 @@ public class Enemy : MonoBehaviour
 
     private EnemyData data;
     private float currentHealth;
+    private float maxHealth;
     private float currentShield;
     private float scaledSpeed;
     private int scaledReward;
     private List<Vector3> waypoints;
     private int waypointIndex;
+    private HealthBar healthBar;
 
     // Slow-Effekt
     private float slowFactor = 1f;
@@ -39,6 +41,11 @@ public class Enemy : MonoBehaviour
     public bool IsDead => currentHealth <= 0f;
     public EnemyData Data => data;
     public int Reward => scaledReward;
+
+    // ── IDamageable ──────────────────────────────────────────────────────────
+    public float CurrentHealth => currentHealth;
+    public float MaxHealth => maxHealth;
+    public Vector3 WorldPosition => transform.position;
 
     /// <summary>
     /// Initialisiert den Gegner mit seinen Daten und dem Wegpunkt-Pfad.
@@ -49,7 +56,8 @@ public class Enemy : MonoBehaviour
     {
         data = enemyData;
         DifficultySettings difficulty = GameSession.SelectedDifficulty;
-        currentHealth = enemyData.maxHealth * difficulty.healthMultiplier;
+        maxHealth = enemyData.maxHealth * difficulty.healthMultiplier;
+        currentHealth = maxHealth;
         currentShield = enemyData.shield;
         scaledSpeed = enemyData.speed * difficulty.speedMultiplier;
         scaledReward = Mathf.RoundToInt(enemyData.reward * difficulty.rewardMultiplier);
@@ -64,6 +72,15 @@ public class Enemy : MonoBehaviour
             StopCoroutine(slowCoroutine);
             slowCoroutine = null;
         }
+
+        EnsureHealthBar();
+        healthBar.Bind(this);
+    }
+
+    private void EnsureHealthBar()
+    {
+        if (healthBar == null)
+            healthBar = HealthBar.AttachTo(transform);
     }
 
     /// <summary>
@@ -133,6 +150,15 @@ public class Enemy : MonoBehaviour
     {
         if (IsDead)
             return;
+
+        if (data == null)
+        {
+            // Defensive: pre-Initialize call from a test — apply raw damage.
+            currentHealth = Mathf.Max(0f, currentHealth - rawDamage);
+            if (currentHealth <= 0f)
+                Die();
+            return;
+        }
 
         float damage = rawDamage;
 
@@ -204,6 +230,8 @@ public class Enemy : MonoBehaviour
             slowCoroutine = null;
         }
         slowFactor = 1f;
+        if (healthBar != null)
+            healthBar.Unbind();
         PrefabPool.Release(gameObject);
     }
 }
