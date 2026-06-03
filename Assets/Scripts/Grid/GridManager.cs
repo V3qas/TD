@@ -15,6 +15,9 @@ public class GridManager : MonoBehaviour
     // Runtime preview objects created by BuildGridPreview
     private readonly List<GameObject> previewCells = new List<GameObject>();
     private Sprite previewSprite;
+    private LevelMapDefinition previewDefinition;
+    private readonly Dictionary<Vector2Int, OccupantType> previewOccupants = new Dictionary<Vector2Int, OccupantType>();
+    private readonly Dictionary<Vector2Int, GroundType> previewGroundOverrides = new Dictionary<Vector2Int, GroundType>();
 
     // Cached Start→Goal path (BFS result). Recomputed on grid build and occupancy changes.
     private List<GridCell> cachedEnemyPath;
@@ -65,7 +68,32 @@ public class GridManager : MonoBehaviour
     public void BuildGridPreview(LevelMapDefinition definition)
     {
         BuildGridInternal(definition, false);
+        CachePreviewLookups(definition);
         CreatePreviewVisuals();
+    }
+
+    private void CachePreviewLookups(LevelMapDefinition definition)
+    {
+        previewDefinition = definition;
+        previewOccupants.Clear();
+        previewGroundOverrides.Clear();
+        if (definition == null) return;
+        if (definition.occupants != null)
+        {
+            for (int i = 0; i < definition.occupants.Count; i++)
+            {
+                OccupantEntry entry = definition.occupants[i];
+                previewOccupants[entry.cell] = entry.type;
+            }
+        }
+        if (definition.groundOverrides != null)
+        {
+            for (int i = 0; i < definition.groundOverrides.Count; i++)
+            {
+                GroundOverrideEntry entry = definition.groundOverrides[i];
+                previewGroundOverrides[entry.cell] = entry.type;
+            }
+        }
     }
 
     public void ClearPreviewVisuals()
@@ -97,6 +125,18 @@ public class GridManager : MonoBehaviour
 
         HashSet<Vector2Int> blockedCells = new HashSet<Vector2Int>(normalizedDefinition.blockedCells);
         HashSet<Vector2Int> pathCells = new HashSet<Vector2Int>(normalizedDefinition.pathCells);
+
+        // New occupants (Rock, Destructible) act as blockers in pathfinding/build checks until
+        // Phase 5 introduces dedicated runtime objects.
+        if (normalizedDefinition.occupants != null)
+        {
+            for (int i = 0; i < normalizedDefinition.occupants.Count; i++)
+            {
+                OccupantEntry occupant = normalizedDefinition.occupants[i];
+                if (occupant.type != OccupantType.None)
+                    blockedCells.Add(occupant.cell);
+            }
+        }
 
         grid = new GridCell[normalizedDefinition.width, normalizedDefinition.height];
 
@@ -408,6 +448,23 @@ public class GridManager : MonoBehaviour
 
         if (cellPosition == GoalCell)
             return Color.red;
+
+        if (previewOccupants.TryGetValue(cellPosition, out OccupantType occupant))
+        {
+            return occupant == OccupantType.Rock
+                ? new Color(0.32f, 0.32f, 0.34f)
+                : new Color(0.55f, 0.42f, 0.28f);
+        }
+
+        if (previewGroundOverrides.TryGetValue(cellPosition, out GroundType ground))
+        {
+            switch (ground)
+            {
+                case GroundType.Elevated: return new Color(0.7f, 0.66f, 0.55f);
+                case GroundType.Water:    return new Color(0.25f, 0.55f, 0.85f);
+                case GroundType.Lava:     return new Color(0.95f, 0.32f, 0.12f);
+            }
+        }
 
         GridCell cell = GetCell(cellPosition);
         if (cell == null)

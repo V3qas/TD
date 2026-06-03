@@ -19,11 +19,18 @@ public class RuntimeMapEditorController : MonoBehaviour
     private enum MapEditorTool
     {
         Path,
-        Blocked,
         Erase,
+        Rock,
+        Destructible,
+        Elevated,
+        Water,
+        Lava,
         Start,
         Goal
     }
+
+    private const int DefaultDestructibleHp = 100;
+    private const int DefaultDestructibleReward = 15;
 
     [SerializeField] private LevelLoader levelLoader;
     [SerializeField] private MainMenuConfig menuConfig;
@@ -41,13 +48,16 @@ public class RuntimeMapEditorController : MonoBehaviour
 
     private readonly Dictionary<MapEditorTool, Button> toolButtons = new Dictionary<MapEditorTool, Button>();
     private readonly Dictionary<DifficultyLevel, Button> difficultyButtons = new Dictionary<DifficultyLevel, Button>();
-    private readonly HashSet<Vector2Int> blockedCells = new HashSet<Vector2Int>();
+    private readonly Dictionary<Vector2Int, OccupantEntry> occupants = new Dictionary<Vector2Int, OccupantEntry>();
+    private readonly Dictionary<Vector2Int, GroundType> groundOverrides = new Dictionary<Vector2Int, GroundType>();
     private readonly HashSet<Vector2Int> pathCells = new HashSet<Vector2Int>();
 
     private GameObject editorRoot;
     private InputField widthInput;
     private InputField heightInput;
     private InputField seedInput;
+    private InputField destructibleHpInput;
+    private InputField destructibleRewardInput;
     private Text validationText;
     private Button startTestButton;
     private Button saveCustomButton;
@@ -322,10 +332,20 @@ public class RuntimeMapEditorController : MonoBehaviour
             .gameObject.AddComponent<LayoutElement>().preferredHeight = 28f;
 
         CreateToolButton(parent, MapEditorTool.Path, "Pfad");
-        CreateToolButton(parent, MapEditorTool.Blocked, "Blocker");
         CreateToolButton(parent, MapEditorTool.Erase, "Loeschen");
+        CreateToolButton(parent, MapEditorTool.Rock, "Stein");
+        CreateToolButton(parent, MapEditorTool.Destructible, "Zerst.-Block");
+        CreateToolButton(parent, MapEditorTool.Elevated, "Erhöhung");
+        CreateToolButton(parent, MapEditorTool.Water, "Wasser");
+        CreateToolButton(parent, MapEditorTool.Lava, "Lava");
         CreateToolButton(parent, MapEditorTool.Start, "Start");
         CreateToolButton(parent, MapEditorTool.Goal, "Stop");
+
+        CreateText("DestructibleTitle", parent, "Zerstörbar: HP / Belohnung", 14, TextAnchor.MiddleLeft, new Color(0.8f, 0.85f, 0.9f))
+            .gameObject.AddComponent<LayoutElement>().preferredHeight = 22f;
+
+        destructibleHpInput = CreateInputField(parent, DefaultDestructibleHp.ToString(), 14, 30f, false);
+        destructibleRewardInput = CreateInputField(parent, DefaultDestructibleReward.ToString(), 14, 30f, false);
     }
 
     private void BuildSeedControls(Transform parent)
@@ -425,10 +445,13 @@ public class RuntimeMapEditorController : MonoBehaviour
             startCell = new Vector2Int(0, pathRow),
             goalCell = new Vector2Int(clampedWidth - 1, pathRow),
             blockedCells = new List<Vector2Int>(),
-            pathCells = new List<Vector2Int>()
+            pathCells = new List<Vector2Int>(),
+            groundOverrides = new List<GroundOverrideEntry>(),
+            occupants = new List<OccupantEntry>()
         };
 
-        blockedCells.Clear();
+        occupants.Clear();
+        groundOverrides.Clear();
         pathCells.Clear();
 
         RefreshInputsFromMap();
@@ -438,11 +461,39 @@ public class RuntimeMapEditorController : MonoBehaviour
     private void LoadDefinition(LevelMapDefinition definition)
     {
         mapDefinition = definition.CloneNormalized();
-        blockedCells.Clear();
+        occupants.Clear();
+        groundOverrides.Clear();
         pathCells.Clear();
 
-        foreach (Vector2Int blockedCell in mapDefinition.blockedCells)
-            blockedCells.Add(blockedCell);
+        // Legacy: any blockedCells from old saves count as indestructible Rocks
+        // so old maps still display correctly.
+        if (mapDefinition.blockedCells != null)
+        {
+            for (int i = 0; i < mapDefinition.blockedCells.Count; i++)
+            {
+                Vector2Int legacyBlocker = mapDefinition.blockedCells[i];
+                if (!occupants.ContainsKey(legacyBlocker))
+                    occupants[legacyBlocker] = new OccupantEntry { cell = legacyBlocker, type = OccupantType.Rock, maxHp = 0, reward = 0 };
+            }
+        }
+
+        if (mapDefinition.occupants != null)
+        {
+            for (int i = 0; i < mapDefinition.occupants.Count; i++)
+            {
+                OccupantEntry entry = mapDefinition.occupants[i];
+                occupants[entry.cell] = entry;
+            }
+        }
+
+        if (mapDefinition.groundOverrides != null)
+        {
+            for (int i = 0; i < mapDefinition.groundOverrides.Count; i++)
+            {
+                GroundOverrideEntry entry = mapDefinition.groundOverrides[i];
+                groundOverrides[entry.cell] = entry.type;
+            }
+        }
 
         foreach (Vector2Int pathCell in mapDefinition.pathCells)
             pathCells.Add(pathCell);
@@ -482,27 +533,60 @@ public class RuntimeMapEditorController : MonoBehaviour
         switch (selectedTool)
         {
             case MapEditorTool.Path:
-                changed |= blockedCells.Remove(cell);
+                changed |= occupants.Remove(cell);
+                changed |= groundOverrides.Remove(cell);
                 changed |= pathCells.Add(cell);
                 break;
-            case MapEditorTool.Blocked:
-                if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell)
-                    return false;
-
-                changed |= pathCells.Remove(cell);
-                changed |= blockedCells.Add(cell);
-                break;
             case MapEditorTool.Erase:
-                changed |= blockedCells.Remove(cell);
+                changed |= occupants.Remove(cell);
+                changed |= groundOverrides.Remove(cell);
                 if (cell != mapDefinition.startCell && cell != mapDefinition.goalCell)
                     changed |= pathCells.Remove(cell);
+                break;
+            case MapEditorTool.Rock:
+                if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell)
+                    return false;
+                changed |= pathCells.Remove(cell);
+                changed |= groundOverrides.Remove(cell);
+                changed |= SetOccupant(cell, OccupantType.Rock, 0, 0);
+                break;
+            case MapEditorTool.Destructible:
+                if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell)
+                    return false;
+                int hp = ParsePositiveInput(destructibleHpInput, DefaultDestructibleHp);
+                int reward = ParseNonNegativeInput(destructibleRewardInput, DefaultDestructibleReward);
+                changed |= pathCells.Remove(cell);
+                changed |= groundOverrides.Remove(cell);
+                changed |= SetOccupant(cell, OccupantType.Destructible, hp, reward);
+                break;
+            case MapEditorTool.Elevated:
+                if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell)
+                    return false;
+                changed |= pathCells.Remove(cell);
+                changed |= occupants.Remove(cell);
+                changed |= SetGroundOverride(cell, GroundType.Elevated);
+                break;
+            case MapEditorTool.Water:
+                if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell)
+                    return false;
+                changed |= pathCells.Remove(cell);
+                changed |= occupants.Remove(cell);
+                changed |= SetGroundOverride(cell, GroundType.Water);
+                break;
+            case MapEditorTool.Lava:
+                if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell)
+                    return false;
+                changed |= pathCells.Remove(cell);
+                changed |= occupants.Remove(cell);
+                changed |= SetGroundOverride(cell, GroundType.Lava);
                 break;
             case MapEditorTool.Start:
                 if (cell == mapDefinition.goalCell)
                     return false;
 
                 changed |= pathCells.Remove(mapDefinition.startCell);
-                changed |= blockedCells.Remove(cell);
+                changed |= occupants.Remove(cell);
+                changed |= groundOverrides.Remove(cell);
                 mapDefinition.startCell = cell;
                 changed |= pathCells.Add(cell);
                 changed = true;
@@ -512,7 +596,8 @@ public class RuntimeMapEditorController : MonoBehaviour
                     return false;
 
                 changed |= pathCells.Remove(mapDefinition.goalCell);
-                changed |= blockedCells.Remove(cell);
+                changed |= occupants.Remove(cell);
+                changed |= groundOverrides.Remove(cell);
                 mapDefinition.goalCell = cell;
                 changed |= pathCells.Add(cell);
                 changed = true;
@@ -523,6 +608,36 @@ public class RuntimeMapEditorController : MonoBehaviour
             RefreshSeedText();
 
         return changed;
+    }
+
+    private bool SetOccupant(Vector2Int cell, OccupantType type, int maxHp, int reward)
+    {
+        if (occupants.TryGetValue(cell, out OccupantEntry existing) && existing.type == type && existing.maxHp == maxHp && existing.reward == reward)
+            return false;
+        occupants[cell] = new OccupantEntry { cell = cell, type = type, maxHp = maxHp, reward = reward };
+        return true;
+    }
+
+    private bool SetGroundOverride(Vector2Int cell, GroundType type)
+    {
+        if (groundOverrides.TryGetValue(cell, out GroundType existing) && existing == type)
+            return false;
+        groundOverrides[cell] = type;
+        return true;
+    }
+
+    private static int ParsePositiveInput(InputField input, int fallback)
+    {
+        if (input == null || !int.TryParse(input.text, out int value) || value <= 0)
+            return fallback;
+        return value;
+    }
+
+    private static int ParseNonNegativeInput(InputField input, int fallback)
+    {
+        if (input == null || !int.TryParse(input.text, out int value) || value < 0)
+            return fallback;
+        return value;
     }
 
     private bool TryGetPointerCell(out Vector2Int cell)
@@ -558,14 +673,24 @@ public class RuntimeMapEditorController : MonoBehaviour
 
     private LevelMapDefinition BuildDefinition()
     {
+        List<OccupantEntry> occupantList = new List<OccupantEntry>(occupants.Count);
+        foreach (KeyValuePair<Vector2Int, OccupantEntry> pair in occupants)
+            occupantList.Add(pair.Value);
+
+        List<GroundOverrideEntry> groundList = new List<GroundOverrideEntry>(groundOverrides.Count);
+        foreach (KeyValuePair<Vector2Int, GroundType> pair in groundOverrides)
+            groundList.Add(new GroundOverrideEntry { cell = pair.Key, type = pair.Value });
+
         LevelMapDefinition definition = new LevelMapDefinition
         {
             width = mapDefinition.width,
             height = mapDefinition.height,
             startCell = mapDefinition.startCell,
             goalCell = mapDefinition.goalCell,
-            blockedCells = new List<Vector2Int>(blockedCells),
-            pathCells = new List<Vector2Int>(pathCells)
+            blockedCells = new List<Vector2Int>(),
+            pathCells = new List<Vector2Int>(pathCells),
+            occupants = occupantList,
+            groundOverrides = groundList
         };
 
         definition.Normalize();

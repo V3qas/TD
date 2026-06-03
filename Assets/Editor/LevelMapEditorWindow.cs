@@ -7,8 +7,12 @@ public class LevelMapEditorWindow : EditorWindow
     private enum PaintTool
     {
         Path,
-        Blocked,
         Erase,
+        Rock,
+        Destructible,
+        Elevated,
+        Water,
+        Lava,
         Start,
         Goal
     }
@@ -16,18 +20,26 @@ public class LevelMapEditorWindow : EditorWindow
     private static readonly string[] ToolLabels =
     {
         "Pfad",
-        "Blocker",
         "Loeschen",
+        "Stein",
+        "Zerst.-Block",
+        "Erhöhung",
+        "Wasser",
+        "Lava",
         "Start",
         "Stop"
     };
+
+    private const int DefaultDestructibleHp = 100;
+    private const int DefaultDestructibleReward = 15;
 
     private const float MinCellSize = 6f;
     private const float MaxCellSize = 32f;
 
     private LevelData targetLevel;
     private LevelMapDefinition mapDefinition;
-    private HashSet<Vector2Int> blockedCells = new HashSet<Vector2Int>();
+    private Dictionary<Vector2Int, OccupantEntry> occupants = new Dictionary<Vector2Int, OccupantEntry>();
+    private Dictionary<Vector2Int, GroundType> groundOverrides = new Dictionary<Vector2Int, GroundType>();
     private HashSet<Vector2Int> pathCells = new HashSet<Vector2Int>();
     private Vector2 scrollPosition;
     private PaintTool selectedTool = PaintTool.Path;
@@ -37,6 +49,8 @@ public class LevelMapEditorWindow : EditorWindow
     private bool validationDirty = true;
     private int newWidth = 44;
     private int newHeight = 32;
+    private int destructibleHp = DefaultDestructibleHp;
+    private int destructibleReward = DefaultDestructibleReward;
     private float cellSize = 18f;
 
     [MenuItem("Tools/Tower Defense/Map Editor")]
@@ -103,6 +117,12 @@ public class LevelMapEditorWindow : EditorWindow
 
         selectedTool = (PaintTool)GUILayout.Toolbar((int)selectedTool, ToolLabels);
         cellSize = EditorGUILayout.Slider("Zoom", cellSize, MinCellSize, MaxCellSize);
+
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            destructibleHp = Mathf.Max(1, EditorGUILayout.IntField("Zerst. HP", destructibleHp));
+            destructibleReward = Mathf.Max(0, EditorGUILayout.IntField("Belohnung", destructibleReward));
+        }
     }
 
     private void DrawSeedControls()
@@ -220,29 +240,56 @@ public class LevelMapEditorWindow : EditorWindow
         switch (selectedTool)
         {
             case PaintTool.Path:
-                blockedCells.Remove(cell);
+                occupants.Remove(cell);
+                groundOverrides.Remove(cell);
                 pathCells.Add(cell);
                 break;
-            case PaintTool.Blocked:
-                if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell)
-                    return;
-
-                pathCells.Remove(cell);
-                blockedCells.Add(cell);
-                break;
             case PaintTool.Erase:
-                blockedCells.Remove(cell);
+                occupants.Remove(cell);
+                groundOverrides.Remove(cell);
                 if (cell != mapDefinition.startCell && cell != mapDefinition.goalCell)
                     pathCells.Remove(cell);
                 break;
+            case PaintTool.Rock:
+                if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell) return;
+                pathCells.Remove(cell);
+                groundOverrides.Remove(cell);
+                occupants[cell] = new OccupantEntry { cell = cell, type = OccupantType.Rock, maxHp = 0, reward = 0 };
+                break;
+            case PaintTool.Destructible:
+                if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell) return;
+                pathCells.Remove(cell);
+                groundOverrides.Remove(cell);
+                occupants[cell] = new OccupantEntry { cell = cell, type = OccupantType.Destructible, maxHp = destructibleHp, reward = destructibleReward };
+                break;
+            case PaintTool.Elevated:
+                if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell) return;
+                pathCells.Remove(cell);
+                occupants.Remove(cell);
+                groundOverrides[cell] = GroundType.Elevated;
+                break;
+            case PaintTool.Water:
+                if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell) return;
+                pathCells.Remove(cell);
+                occupants.Remove(cell);
+                groundOverrides[cell] = GroundType.Water;
+                break;
+            case PaintTool.Lava:
+                if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell) return;
+                pathCells.Remove(cell);
+                occupants.Remove(cell);
+                groundOverrides[cell] = GroundType.Lava;
+                break;
             case PaintTool.Start:
-                blockedCells.Remove(cell);
+                occupants.Remove(cell);
+                groundOverrides.Remove(cell);
                 pathCells.Remove(mapDefinition.startCell);
                 mapDefinition.startCell = cell;
                 pathCells.Add(cell);
                 break;
             case PaintTool.Goal:
-                blockedCells.Remove(cell);
+                occupants.Remove(cell);
+                groundOverrides.Remove(cell);
                 pathCells.Remove(mapDefinition.goalCell);
                 mapDefinition.goalCell = cell;
                 pathCells.Add(cell);
@@ -260,8 +307,22 @@ public class LevelMapEditorWindow : EditorWindow
         if (cell == mapDefinition.goalCell)
             return new Color(0.95f, 0.25f, 0.2f);
 
-        if (blockedCells.Contains(cell))
-            return new Color(0.28f, 0.3f, 0.33f);
+        if (occupants.TryGetValue(cell, out OccupantEntry occupant))
+        {
+            return occupant.type == OccupantType.Rock
+                ? new Color(0.32f, 0.32f, 0.34f)
+                : new Color(0.55f, 0.42f, 0.28f);
+        }
+
+        if (groundOverrides.TryGetValue(cell, out GroundType ground))
+        {
+            switch (ground)
+            {
+                case GroundType.Elevated: return new Color(0.7f, 0.66f, 0.55f);
+                case GroundType.Water:    return new Color(0.25f, 0.55f, 0.85f);
+                case GroundType.Lava:     return new Color(0.95f, 0.32f, 0.12f);
+            }
+        }
 
         if (pathCells.Contains(cell))
             return new Color(1f, 0.78f, 0.2f);
@@ -282,10 +343,13 @@ public class LevelMapEditorWindow : EditorWindow
             startCell = new Vector2Int(0, pathRow),
             goalCell = new Vector2Int(clampedWidth - 1, pathRow),
             blockedCells = new List<Vector2Int>(),
-            pathCells = new List<Vector2Int>()
+            pathCells = new List<Vector2Int>(),
+            groundOverrides = new List<GroundOverrideEntry>(),
+            occupants = new List<OccupantEntry>()
         };
 
-        blockedCells.Clear();
+        occupants.Clear();
+        groundOverrides.Clear();
         pathCells.Clear();
 
         for (int column = 0; column < clampedWidth; column++)
@@ -344,7 +408,31 @@ public class LevelMapEditorWindow : EditorWindow
     private void LoadDefinition(LevelMapDefinition definition)
     {
         mapDefinition = definition.CloneNormalized();
-        blockedCells = new HashSet<Vector2Int>(mapDefinition.blockedCells);
+        occupants = new Dictionary<Vector2Int, OccupantEntry>();
+        groundOverrides = new Dictionary<Vector2Int, GroundType>();
+
+        if (mapDefinition.blockedCells != null)
+        {
+            for (int i = 0; i < mapDefinition.blockedCells.Count; i++)
+            {
+                Vector2Int legacyBlocker = mapDefinition.blockedCells[i];
+                if (!occupants.ContainsKey(legacyBlocker))
+                    occupants[legacyBlocker] = new OccupantEntry { cell = legacyBlocker, type = OccupantType.Rock, maxHp = 0, reward = 0 };
+            }
+        }
+
+        if (mapDefinition.occupants != null)
+        {
+            for (int i = 0; i < mapDefinition.occupants.Count; i++)
+                occupants[mapDefinition.occupants[i].cell] = mapDefinition.occupants[i];
+        }
+
+        if (mapDefinition.groundOverrides != null)
+        {
+            for (int i = 0; i < mapDefinition.groundOverrides.Count; i++)
+                groundOverrides[mapDefinition.groundOverrides[i].cell] = mapDefinition.groundOverrides[i].type;
+        }
+
         pathCells = new HashSet<Vector2Int>(mapDefinition.pathCells)
         {
             mapDefinition.startCell,
@@ -359,14 +447,24 @@ public class LevelMapEditorWindow : EditorWindow
 
     private LevelMapDefinition BuildDefinition()
     {
+        List<OccupantEntry> occupantList = new List<OccupantEntry>(occupants.Count);
+        foreach (KeyValuePair<Vector2Int, OccupantEntry> pair in occupants)
+            occupantList.Add(pair.Value);
+
+        List<GroundOverrideEntry> groundList = new List<GroundOverrideEntry>(groundOverrides.Count);
+        foreach (KeyValuePair<Vector2Int, GroundType> pair in groundOverrides)
+            groundList.Add(new GroundOverrideEntry { cell = pair.Key, type = pair.Value });
+
         LevelMapDefinition definition = new LevelMapDefinition
         {
             width = mapDefinition.width,
             height = mapDefinition.height,
             startCell = mapDefinition.startCell,
             goalCell = mapDefinition.goalCell,
-            blockedCells = new List<Vector2Int>(blockedCells),
-            pathCells = new List<Vector2Int>(pathCells)
+            blockedCells = new List<Vector2Int>(),
+            pathCells = new List<Vector2Int>(pathCells),
+            occupants = occupantList,
+            groundOverrides = groundList
         };
 
         definition.Normalize();
