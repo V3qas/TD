@@ -32,6 +32,8 @@ public class GridManager : MonoBehaviour
     public float CellSize => cellSize;
     public bool HasGrid => grid != null;
     public bool UsesExplicitPath => usesExplicitPath;
+    public int Width => grid != null ? grid.GetLength(0) : 0;
+    public int Height => grid != null ? grid.GetLength(1) : 0;
 
     public List<Vector3> GetCachedEnemyPathWorld()
     {

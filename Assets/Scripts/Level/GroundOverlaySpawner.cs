@@ -68,8 +68,19 @@ public class GroundOverlaySpawner : MonoBehaviour
         tileObject.transform.localScale = new Vector3(gridManager.CellSize, gridManager.CellSize, 1f);
 
         SpriteRenderer renderer = tileObject.GetComponent<SpriteRenderer>();
-        renderer.sprite = GetOrCreateQuadSprite();
-        renderer.color = ColorFor(type);
+
+        // Prefer themed sprite/tint if a MapThemeApplier is present.
+        MapThemeDefinition theme = MapThemeApplier.Active != null ? MapThemeApplier.Active.ActiveTheme : null;
+        if (theme != null && theme.TryGetGroundVisual(type, out MapThemeDefinition.GroundVisual visual))
+        {
+            renderer.sprite = visual.sprite != null ? visual.sprite : GetOrCreateQuadSprite();
+            renderer.color = visual.tint.a > 0f ? visual.tint : ColorFor(type);
+        }
+        else
+        {
+            renderer.sprite = GetOrCreateQuadSprite();
+            renderer.color = ColorFor(type);
+        }
         renderer.sortingOrder = -10; // below towers/enemies but above background
 
         spawned.Add(tileObject);
