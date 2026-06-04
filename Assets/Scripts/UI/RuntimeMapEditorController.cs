@@ -51,6 +51,9 @@ public class RuntimeMapEditorController : MonoBehaviour
     private readonly Dictionary<Vector2Int, OccupantEntry> occupants = new Dictionary<Vector2Int, OccupantEntry>();
     private readonly Dictionary<Vector2Int, GroundType> groundOverrides = new Dictionary<Vector2Int, GroundType>();
     private readonly HashSet<Vector2Int> pathCells = new HashSet<Vector2Int>();
+    // Snapshot of authored multi-path sequences. See LevelMapEditorWindow for rationale:
+    // we keep them so a v3 multi-path map survives load->save without being collapsed.
+    private List<PathSequence> loadedPathSequences = new List<PathSequence>();
 
     private GameObject editorRoot;
     private InputField widthInput;
@@ -585,6 +588,8 @@ public class RuntimeMapEditorController : MonoBehaviour
         pathCells.Add(mapDefinition.startCell);
         pathCells.Add(mapDefinition.goalCell);
 
+        loadedPathSequences = ClonePathSequences(mapDefinition.pathSequences);
+
         RefreshInputsFromMap();
         RefreshSeedText();
     }
@@ -765,6 +770,13 @@ public class RuntimeMapEditorController : MonoBehaviour
         foreach (KeyValuePair<Vector2Int, GroundType> pair in groundOverrides)
             groundList.Add(new GroundOverrideEntry { cell = pair.Key, type = pair.Value });
 
+        // Reuse loaded sequences only if pathCells still matches their union; otherwise let
+        // Normalize() reconstruct a single sequence. Prevents silent multi-path -> single-path
+        // collapse during a roundtrip when the user didn't touch path cells.
+        List<PathSequence> sequences = PathSequencesStillMatch(pathCells, loadedPathSequences)
+            ? ClonePathSequences(loadedPathSequences)
+            : new List<PathSequence>();
+
         LevelMapDefinition definition = new LevelMapDefinition
         {
             width = mapDefinition.width,
@@ -774,11 +786,38 @@ public class RuntimeMapEditorController : MonoBehaviour
             blockedCells = new List<Vector2Int>(),
             pathCells = new List<Vector2Int>(pathCells),
             occupants = occupantList,
-            groundOverrides = groundList
+            groundOverrides = groundList,
+            pathSequences = sequences
         };
 
         definition.Normalize();
         return definition;
+    }
+
+    private static bool PathSequencesStillMatch(HashSet<Vector2Int> currentPathCells, List<PathSequence> sequences)
+    {
+        if (sequences == null || sequences.Count == 0)
+            return false;
+        HashSet<Vector2Int> union = new HashSet<Vector2Int>();
+        foreach (PathSequence seq in sequences)
+        {
+            if (seq?.cells == null) continue;
+            foreach (Vector2Int cell in seq.cells)
+                union.Add(cell);
+        }
+        return union.SetEquals(currentPathCells);
+    }
+
+    private static List<PathSequence> ClonePathSequences(List<PathSequence> source)
+    {
+        List<PathSequence> copy = new List<PathSequence>();
+        if (source == null) return copy;
+        foreach (PathSequence seq in source)
+        {
+            if (seq?.cells == null) continue;
+            copy.Add(new PathSequence(seq.cells));
+        }
+        return copy;
     }
 
     private void RefreshValidation()

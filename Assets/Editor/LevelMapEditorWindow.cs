@@ -41,6 +41,11 @@ public class LevelMapEditorWindow : EditorWindow
     private Dictionary<Vector2Int, OccupantEntry> occupants = new Dictionary<Vector2Int, OccupantEntry>();
     private Dictionary<Vector2Int, GroundType> groundOverrides = new Dictionary<Vector2Int, GroundType>();
     private HashSet<Vector2Int> pathCells = new HashSet<Vector2Int>();
+    // Snapshot of authored multi-path sequences taken at load time. We keep them around so
+    // that a v3 map with multiple pathSequences survives an open->save roundtrip without
+    // being collapsed into a single BFS-reconstructed path. Discarded as soon as the user
+    // edits any path cell (see InvalidatePathSequences).
+    private List<PathSequence> loadedPathSequences = new List<PathSequence>();
     private Vector2 scrollPosition;
     private PaintTool selectedTool = PaintTool.Path;
     private string seedInput = string.Empty;
@@ -506,6 +511,8 @@ public class LevelMapEditorWindow : EditorWindow
             mapDefinition.goalCell
         };
 
+        loadedPathSequences = ClonePathSequences(mapDefinition.pathSequences);
+
         newWidth = mapDefinition.width;
         newHeight = mapDefinition.height;
         scrollPosition = Vector2.zero;
@@ -522,6 +529,13 @@ public class LevelMapEditorWindow : EditorWindow
         foreach (KeyValuePair<Vector2Int, GroundType> pair in groundOverrides)
             groundList.Add(new GroundOverrideEntry { cell = pair.Key, type = pair.Value });
 
+        // Reuse loaded pathSequences only when the current pathCells set still matches their
+        // union (i.e. the user hasn't edited any path cell). Otherwise we hand an empty list
+        // to Normalize() and let it reconstruct a single sequence from pathCells.
+        List<PathSequence> sequences = PathSequencesStillMatch(pathCells, loadedPathSequences)
+            ? ClonePathSequences(loadedPathSequences)
+            : new List<PathSequence>();
+
         LevelMapDefinition definition = new LevelMapDefinition
         {
             width = mapDefinition.width,
@@ -531,11 +545,38 @@ public class LevelMapEditorWindow : EditorWindow
             blockedCells = new List<Vector2Int>(),
             pathCells = new List<Vector2Int>(pathCells),
             occupants = occupantList,
-            groundOverrides = groundList
+            groundOverrides = groundList,
+            pathSequences = sequences
         };
 
         definition.Normalize();
         return definition;
+    }
+
+    private static bool PathSequencesStillMatch(HashSet<Vector2Int> currentPathCells, List<PathSequence> sequences)
+    {
+        if (sequences == null || sequences.Count == 0)
+            return false;
+        HashSet<Vector2Int> union = new HashSet<Vector2Int>();
+        foreach (PathSequence seq in sequences)
+        {
+            if (seq?.cells == null) continue;
+            foreach (Vector2Int cell in seq.cells)
+                union.Add(cell);
+        }
+        return union.SetEquals(currentPathCells);
+    }
+
+    private static List<PathSequence> ClonePathSequences(List<PathSequence> source)
+    {
+        List<PathSequence> copy = new List<PathSequence>();
+        if (source == null) return copy;
+        foreach (PathSequence seq in source)
+        {
+            if (seq?.cells == null) continue;
+            copy.Add(new PathSequence(seq.cells));
+        }
+        return copy;
     }
 
     private void ValidateIfNeeded()
