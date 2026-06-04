@@ -32,10 +32,13 @@ TD/
 `-- TD.slnx
 ```
 
-`Assets/Scripts/` is grouped by subsystem; one folder per subsystem, no namespaces yet
-(default namespace is used everywhere). Three assembly definitions split runtime,
-editor, and test code so the test assembly can reference runtime code without leaking
-editor-only types.
+`Assets/Scripts/` is grouped by subsystem; one folder per subsystem, each under a
+`TD.<Subsystem>` namespace (`TD.Core`, `TD.Grid`, `TD.Pathfinding`, `TD.Enemies`,
+`TD.Towers`, `TD.Bullets`, `TD.Combat`, `TD.Level`, `TD.UI`, `TD.Menu`, `TD.Theming`;
+editor code is `TD.Editor`, tests are `TD.Tests.EditMode`). The enemy subsystem uses
+the plural `TD.Enemies` to avoid colliding with the `Enemy` type. Three assembly
+definitions split runtime, editor, and test code so the test assembly can reference
+runtime code without leaking editor-only types.
 
 ---
 
@@ -46,10 +49,10 @@ Runtime code is grouped by domain:
 | Subsystem   | Folder                        | Responsibilities |
 | ----------- | ----------------------------- | ---------------- |
 | Core        | `Assets/Scripts/Core/`        | Session state, game state, build placement, difficulty, pooling |
-| Grid        | `Assets/Scripts/Grid/`        | Grid cells, build/path occupancy, cached enemy paths |
+| Grid        | `Assets/Scripts/Grid/`        | Grid cells, build/path occupancy, cached enemy paths; preview overlay rendering split into `GridPreviewRenderer` |
 | Pathfinding | `Assets/Scripts/Pathfinding/` | BFS pathfinding |
-| Enemy       | `Assets/Scripts/Enemy/`       | Enemy stats, runtime enemies, round spawning |
-| Towers      | `Assets/Scripts/Towers/`      | Towers, upgrades, selection, range indicators |
+| Enemy       | `Assets/Scripts/Enemy/`       | Enemy stats, runtime enemies, round spawning; round composition split into `WavePlanner` |
+| Towers      | `Assets/Scripts/Towers/`      | Towers, upgrades, selection, range indicators; targeting via `ITargetProvider` |
 | Bullets     | `Assets/Scripts/Bullets/`     | Projectile stats and projectile runtime behaviour |
 | Combat      | `Assets/Scripts/Combat/`      | Shared damage contract, rocks, destructible blockers |
 | Level       | `Assets/Scripts/Level/`       | Level data, map seeds, loading, camera framing, map occupants |
@@ -87,7 +90,8 @@ Gameplay
   LevelLoader -> GridManager -> Pathfinder
   LevelLoader -> OccupantSpawner / GroundOverlaySpawner / MapThemeApplier
   EnemySpawner -> Enemy.ActiveEnemies
-  BuildManager -> Tower -> Bullet via PrefabPool
+  BuildManager -> Tower -> ITargetProvider -> Enemy.ActiveEnemies / Destructible.MarkedTargets
+  Tower -> Bullet via PrefabPool
   TowerSelectionController -> RangeIndicator + InGameHudController
   GameState -> InGameHudController
 ```
@@ -169,6 +173,8 @@ public method or property is added, removed, or renamed.
   `IsPathCell`, `CanEnemyWalkOn`, `CanBuildAt`, `GetGroundType`,
   `GetCachedEnemyPathWorld`, `TryOccupyCell`, `ClearOccupiedCell`,
   `ClearBlockedCell`, `WouldOccupyingCellBlockPath`.
+- `GridPreviewRenderer` - owns the map-editor preview overlay; `Build`,
+  `Clear`, `DisposeSprite`. Used internally by `GridManager`.
 - `GridCell` - `X`, `Y`, `Position`, `IsBlocked`, `IsOccupied`, `IsPath`,
   `IsWalkable`, `SetBlocked`, `SetPath`, `SetOccupied`.
 - `Pathfinder` - `FindPath(start, goal)`, `HasPath(start, goal)`.
@@ -184,18 +190,25 @@ public method or property is added, removed, or renamed.
   `firstRound`, `baseAmount`, `amountPerRound`, `spawnInterval`.
 - `EnemySpawner` - `BeginSpawning`, `RestartSpawning`, `RestartSpawningFromRound`,
   `StopSpawning(clearEnemies)`.
+- `WavePlanner` (static) - `BuildRound(output, spawnEntries, round, difficulty,
+  fallback)`, `IsValid(entry)`. Pure round-composition logic extracted from
+  `EnemySpawner` for testability.
 - `IDamageable` - `CurrentHealth`, `MaxHealth`, `IsDead`, `WorldPosition`,
   `TakeDamage`.
 - `Destructible` - `MarkedTargets`, `ActiveTargets`, `IsMarked`,
   `ClearMarkedTargets`, `Initialize`, `TakeDamage`, `ToggleMarked`, `Mark`,
   `Unmark`.
+- `ITargetProvider` - `FindTarget(origin, range)`; abstraction that decouples
+  towers from the global enemy/destructible registries.
 - `Rock` - marker component for indestructible occupant objects.
 
 ### Towers & Bullets
 
 - `Tower` - `Data`, `CurrentUpgradeLevel`, `Damage`, `AttackSpeed`, `Range`,
-  `Initialize`, `SetTerrainRangeBonus`, `CanUpgrade`, `GetNextUpgradeCost`,
-  `TryUpgrade`, `GetSellValue`.
+  `Initialize`, `SetTerrainRangeBonus`, `SetTargetProvider`, `CanUpgrade`,
+  `GetNextUpgradeCost`, `TryUpgrade`, `GetSellValue`.
+- `DefaultTargetProvider` - `ITargetProvider` implementation (singleton
+  `Instance`); marked destructibles first, then nearest enemy in range.
 - `TowerData` - public fields `towerName`, `icon`, `cost`, `damage`,
   `attackSpeed`, `range`, `bulletData`, `towerPrefab`.
 - `TowerUpgradeData` - nested `UpgradeLevel` with `upgradeName`, `cost`,
@@ -290,8 +303,6 @@ public method or property is added, removed, or renamed.
 
 ## 7. Known Gaps & Suggested Next Steps
 
-- **Namespaces** - everything is still in the default namespace. Adopting
-  `TD.<Subsystem>` namespaces would prevent collisions and document boundaries.
 - **HUD/Menu UI source** - menus and HUD are constructed from code at runtime.
   Once the layout stabilizes, migrating to UXML or prefabs would make iteration and
   theming easier.
@@ -316,3 +327,8 @@ Append a one-line entry whenever this document is updated.
 - 2026-06-04: Completed public API coverage for combat, level generation,
   runtime helpers, theming, UI helpers, menu config types, and ScriptableObject
   schemas.
+- 2026-06-04: Introduced `TD.<Subsystem>` namespaces across runtime/editor/tests
+  (enemy domain uses `TD.Enemies`). Decoupled tower targeting behind
+  `ITargetProvider`/`DefaultTargetProvider`, split `GridManager` preview rendering
+  into `GridPreviewRenderer`, and extracted `EnemySpawner` round composition into
+  the testable `WavePlanner`.
