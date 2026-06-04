@@ -408,18 +408,24 @@ namespace TD.UI
                 return;
             }
 
+            HashSet<Vector2Int> newPathCells = new HashSet<Vector2Int>(path)
+            {
+                mapDefinition.startCell,
+                mapDefinition.goalCell
+            };
+
             pathCells.Clear();
-            foreach (Vector2Int cell in path)
+            foreach (Vector2Int cell in newPathCells)
                 pathCells.Add(cell);
-            pathCells.Add(mapDefinition.startCell);
-            pathCells.Add(mapDefinition.goalCell);
 
             // remove now-overlapping occupants/grounds
-            foreach (Vector2Int cell in path)
+            foreach (Vector2Int cell in pathCells)
             {
                 occupants.Remove(cell);
                 groundOverrides.Remove(cell);
             }
+
+            loadedPathSequences = new List<PathSequence> { new PathSequence(path) };
 
             RefreshSeedText();
             RebuildPreview();
@@ -550,6 +556,7 @@ namespace TD.UI
             occupants.Clear();
             groundOverrides.Clear();
             pathCells.Clear();
+            loadedPathSequences.Clear();
 
             RefreshInputsFromMap();
             RefreshSeedText();
@@ -628,24 +635,25 @@ namespace TD.UI
         private bool PaintCell(Vector2Int cell)
         {
             bool changed = false;
+            bool pathChanged = false;
 
             switch (selectedTool)
             {
                 case MapEditorTool.Path:
                     changed |= occupants.Remove(cell);
                     changed |= groundOverrides.Remove(cell);
-                    changed |= pathCells.Add(cell);
+                    pathChanged |= pathCells.Add(cell);
                     break;
                 case MapEditorTool.Erase:
                     changed |= occupants.Remove(cell);
                     changed |= groundOverrides.Remove(cell);
                     if (cell != mapDefinition.startCell && cell != mapDefinition.goalCell)
-                        changed |= pathCells.Remove(cell);
+                        pathChanged |= pathCells.Remove(cell);
                     break;
                 case MapEditorTool.Rock:
                     if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell)
                         return false;
-                    changed |= pathCells.Remove(cell);
+                    pathChanged |= pathCells.Remove(cell);
                     changed |= groundOverrides.Remove(cell);
                     changed |= SetOccupant(cell, OccupantType.Rock, 0, 0);
                     break;
@@ -654,28 +662,28 @@ namespace TD.UI
                         return false;
                     int hp = ParsePositiveInput(destructibleHpInput, DefaultDestructibleHp);
                     int reward = ParseNonNegativeInput(destructibleRewardInput, DefaultDestructibleReward);
-                    changed |= pathCells.Remove(cell);
+                    pathChanged |= pathCells.Remove(cell);
                     changed |= groundOverrides.Remove(cell);
                     changed |= SetOccupant(cell, OccupantType.Destructible, hp, reward);
                     break;
                 case MapEditorTool.Elevated:
                     if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell)
                         return false;
-                    changed |= pathCells.Remove(cell);
+                    pathChanged |= pathCells.Remove(cell);
                     changed |= occupants.Remove(cell);
                     changed |= SetGroundOverride(cell, GroundType.Elevated);
                     break;
                 case MapEditorTool.Water:
                     if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell)
                         return false;
-                    changed |= pathCells.Remove(cell);
+                    pathChanged |= pathCells.Remove(cell);
                     changed |= occupants.Remove(cell);
                     changed |= SetGroundOverride(cell, GroundType.Water);
                     break;
                 case MapEditorTool.Lava:
                     if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell)
                         return false;
-                    changed |= pathCells.Remove(cell);
+                    pathChanged |= pathCells.Remove(cell);
                     changed |= occupants.Remove(cell);
                     changed |= SetGroundOverride(cell, GroundType.Lava);
                     break;
@@ -683,24 +691,36 @@ namespace TD.UI
                     if (cell == mapDefinition.goalCell)
                         return false;
 
-                    changed |= pathCells.Remove(mapDefinition.startCell);
                     changed |= occupants.Remove(cell);
                     changed |= groundOverrides.Remove(cell);
-                    mapDefinition.startCell = cell;
-                    changed |= pathCells.Add(cell);
-                    changed = true;
+                    if (mapDefinition.startCell != cell)
+                    {
+                        pathChanged |= pathCells.Remove(mapDefinition.startCell);
+                        mapDefinition.startCell = cell;
+                        pathChanged |= pathCells.Add(cell);
+                        changed = true;
+                    }
                     break;
                 case MapEditorTool.Goal:
                     if (cell == mapDefinition.startCell)
                         return false;
 
-                    changed |= pathCells.Remove(mapDefinition.goalCell);
                     changed |= occupants.Remove(cell);
                     changed |= groundOverrides.Remove(cell);
-                    mapDefinition.goalCell = cell;
-                    changed |= pathCells.Add(cell);
-                    changed = true;
+                    if (mapDefinition.goalCell != cell)
+                    {
+                        pathChanged |= pathCells.Remove(mapDefinition.goalCell);
+                        mapDefinition.goalCell = cell;
+                        pathChanged |= pathCells.Add(cell);
+                        changed = true;
+                    }
                     break;
+            }
+
+            if (pathChanged)
+            {
+                InvalidatePathSequences();
+                changed = true;
             }
 
             if (changed)
@@ -723,6 +743,11 @@ namespace TD.UI
                 return false;
             groundOverrides[cell] = type;
             return true;
+        }
+
+        private void InvalidatePathSequences()
+        {
+            loadedPathSequences.Clear();
         }
 
         private static int ParsePositiveInput(InputField input, int fallback)
@@ -780,10 +805,10 @@ namespace TD.UI
             foreach (KeyValuePair<Vector2Int, GroundType> pair in groundOverrides)
                 groundList.Add(new GroundOverrideEntry { cell = pair.Key, type = pair.Value });
 
-            // Reuse loaded sequences only if pathCells still matches their union; otherwise let
-            // Normalize() reconstruct a single sequence. Prevents silent multi-path -> single-path
-            // collapse during a roundtrip when the user didn't touch path cells.
-            List<PathSequence> sequences = PathSequencesStillMatch(pathCells, loadedPathSequences)
+            // Reuse loaded/generated sequences only if pathCells still matches their union;
+            // otherwise Normalize() keeps the authored pathCells and reconstructs one
+            // representative ordered sequence.
+            List<PathSequence> sequences = PathSequencesStillMatch(pathCells, loadedPathSequences, mapDefinition.startCell, mapDefinition.goalCell)
                 ? ClonePathSequences(loadedPathSequences)
                 : new List<PathSequence>();
 
@@ -804,14 +829,17 @@ namespace TD.UI
             return definition;
         }
 
-        private static bool PathSequencesStillMatch(HashSet<Vector2Int> currentPathCells, List<PathSequence> sequences)
+        private static bool PathSequencesStillMatch(HashSet<Vector2Int> currentPathCells, List<PathSequence> sequences, Vector2Int startCell, Vector2Int goalCell)
         {
             if (sequences == null || sequences.Count == 0)
                 return false;
             HashSet<Vector2Int> union = new HashSet<Vector2Int>();
             foreach (PathSequence seq in sequences)
             {
-                if (seq?.cells == null) continue;
+                if (seq?.cells == null)
+                    return false;
+                if (seq.cells.Count == 0 || seq.cells[0] != startCell || seq.cells[seq.cells.Count - 1] != goalCell)
+                    return false;
                 foreach (Vector2Int cell in seq.cells)
                     union.Add(cell);
             }

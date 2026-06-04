@@ -70,8 +70,9 @@ namespace TD.Level
         // canonical definition stores blockers exactly once.
         public List<Vector2Int> blockedCells = new List<Vector2Int>();
 
-        // Union of all cells covered by any pathSequence. Derived by Normalize() and kept around
-        // because many existing consumers index it directly (editors, GridManager preview, etc.).
+        // All authored path cells. For v3 maps with trusted pathSequences this is their union;
+        // for legacy/editor-authored path-cell sets it can include extra branch cells while
+        // pathSequences stores at least one representative route for systems that need ordering.
         public List<Vector2Int> pathCells = new List<Vector2Int>();
 
         // Non-Ground tiles (Elevated/Water/Lava). Default ground = Ground, so only overrides stored.
@@ -202,9 +203,8 @@ namespace TD.Level
             // Step 1: migrate v1 blockedCells -> Rock occupants. After this, blockedCells is empty.
             MigrateLegacyBlockedCells();
 
-            // Step 2: reconcile pathSequences <-> pathCells. After this, pathCells is the union of
-            // all sequence cells (plus start/goal) and is sorted; if pathSequences was empty but
-            // pathCells had entries (v1/v2 seeds), one sequence is reconstructed via BFS.
+            // Step 2: reconcile pathSequences <-> pathCells. Keep authored pathCells when present,
+            // and reconstruct one representative ordered route from them when no sequence exists.
             NormalizePathSequences();
 
             // Step 3: dedupe ground overrides and drop entries that conflict with path/start/goal.
@@ -213,7 +213,7 @@ namespace TD.Level
             // Step 4: dedupe occupants and drop entries that conflict with path/start/goal.
             NormalizeOccupants();
 
-            // Step 5: build O(1) lookup caches used by IsPath/GetGround/IsBuildable/TryGetOccupant.
+            // Step 5: reserved for derived lookup data; currently no-op because maps are small.
             RebuildCaches();
         }
 
@@ -264,19 +264,24 @@ namespace TD.Level
                     pathSequences.RemoveAt(i);
             }
 
-            // v1/v2 migration: rebuild a single ordered sequence from the unordered pathCells set.
-            if (pathSequences.Count == 0 && pathCells != null && pathCells.Count > 0)
+            HashSet<Vector2Int> authoredPathSet = null;
+            if (pathCells != null && pathCells.Count > 0)
             {
-                HashSet<Vector2Int> set = new HashSet<Vector2Int>();
+                authoredPathSet = new HashSet<Vector2Int>();
                 foreach (Vector2Int cell in pathCells)
                 {
                     if (IsInBounds(cell))
-                        set.Add(cell);
+                        authoredPathSet.Add(cell);
                 }
-                set.Add(startCell);
-                set.Add(goalCell);
+                authoredPathSet.Add(startCell);
+                authoredPathSet.Add(goalCell);
+            }
 
-                List<Vector2Int> ordered = ReconstructOrderedPath(startCell, goalCell, set);
+            bool reconstructingFromPathCells = pathSequences.Count == 0 && authoredPathSet != null && authoredPathSet.Count > 0;
+            // v1/v2 migration: rebuild a single ordered sequence from the unordered pathCells set.
+            if (reconstructingFromPathCells)
+            {
+                List<Vector2Int> ordered = ReconstructOrderedPath(startCell, goalCell, authoredPathSet);
                 if (ordered != null && ordered.Count > 0)
                     pathSequences.Add(new PathSequence(ordered));
             }
@@ -301,7 +306,8 @@ namespace TD.Level
                     pathSequences.RemoveAt(i);
             }
 
-            // Rebuild pathCells as the union of every sequence (plus start/goal when any sequence exists).
+            // Rebuild pathCells from trusted sequences plus any authored path-cell set that was
+            // present on the input definition.
             if (pathSequences.Count > 0)
             {
                 HashSet<Vector2Int> union = new HashSet<Vector2Int>();
@@ -310,6 +316,13 @@ namespace TD.Level
                     foreach (Vector2Int cell in seq.cells)
                         union.Add(cell);
                 }
+
+                if (authoredPathSet != null)
+                {
+                    foreach (Vector2Int cell in authoredPathSet)
+                        union.Add(cell);
+                }
+
                 union.Add(startCell);
                 union.Add(goalCell);
                 pathCells = new List<Vector2Int>(union);
@@ -317,7 +330,10 @@ namespace TD.Level
             }
             else
             {
-                pathCells = new List<Vector2Int>();
+                pathCells = authoredPathSet != null
+                    ? new List<Vector2Int>(authoredPathSet)
+                    : new List<Vector2Int>();
+                SortCells(pathCells);
             }
         }
 

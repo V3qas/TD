@@ -294,6 +294,45 @@ namespace TD.Tests.EditMode
         }
 
         [Test]
+        public void Normalize_ReconstructsRepresentativeSequence_AndPreservesBranchedPathCells()
+        {
+            LevelMapDefinition definition = new LevelMapDefinition
+            {
+                width = 4,
+                height = 3,
+                startCell = new Vector2Int(0, 1),
+                goalCell = new Vector2Int(3, 1),
+                pathCells = new List<Vector2Int>
+                {
+                    new Vector2Int(0, 1),
+                    new Vector2Int(1, 1),
+                    new Vector2Int(1, 2),
+                    new Vector2Int(2, 2),
+                    new Vector2Int(3, 2),
+                    new Vector2Int(3, 1),
+                    new Vector2Int(1, 0),
+                    new Vector2Int(2, 0),
+                    new Vector2Int(3, 0)
+                }
+            };
+
+            definition.Normalize();
+
+            Assert.AreEqual(1, definition.pathSequences.Count, "Unordered pathCells still get a representative ordered route.");
+            Assert.AreEqual(definition.startCell, definition.pathSequences[0].cells[0]);
+            Assert.AreEqual(definition.goalCell, definition.pathSequences[0].cells[definition.pathSequences[0].cells.Count - 1]);
+            Assert.AreEqual(9, definition.pathCells.Count, "Normalize must not collapse authored branch cells to only the representative route.");
+            Assert.IsTrue(definition.pathCells.Contains(new Vector2Int(2, 2)), "Top branch cell should be preserved.");
+            Assert.IsTrue(definition.pathCells.Contains(new Vector2Int(2, 0)), "Bottom branch cell should be preserved.");
+
+            LevelMapDefinition clone = definition.CloneNormalized();
+
+            Assert.AreEqual(9, clone.pathCells.Count, "A later normalized roundtrip must preserve authored branch cells too.");
+            Assert.IsTrue(clone.pathCells.Contains(new Vector2Int(2, 2)));
+            Assert.IsTrue(clone.pathCells.Contains(new Vector2Int(2, 0)));
+        }
+
+        [Test]
         public void HasMultiplePaths_IsTrueForTwoSequences()
         {
             List<Vector2Int> top = new List<Vector2Int>
