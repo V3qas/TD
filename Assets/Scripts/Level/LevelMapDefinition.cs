@@ -131,7 +131,7 @@ namespace TD.Level
             };
         }
 
-        private static List<PathSequence> ClonePathSequences(List<PathSequence> source)
+        public static List<PathSequence> ClonePathSequences(List<PathSequence> source)
         {
             List<PathSequence> copy = new List<PathSequence>();
             if (source == null)
@@ -145,7 +145,7 @@ namespace TD.Level
             return copy;
         }
 
-        private static List<GroundOverrideEntry> CloneGroundOverrides(List<GroundOverrideEntry> source)
+        public static List<GroundOverrideEntry> CloneGroundOverrides(List<GroundOverrideEntry> source)
         {
             List<GroundOverrideEntry> copy = new List<GroundOverrideEntry>();
             if (source == null)
@@ -162,7 +162,7 @@ namespace TD.Level
             return copy;
         }
 
-        private static List<OccupantEntry> CloneOccupants(List<OccupantEntry> source)
+        public static List<OccupantEntry> CloneOccupants(List<OccupantEntry> source)
         {
             List<OccupantEntry> copy = new List<OccupantEntry>();
             if (source == null)
@@ -213,8 +213,6 @@ namespace TD.Level
             // Step 4: dedupe occupants and drop entries that conflict with path/start/goal.
             NormalizeOccupants();
 
-            // Step 5: reserved for derived lookup data; currently no-op because maps are small.
-            RebuildCaches();
         }
 
         private void MigrateLegacyBlockedCells()
@@ -375,13 +373,6 @@ namespace TD.Level
             result.Add(start);
             result.Reverse();
             return result;
-        }
-
-        private void RebuildCaches()
-        {
-            // Caches were intentionally removed: with MaxSize=70 (<=4900 cells) the lookup
-            // helpers scan the underlying lists directly. Keeping a method here as a no-op
-            // so existing Normalize() callers don't need to change.
         }
 
         private void NormalizeGroundOverrides()
@@ -564,24 +555,6 @@ namespace TD.Level
                 Mathf.Clamp(cell.x, 0, width - 1),
                 Mathf.Clamp(cell.y, 0, height - 1)
             );
-        }
-
-        private List<Vector2Int> NormalizeCells(List<Vector2Int> cells)
-        {
-            HashSet<Vector2Int> uniqueCells = new HashSet<Vector2Int>();
-
-            if (cells != null)
-            {
-                foreach (Vector2Int cell in cells)
-                {
-                    if (IsInBounds(cell))
-                        uniqueCells.Add(cell);
-                }
-            }
-
-            List<Vector2Int> normalizedCells = new List<Vector2Int>(uniqueCells);
-            SortCells(normalizedCells);
-            return normalizedCells;
         }
 
         private static void SortCells(List<Vector2Int> cells)

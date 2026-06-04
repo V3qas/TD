@@ -1,27 +1,11 @@
-using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using TD.Combat;
 using TD.Level;
-using TD.Towers;
 
 namespace TD.Editor
 {
     public class LevelMapEditorWindow : EditorWindow
     {
-        private enum PaintTool
-        {
-            Path,
-            Erase,
-            Rock,
-            Destructible,
-            Elevated,
-            Water,
-            Lava,
-            Start,
-            Goal
-        }
-
         private static readonly string[] ToolLabels =
         {
             "Pfad",
@@ -42,17 +26,10 @@ namespace TD.Editor
         private const float MaxCellSize = 32f;
 
         private LevelData targetLevel;
-        private LevelMapDefinition mapDefinition;
-        private Dictionary<Vector2Int, OccupantEntry> occupants = new Dictionary<Vector2Int, OccupantEntry>();
-        private Dictionary<Vector2Int, GroundType> groundOverrides = new Dictionary<Vector2Int, GroundType>();
-        private HashSet<Vector2Int> pathCells = new HashSet<Vector2Int>();
-        // Snapshot of authored multi-path sequences taken at load time. We keep them around so
-        // that a v3 map with multiple pathSequences survives an open->save roundtrip without
-        // being collapsed into a single BFS-reconstructed path. Discarded as soon as the user
-        // edits any path cell (see InvalidatePathSequences).
-        private List<PathSequence> loadedPathSequences = new List<PathSequence>();
+        private readonly LevelMapAuthoringState mapState = new LevelMapAuthoringState();
+        private LevelMapDefinition mapDefinition => mapState.MapDefinition;
         private Vector2 scrollPosition;
-        private PaintTool selectedTool = PaintTool.Path;
+        private LevelMapPaintTool selectedTool = LevelMapPaintTool.Path;
         private string seedInput = string.Empty;
         private string validationMessage = string.Empty;
         private bool isValid;
@@ -125,7 +102,7 @@ namespace TD.Editor
                     CreateNewMap(newWidth, newHeight);
             }
 
-            selectedTool = (PaintTool)GUILayout.Toolbar((int)selectedTool, ToolLabels);
+            selectedTool = (LevelMapPaintTool)GUILayout.Toolbar((int)selectedTool, ToolLabels);
             cellSize = EditorGUILayout.Slider("Zoom", cellSize, MinCellSize, MaxCellSize);
 
             using (new EditorGUILayout.HorizontalScope())
@@ -182,34 +159,11 @@ namespace TD.Editor
         private void GenerateRandomPath()
         {
             if (mapDefinition == null) return;
-            int seed = ResolveIntegerSeed();
-            List<Vector2Int> path = MapGenerator.GeneratePath(
-                mapDefinition.width, mapDefinition.height,
-                mapDefinition.startCell, mapDefinition.goalCell, seed);
-
-            if (path == null || path.Count == 0)
+            if (!mapState.GenerateRandomPath(ResolveIntegerSeed()))
             {
                 EditorUtility.DisplayDialog("Pfadgenerator", "Kein Pfad gefunden. Anderen Seed versuchen.", "OK");
                 return;
             }
-
-            HashSet<Vector2Int> newPathCells = new HashSet<Vector2Int>(path)
-            {
-                mapDefinition.startCell,
-                mapDefinition.goalCell
-            };
-
-            pathCells.Clear();
-            foreach (Vector2Int cell in newPathCells)
-                pathCells.Add(cell);
-
-            foreach (Vector2Int cell in pathCells)
-            {
-                occupants.Remove(cell);
-                groundOverrides.Remove(cell);
-            }
-
-            loadedPathSequences = new List<PathSequence> { new PathSequence(path) };
 
             MarkDirty();
         }
@@ -217,13 +171,11 @@ namespace TD.Editor
         private void ScatterRandomBlocks()
         {
             if (mapDefinition == null) return;
-            LevelMapDefinition definition = BuildDefinition();
             MapGenerator.ScatterParams parameters = MapGenerator.ScatterParams.Default;
             parameters.destructibleHp = destructibleHp;
             parameters.destructibleReward = destructibleReward;
-            MapGenerator.ScatterBlocks(definition, ResolveIntegerSeed(), parameters);
-            definition.Normalize();
-            LoadDefinition(definition);
+            if (mapState.ScatterRandomBlocks(ResolveIntegerSeed(), parameters))
+                MarkDirty();
         }
 
         private void GenerateFullRandomMap()
@@ -322,116 +274,11 @@ namespace TD.Editor
 
         private bool PaintCell(Vector2Int cell)
         {
-            bool changed = false;
-            bool pathChanged = false;
-
-            switch (selectedTool)
-            {
-                case PaintTool.Path:
-                    changed |= occupants.Remove(cell);
-                    changed |= groundOverrides.Remove(cell);
-                    pathChanged |= pathCells.Add(cell);
-                    break;
-                case PaintTool.Erase:
-                    changed |= occupants.Remove(cell);
-                    changed |= groundOverrides.Remove(cell);
-                    if (cell != mapDefinition.startCell && cell != mapDefinition.goalCell)
-                        pathChanged |= pathCells.Remove(cell);
-                    break;
-                case PaintTool.Rock:
-                    if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell) return false;
-                    pathChanged |= pathCells.Remove(cell);
-                    changed |= groundOverrides.Remove(cell);
-                    changed |= SetOccupant(cell, OccupantType.Rock, 0, 0);
-                    break;
-                case PaintTool.Destructible:
-                    if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell) return false;
-                    pathChanged |= pathCells.Remove(cell);
-                    changed |= groundOverrides.Remove(cell);
-                    changed |= SetOccupant(cell, OccupantType.Destructible, destructibleHp, destructibleReward);
-                    break;
-                case PaintTool.Elevated:
-                    if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell) return false;
-                    pathChanged |= pathCells.Remove(cell);
-                    changed |= occupants.Remove(cell);
-                    changed |= SetGroundOverride(cell, GroundType.Elevated);
-                    break;
-                case PaintTool.Water:
-                    if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell) return false;
-                    pathChanged |= pathCells.Remove(cell);
-                    changed |= occupants.Remove(cell);
-                    changed |= SetGroundOverride(cell, GroundType.Water);
-                    break;
-                case PaintTool.Lava:
-                    if (cell == mapDefinition.startCell || cell == mapDefinition.goalCell) return false;
-                    pathChanged |= pathCells.Remove(cell);
-                    changed |= occupants.Remove(cell);
-                    changed |= SetGroundOverride(cell, GroundType.Lava);
-                    break;
-                case PaintTool.Start:
-                    if (cell == mapDefinition.goalCell) return false;
-                    changed |= occupants.Remove(cell);
-                    changed |= groundOverrides.Remove(cell);
-                    if (mapDefinition.startCell != cell)
-                    {
-                        pathChanged |= pathCells.Remove(mapDefinition.startCell);
-                        mapDefinition.startCell = cell;
-                        pathChanged |= pathCells.Add(cell);
-                        changed = true;
-                    }
-                    break;
-                case PaintTool.Goal:
-                    if (cell == mapDefinition.startCell) return false;
-                    changed |= occupants.Remove(cell);
-                    changed |= groundOverrides.Remove(cell);
-                    if (mapDefinition.goalCell != cell)
-                    {
-                        pathChanged |= pathCells.Remove(mapDefinition.goalCell);
-                        mapDefinition.goalCell = cell;
-                        pathChanged |= pathCells.Add(cell);
-                        changed = true;
-                    }
-                    break;
-            }
-
-            if (pathChanged)
-            {
-                InvalidatePathSequences();
-                changed = true;
-            }
-
+            bool changed = mapState.PaintCell(cell, selectedTool, destructibleHp, destructibleReward);
             if (changed)
                 MarkDirty();
 
             return changed;
-        }
-
-        private bool SetOccupant(Vector2Int cell, OccupantType type, int maxHp, int reward)
-        {
-            if (occupants.TryGetValue(cell, out OccupantEntry existing)
-                && existing.type == type
-                && existing.maxHp == maxHp
-                && existing.reward == reward)
-            {
-                return false;
-            }
-
-            occupants[cell] = new OccupantEntry { cell = cell, type = type, maxHp = maxHp, reward = reward };
-            return true;
-        }
-
-        private bool SetGroundOverride(Vector2Int cell, GroundType type)
-        {
-            if (groundOverrides.TryGetValue(cell, out GroundType existing) && existing == type)
-                return false;
-
-            groundOverrides[cell] = type;
-            return true;
-        }
-
-        private void InvalidatePathSequences()
-        {
-            loadedPathSequences.Clear();
         }
 
         private Color GetCellColor(Vector2Int cell)
@@ -442,14 +289,14 @@ namespace TD.Editor
             if (cell == mapDefinition.goalCell)
                 return new Color(0.95f, 0.25f, 0.2f);
 
-            if (occupants.TryGetValue(cell, out OccupantEntry occupant))
+            if (mapState.TryGetOccupant(cell, out OccupantEntry occupant))
             {
                 return occupant.type == OccupantType.Rock
                     ? new Color(0.32f, 0.32f, 0.34f)
                     : new Color(0.55f, 0.42f, 0.28f);
             }
 
-            if (groundOverrides.TryGetValue(cell, out GroundType ground))
+            if (mapState.TryGetGroundOverride(cell, out GroundType ground))
             {
                 switch (ground)
                 {
@@ -459,7 +306,7 @@ namespace TD.Editor
                 }
             }
 
-            if (pathCells.Contains(cell))
+            if (mapState.IsPathCell(cell))
                 return new Color(1f, 0.78f, 0.2f);
 
             return new Color(0.88f, 0.9f, 0.92f);
@@ -469,27 +316,7 @@ namespace TD.Editor
         {
             int clampedWidth = Mathf.Clamp(width, 1, LevelMapDefinition.MaxSize);
             int clampedHeight = Mathf.Clamp(height, 1, LevelMapDefinition.MaxSize);
-            int pathRow = clampedHeight / 2;
-
-            mapDefinition = new LevelMapDefinition
-            {
-                width = clampedWidth,
-                height = clampedHeight,
-                startCell = new Vector2Int(0, pathRow),
-                goalCell = new Vector2Int(clampedWidth - 1, pathRow),
-                blockedCells = new List<Vector2Int>(),
-                pathCells = new List<Vector2Int>(),
-                groundOverrides = new List<GroundOverrideEntry>(),
-                occupants = new List<OccupantEntry>()
-            };
-
-            occupants.Clear();
-            groundOverrides.Clear();
-            pathCells.Clear();
-            loadedPathSequences.Clear();
-
-            for (int column = 0; column < clampedWidth; column++)
-                pathCells.Add(new Vector2Int(column, pathRow));
+            mapState.CreateNewMap(clampedWidth, clampedHeight, true);
 
             newWidth = clampedWidth;
             newHeight = clampedHeight;
@@ -543,39 +370,12 @@ namespace TD.Editor
 
         private void LoadDefinition(LevelMapDefinition definition)
         {
-            mapDefinition = definition.CloneNormalized();
-            occupants = new Dictionary<Vector2Int, OccupantEntry>();
-            groundOverrides = new Dictionary<Vector2Int, GroundType>();
-
-            if (mapDefinition.blockedCells != null)
+            mapState.LoadDefinition(definition);
+            if (mapDefinition == null)
             {
-                for (int i = 0; i < mapDefinition.blockedCells.Count; i++)
-                {
-                    Vector2Int legacyBlocker = mapDefinition.blockedCells[i];
-                    if (!occupants.ContainsKey(legacyBlocker))
-                        occupants[legacyBlocker] = new OccupantEntry { cell = legacyBlocker, type = OccupantType.Rock, maxHp = 0, reward = 0 };
-                }
+                MarkDirty();
+                return;
             }
-
-            if (mapDefinition.occupants != null)
-            {
-                for (int i = 0; i < mapDefinition.occupants.Count; i++)
-                    occupants[mapDefinition.occupants[i].cell] = mapDefinition.occupants[i];
-            }
-
-            if (mapDefinition.groundOverrides != null)
-            {
-                for (int i = 0; i < mapDefinition.groundOverrides.Count; i++)
-                    groundOverrides[mapDefinition.groundOverrides[i].cell] = mapDefinition.groundOverrides[i].type;
-            }
-
-            pathCells = new HashSet<Vector2Int>(mapDefinition.pathCells)
-            {
-                mapDefinition.startCell,
-                mapDefinition.goalCell
-            };
-
-            loadedPathSequences = ClonePathSequences(mapDefinition.pathSequences);
 
             newWidth = mapDefinition.width;
             newHeight = mapDefinition.height;
@@ -585,65 +385,7 @@ namespace TD.Editor
 
         private LevelMapDefinition BuildDefinition()
         {
-            List<OccupantEntry> occupantList = new List<OccupantEntry>(occupants.Count);
-            foreach (KeyValuePair<Vector2Int, OccupantEntry> pair in occupants)
-                occupantList.Add(pair.Value);
-
-            List<GroundOverrideEntry> groundList = new List<GroundOverrideEntry>(groundOverrides.Count);
-            foreach (KeyValuePair<Vector2Int, GroundType> pair in groundOverrides)
-                groundList.Add(new GroundOverrideEntry { cell = pair.Key, type = pair.Value });
-
-            // Reuse loaded/generated pathSequences only when the current pathCells set still
-            // matches their union. Otherwise Normalize() keeps the authored pathCells and
-            // reconstructs one representative ordered sequence.
-            List<PathSequence> sequences = PathSequencesStillMatch(pathCells, loadedPathSequences, mapDefinition.startCell, mapDefinition.goalCell)
-                ? ClonePathSequences(loadedPathSequences)
-                : new List<PathSequence>();
-
-            LevelMapDefinition definition = new LevelMapDefinition
-            {
-                width = mapDefinition.width,
-                height = mapDefinition.height,
-                startCell = mapDefinition.startCell,
-                goalCell = mapDefinition.goalCell,
-                blockedCells = new List<Vector2Int>(),
-                pathCells = new List<Vector2Int>(pathCells),
-                occupants = occupantList,
-                groundOverrides = groundList,
-                pathSequences = sequences
-            };
-
-            definition.Normalize();
-            return definition;
-        }
-
-        private static bool PathSequencesStillMatch(HashSet<Vector2Int> currentPathCells, List<PathSequence> sequences, Vector2Int startCell, Vector2Int goalCell)
-        {
-            if (sequences == null || sequences.Count == 0)
-                return false;
-            HashSet<Vector2Int> union = new HashSet<Vector2Int>();
-            foreach (PathSequence seq in sequences)
-            {
-                if (seq?.cells == null)
-                    return false;
-                if (seq.cells.Count == 0 || seq.cells[0] != startCell || seq.cells[seq.cells.Count - 1] != goalCell)
-                    return false;
-                foreach (Vector2Int cell in seq.cells)
-                    union.Add(cell);
-            }
-            return union.SetEquals(currentPathCells);
-        }
-
-        private static List<PathSequence> ClonePathSequences(List<PathSequence> source)
-        {
-            List<PathSequence> copy = new List<PathSequence>();
-            if (source == null) return copy;
-            foreach (PathSequence seq in source)
-            {
-                if (seq?.cells == null) continue;
-                copy.Add(new PathSequence(seq.cells));
-            }
-            return copy;
+            return mapState.BuildDefinition();
         }
 
         private void ValidateIfNeeded()
