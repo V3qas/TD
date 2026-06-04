@@ -36,10 +36,23 @@ public class OccupantEntry
 }
 
 [Serializable]
+public class PathSequence
+{
+    public List<Vector2Int> cells = new List<Vector2Int>();
+
+    public PathSequence() { }
+
+    public PathSequence(IEnumerable<Vector2Int> source)
+    {
+        cells = source != null ? new List<Vector2Int>(source) : new List<Vector2Int>();
+    }
+}
+
+[Serializable]
 public class LevelMapDefinition
 {
-    public const int CurrentVersion = 2;
-    public const int MaxSize = 500;
+    public const int CurrentVersion = 3;
+    public const int MaxSize = 70;
 
     public int version = CurrentVersion;
     public int width = 10;
@@ -47,18 +60,30 @@ public class LevelMapDefinition
     public Vector2Int startCell = new Vector2Int(0, 2);
     public Vector2Int goalCell = new Vector2Int(9, 2);
 
-    // Legacy field. Still serialized for backward compatibility with v1 seeds.
-    // New code should use 'occupants' (Rock) and read via TryGetOccupant.
+    // v1 legacy field. Retained ONLY so old seeds still deserialize. Normalize() migrates
+    // every entry into 'occupants' (as indestructible Rocks) and clears this list, so the
+    // canonical definition stores blockers exactly once.
     public List<Vector2Int> blockedCells = new List<Vector2Int>();
+
+    // Union of all cells covered by any pathSequence. Derived by Normalize() and kept around
+    // because many existing consumers index it directly (editors, GridManager preview, etc.).
     public List<Vector2Int> pathCells = new List<Vector2Int>();
 
-    // New (v2): non-Ground/Path tiles. Default ground = Ground, so only overrides are stored.
+    // Non-Ground tiles (Elevated/Water/Lava). Default ground = Ground, so only overrides stored.
     public List<GroundOverrideEntry> groundOverrides = new List<GroundOverrideEntry>();
 
-    // New (v2): things sitting on top of a tile (Rock, Destructible).
+    // Occupants on top of a tile (Rock, Destructible). After Normalize() this also contains
+    // the migrated v1 blockers as indestructible Rocks (maxHp = 0).
     public List<OccupantEntry> occupants = new List<OccupantEntry>();
 
-    public bool HasExplicitPath => pathCells != null && pathCells.Count > 0;
+    // v3: ordered, 4-connected enemy paths from startCell to goalCell. Multiple sequences
+    // are allowed and may share cells; shared cells form natural split / merge junctions for
+    // future enemy AI. Single-path maps simply have pathSequences.Count == 1.
+    public List<PathSequence> pathSequences = new List<PathSequence>();
+
+    public bool HasExplicitPath => (pathSequences != null && pathSequences.Count > 0)
+        || (pathCells != null && pathCells.Count > 0);
+    public bool HasMultiplePaths => pathSequences != null && pathSequences.Count > 1;
 
     public static LevelMapDefinition FromLegacy(
         int legacyWidth,
@@ -95,8 +120,23 @@ public class LevelMapDefinition
             blockedCells = blockedCells != null ? new List<Vector2Int>(blockedCells) : new List<Vector2Int>(),
             pathCells = pathCells != null ? new List<Vector2Int>(pathCells) : new List<Vector2Int>(),
             groundOverrides = CloneGroundOverrides(groundOverrides),
-            occupants = CloneOccupants(occupants)
+            occupants = CloneOccupants(occupants),
+            pathSequences = ClonePathSequences(pathSequences)
         };
+    }
+
+    private static List<PathSequence> ClonePathSequences(List<PathSequence> source)
+    {
+        List<PathSequence> copy = new List<PathSequence>();
+        if (source == null)
+            return copy;
+        foreach (PathSequence seq in source)
+        {
+            if (seq == null)
+                continue;
+            copy.Add(new PathSequence(seq.cells));
+        }
+        return copy;
     }
 
     private static List<GroundOverrideEntry> CloneGroundOverrides(List<GroundOverrideEntry> source)
@@ -148,36 +188,179 @@ public class LevelMapDefinition
 
     public void Normalize()
     {
-        bool hasExplicitPath = HasExplicitPath;
-
         version = CurrentVersion;
         width = Mathf.Clamp(width, 1, MaxSize);
         height = Mathf.Clamp(height, 1, MaxSize);
         startCell = ClampToBounds(startCell);
         goalCell = ClampToBounds(goalCell);
 
-        blockedCells = NormalizeCells(blockedCells);
-        pathCells = NormalizeCells(pathCells);
+        // Step 1: migrate v1 blockedCells -> Rock occupants. After this, blockedCells is empty.
+        MigrateLegacyBlockedCells();
 
-        blockedCells.RemoveAll(cell => cell == startCell || cell == goalCell);
+        // Step 2: reconcile pathSequences <-> pathCells. After this, pathCells is the union of
+        // all sequence cells (plus start/goal) and is sorted; if pathSequences was empty but
+        // pathCells had entries (v1/v2 seeds), one sequence is reconstructed via BFS.
+        NormalizePathSequences();
 
-        if (hasExplicitPath)
+        // Step 3: dedupe ground overrides and drop entries that conflict with path/start/goal.
+        NormalizeGroundOverrides();
+
+        // Step 4: dedupe occupants and drop entries that conflict with path/start/goal.
+        NormalizeOccupants();
+
+        // Step 5: build O(1) lookup caches used by IsPath/GetGround/IsBuildable/TryGetOccupant.
+        RebuildCaches();
+    }
+
+    private void MigrateLegacyBlockedCells()
+    {
+        if (blockedCells == null)
         {
-            HashSet<Vector2Int> pathSet = new HashSet<Vector2Int>(pathCells)
-            {
-                startCell,
-                goalCell
-            };
+            blockedCells = new List<Vector2Int>();
+            return;
+        }
+        if (blockedCells.Count == 0)
+            return;
 
-            HashSet<Vector2Int> blockedSet = new HashSet<Vector2Int>(blockedCells);
-            pathSet.RemoveWhere(cell => blockedSet.Contains(cell));
+        if (occupants == null)
+            occupants = new List<OccupantEntry>();
 
-            pathCells = new List<Vector2Int>(pathSet);
-            SortCells(pathCells);
+        HashSet<Vector2Int> existing = new HashSet<Vector2Int>();
+        foreach (OccupantEntry entry in occupants)
+        {
+            if (entry != null)
+                existing.Add(entry.cell);
         }
 
-        NormalizeGroundOverrides();
-        NormalizeOccupants();
+        foreach (Vector2Int cell in blockedCells)
+        {
+            if (!IsInBounds(cell))
+                continue;
+            if (cell == startCell || cell == goalCell)
+                continue;
+            if (!existing.Add(cell))
+                continue;
+            occupants.Add(new OccupantEntry { cell = cell, type = OccupantType.Rock, maxHp = 0, reward = 0 });
+        }
+
+        blockedCells.Clear();
+    }
+
+    private void NormalizePathSequences()
+    {
+        if (pathSequences == null)
+            pathSequences = new List<PathSequence>();
+
+        // Drop nulls and empty sequences.
+        for (int i = pathSequences.Count - 1; i >= 0; i--)
+        {
+            PathSequence seq = pathSequences[i];
+            if (seq == null || seq.cells == null || seq.cells.Count == 0)
+                pathSequences.RemoveAt(i);
+        }
+
+        // v1/v2 migration: rebuild a single ordered sequence from the unordered pathCells set.
+        if (pathSequences.Count == 0 && pathCells != null && pathCells.Count > 0)
+        {
+            HashSet<Vector2Int> set = new HashSet<Vector2Int>();
+            foreach (Vector2Int cell in pathCells)
+            {
+                if (IsInBounds(cell))
+                    set.Add(cell);
+            }
+            set.Add(startCell);
+            set.Add(goalCell);
+
+            List<Vector2Int> ordered = ReconstructOrderedPath(startCell, goalCell, set);
+            if (ordered != null && ordered.Count > 0)
+                pathSequences.Add(new PathSequence(ordered));
+        }
+
+        // Sanitize each sequence: drop out-of-bounds cells and consecutive duplicates.
+        for (int i = pathSequences.Count - 1; i >= 0; i--)
+        {
+            PathSequence seq = pathSequences[i];
+            List<Vector2Int> cleaned = new List<Vector2Int>(seq.cells.Count);
+            Vector2Int last = new Vector2Int(int.MinValue, int.MinValue);
+            foreach (Vector2Int cell in seq.cells)
+            {
+                if (!IsInBounds(cell))
+                    continue;
+                if (cleaned.Count > 0 && cell == last)
+                    continue;
+                cleaned.Add(cell);
+                last = cell;
+            }
+            seq.cells = cleaned;
+            if (cleaned.Count == 0)
+                pathSequences.RemoveAt(i);
+        }
+
+        // Rebuild pathCells as the union of every sequence (plus start/goal when any sequence exists).
+        if (pathSequences.Count > 0)
+        {
+            HashSet<Vector2Int> union = new HashSet<Vector2Int>();
+            foreach (PathSequence seq in pathSequences)
+            {
+                foreach (Vector2Int cell in seq.cells)
+                    union.Add(cell);
+            }
+            union.Add(startCell);
+            union.Add(goalCell);
+            pathCells = new List<Vector2Int>(union);
+            SortCells(pathCells);
+        }
+        else
+        {
+            pathCells = new List<Vector2Int>();
+        }
+    }
+
+    private static List<Vector2Int> ReconstructOrderedPath(Vector2Int start, Vector2Int goal, HashSet<Vector2Int> allowedCells)
+    {
+        if (allowedCells == null || !allowedCells.Contains(start) || !allowedCells.Contains(goal))
+            return null;
+
+        Vector2Int[] dirs = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        Dictionary<Vector2Int, Vector2Int> prev = new Dictionary<Vector2Int, Vector2Int> { [start] = start };
+        queue.Enqueue(start);
+
+        while (queue.Count > 0)
+        {
+            Vector2Int cur = queue.Dequeue();
+            if (cur == goal)
+                break;
+            foreach (Vector2Int d in dirs)
+            {
+                Vector2Int n = cur + d;
+                if (!allowedCells.Contains(n) || prev.ContainsKey(n))
+                    continue;
+                prev[n] = cur;
+                queue.Enqueue(n);
+            }
+        }
+
+        if (!prev.ContainsKey(goal))
+            return null;
+
+        List<Vector2Int> result = new List<Vector2Int>();
+        Vector2Int node = goal;
+        while (node != start)
+        {
+            result.Add(node);
+            node = prev[node];
+        }
+        result.Add(start);
+        result.Reverse();
+        return result;
+    }
+
+    private void RebuildCaches()
+    {
+        // Caches were intentionally removed: with MaxSize=70 (≤4900 cells) the lookup
+        // helpers scan the underlying lists directly. Keeping a method here as a no-op
+        // so existing Normalize() callers don't need to change.
     }
 
     private void NormalizeGroundOverrides()
@@ -272,45 +455,64 @@ public class LevelMapDefinition
         occupants = normalized;
     }
 
+    public bool IsPath(Vector2Int cell)
+    {
+        if (!IsInBounds(cell))
+            return false;
+        if (cell == startCell || cell == goalCell)
+            return true;
+        if (pathCells != null)
+        {
+            for (int i = 0; i < pathCells.Count; i++)
+                if (pathCells[i] == cell)
+                    return true;
+        }
+        if (pathSequences != null)
+        {
+            for (int s = 0; s < pathSequences.Count; s++)
+            {
+                PathSequence seq = pathSequences[s];
+                if (seq?.cells == null) continue;
+                for (int i = 0; i < seq.cells.Count; i++)
+                    if (seq.cells[i] == cell)
+                        return true;
+            }
+        }
+        return false;
+    }
+
     public GroundType GetGround(Vector2Int cell)
     {
         if (!IsInBounds(cell))
             return GroundType.Ground;
-
-        if (cell == startCell || cell == goalCell)
+        if (IsPath(cell))
             return GroundType.Path;
-
-        if (pathCells != null && pathCells.Contains(cell))
-            return GroundType.Path;
-
         if (groundOverrides != null)
         {
-            foreach (GroundOverrideEntry entry in groundOverrides)
+            for (int i = 0; i < groundOverrides.Count; i++)
             {
+                GroundOverrideEntry entry = groundOverrides[i];
                 if (entry != null && entry.cell == cell)
                     return entry.type;
             }
         }
-
         return GroundType.Ground;
     }
 
     public bool TryGetOccupant(Vector2Int cell, out OccupantEntry occupant)
     {
         occupant = null;
-
-        if (occupants == null)
+        if (!IsInBounds(cell) || occupants == null)
             return false;
-
-        foreach (OccupantEntry entry in occupants)
+        for (int i = 0; i < occupants.Count; i++)
         {
-            if (entry != null && entry.cell == cell)
+            OccupantEntry entry = occupants[i];
+            if (entry != null && entry.type != OccupantType.None && entry.cell == cell)
             {
                 occupant = entry;
                 return true;
             }
         }
-
         return false;
     }
 
@@ -318,21 +520,15 @@ public class LevelMapDefinition
     {
         if (!IsInBounds(cell))
             return false;
-
         if (cell == startCell || cell == goalCell)
             return false;
-
-        GroundType ground = GetGround(cell);
-        if (ground == GroundType.Path || ground == GroundType.Water || ground == GroundType.Lava)
+        if (IsPath(cell))
             return false;
-
+        GroundType ground = GetGround(cell);
+        if (ground == GroundType.Water || ground == GroundType.Lava)
+            return false;
         if (TryGetOccupant(cell, out _))
             return false;
-
-        // Legacy blocker compat: cells in blockedCells act like an indestructible occupant.
-        if (blockedCells != null && blockedCells.Contains(cell))
-            return false;
-
         return true;
     }
 
@@ -396,7 +592,14 @@ public static class LevelMapSeedUtility
         return JsonUtility.ToJson(normalizedDefinition, prettyPrint);
     }
 
-    public static bool TryDecode(string seedOrJson, out LevelMapDefinition definition, out string error)
+    /// <summary>
+    /// Decodes a seed or JSON payload and returns the map definition <b>without</b> running
+    /// <see cref="LevelMapDefinition.Normalize"/>. Use this when the caller wants to run
+    /// <see cref="LevelMapValidator.Validate"/> against the authored data before any
+    /// silent migration / cleanup happens (e.g. occupants placed on path cells would be
+    /// dropped by Normalize and never seen by the validator).
+    /// </summary>
+    public static bool TryDecodeRaw(string seedOrJson, out LevelMapDefinition definition, out string error)
     {
         definition = null;
         error = string.Empty;
@@ -440,6 +643,19 @@ public static class LevelMapSeedUtility
             return false;
         }
 
+        return true;
+    }
+
+    /// <summary>
+    /// Convenience wrapper around <see cref="TryDecodeRaw"/> that additionally normalizes
+    /// the decoded definition. Suitable for runtime callers that just want a ready-to-use
+    /// map and do not run the validator themselves.
+    /// </summary>
+    public static bool TryDecode(string seedOrJson, out LevelMapDefinition definition, out string error)
+    {
+        if (!TryDecodeRaw(seedOrJson, out definition, out error))
+            return false;
+
         definition.Normalize();
         return true;
     }
@@ -476,11 +692,15 @@ public static class CustomMapStorage
     {
         savedEntry = null;
 
-        if (!LevelMapSeedUtility.TryDecode(seed, out LevelMapDefinition definition, out error))
+        // Validate against the raw decoded data so malformed seeds (e.g. occupants on path
+        // cells) are rejected instead of silently fixed up by Normalize().
+        if (!LevelMapSeedUtility.TryDecodeRaw(seed, out LevelMapDefinition definition, out error))
             return false;
 
         if (!LevelMapValidator.Validate(definition, true, out error))
             return false;
+
+        definition.Normalize();
 
         string normalizedSeed = LevelMapSeedUtility.Encode(definition);
         CustomMapCollection collection = LoadCollection();
@@ -600,194 +820,271 @@ public static class LevelMapValidator
             return false;
         }
 
-        if (definition.width < 1 || definition.width > LevelMapDefinition.MaxSize ||
-            definition.height < 1 || definition.height > LevelMapDefinition.MaxSize)
+        // Validation runs on the *authored* (raw) definition so that malformed input is
+        // rejected loudly. Normalize() is only consulted for derived information that has
+        // no authoritative source on the raw object.
+        int width = definition.width;
+        int height = definition.height;
+
+        if (width < 1 || width > LevelMapDefinition.MaxSize ||
+            height < 1 || height > LevelMapDefinition.MaxSize)
         {
             message = $"The map may be at most {LevelMapDefinition.MaxSize}x{LevelMapDefinition.MaxSize} tiles.";
             return false;
         }
 
-        if (!IsInBounds(definition.startCell, definition.width, definition.height))
+        if (!IsInBounds(definition.startCell, width, height))
         {
             message = "Start is outside the map.";
             return false;
         }
-
-        if (!IsInBounds(definition.goalCell, definition.width, definition.height))
+        if (!IsInBounds(definition.goalCell, width, height))
         {
             message = "Goal is outside the map.";
             return false;
         }
-
         if (definition.startCell == definition.goalCell)
         {
             message = "Start and goal must be different tiles.";
             return false;
         }
 
-        if (!TryBuildCellSet(definition.blockedCells, definition.width, definition.height, "Blocker", out HashSet<Vector2Int> blockedCells, out message))
-            return false;
+        // Effective blockers: legacy blockedCells + non-None occupants. Either source
+        // counts as a blocker for path / build / connectivity checks.
+        HashSet<Vector2Int> blockerCells = new HashSet<Vector2Int>();
+        if (definition.blockedCells != null)
+        {
+            foreach (Vector2Int cell in definition.blockedCells)
+            {
+                if (!IsInBounds(cell, width, height))
+                {
+                    message = $"Blocked tile {cell} is outside the map.";
+                    return false;
+                }
+                blockerCells.Add(cell);
+            }
+        }
 
-        if (blockedCells.Contains(definition.startCell) || blockedCells.Contains(definition.goalCell))
+        if (definition.occupants != null)
+        {
+            HashSet<Vector2Int> occupantSeen = new HashSet<Vector2Int>();
+            foreach (OccupantEntry entry in definition.occupants)
+            {
+                if (entry == null || entry.type == OccupantType.None)
+                    continue;
+                if (!IsInBounds(entry.cell, width, height))
+                {
+                    message = $"Object tile {entry.cell} is outside the map.";
+                    return false;
+                }
+                if (entry.type == OccupantType.Destructible && entry.maxHp <= 0)
+                {
+                    message = $"Destructible object at {entry.cell} needs maxHp > 0.";
+                    return false;
+                }
+                if (!occupantSeen.Add(entry.cell))
+                {
+                    message = $"Object cell {entry.cell} is duplicated.";
+                    return false;
+                }
+                blockerCells.Add(entry.cell);
+            }
+        }
+
+        if (blockerCells.Contains(definition.startCell) || blockerCells.Contains(definition.goalCell))
         {
             message = "Start and goal must not be blocked.";
             return false;
         }
 
-        if (!ValidateGroundOverrides(definition, blockedCells, out message))
+        if (!ValidateGroundOverridesRaw(definition, blockerCells, out message))
             return false;
 
-        if (!ValidateOccupants(definition, blockedCells, out message))
-            return false;
+        bool hasPathSequences = definition.pathSequences != null && definition.pathSequences.Count > 0;
+        bool hasLegacyPathCells = !hasPathSequences && definition.pathCells != null && definition.pathCells.Count > 0;
+        bool hasExplicitPath = hasPathSequences || hasLegacyPathCells;
 
-        bool hasExplicitPath = definition.pathCells != null && definition.pathCells.Count > 0;
         if (requireExplicitPath && !hasExplicitPath)
         {
             message = "A continuous path must be drawn.";
             return false;
         }
 
-        if (hasExplicitPath)
-            return ValidateExplicitPath(definition, blockedCells, out message);
+        if (hasPathSequences)
+            return ValidatePathSequencesRaw(definition, blockerCells, out message);
 
-        return ValidateOpenGridPath(definition, blockedCells, out message);
+        if (hasLegacyPathCells)
+            return ValidateLegacyPathCells(definition, blockerCells, out message);
+
+        return ValidateOpenGridPathRaw(definition, blockerCells, out message);
     }
 
-    private static bool ValidateExplicitPath(LevelMapDefinition definition, HashSet<Vector2Int> blockedCells, out string message)
+    private static bool ValidatePathSequencesRaw(LevelMapDefinition definition, HashSet<Vector2Int> blockerCells, out string message)
     {
-        if (!TryBuildCellSet(definition.pathCells, definition.width, definition.height, "Path", out HashSet<Vector2Int> pathCells, out message))
-            return false;
-
-        pathCells.Add(definition.startCell);
-        pathCells.Add(definition.goalCell);
-
-        foreach (Vector2Int pathCell in pathCells)
+        for (int i = 0; i < definition.pathSequences.Count; i++)
         {
-            if (blockedCells.Contains(pathCell))
+            PathSequence seq = definition.pathSequences[i];
+            if (seq == null || seq.cells == null || seq.cells.Count < 2)
             {
-                message = "The path must not contain blocked tiles.";
+                message = $"Path #{i + 1} has too few cells.";
                 return false;
+            }
+            if (seq.cells[0] != definition.startCell)
+            {
+                message = $"Path #{i + 1} must start at the start cell.";
+                return false;
+            }
+            if (seq.cells[seq.cells.Count - 1] != definition.goalCell)
+            {
+                message = $"Path #{i + 1} must end at the goal cell.";
+                return false;
+            }
+            HashSet<Vector2Int> seqSeen = new HashSet<Vector2Int>();
+            for (int k = 0; k < seq.cells.Count; k++)
+            {
+                Vector2Int cell = seq.cells[k];
+                if (!IsInBounds(cell, definition.width, definition.height))
+                {
+                    message = $"Path #{i + 1} contains an out-of-bounds cell {cell}.";
+                    return false;
+                }
+                if (blockerCells.Contains(cell))
+                {
+                    message = $"Path #{i + 1} runs through a blocked cell at {cell}.";
+                    return false;
+                }
+                if (!seqSeen.Add(cell))
+                {
+                    message = $"Path #{i + 1} visits {cell} twice.";
+                    return false;
+                }
+                if (k > 0)
+                {
+                    Vector2Int diff = cell - seq.cells[k - 1];
+                    if (Mathf.Abs(diff.x) + Mathf.Abs(diff.y) != 1)
+                    {
+                        message = $"Path #{i + 1} has a non-adjacent step from {seq.cells[k - 1]} to {cell}.";
+                        return false;
+                    }
+                }
             }
         }
 
-        HashSet<Vector2Int> visitedCells = FindReachableCells(definition.startCell, definition.width, definition.height, pathCells, blockedCells);
-
-        if (!visitedCells.Contains(definition.goalCell))
-        {
-            message = "Start and goal must be connected by a continuous path.";
-            return false;
-        }
-
-        if (visitedCells.Count != pathCells.Count)
-        {
-            message = "All drawn path tiles must be connected to the start.";
-            return false;
-        }
-
         message = "Map is valid.";
         return true;
     }
 
-    private static bool ValidateOpenGridPath(LevelMapDefinition definition, HashSet<Vector2Int> blockedCells, out string message)
+    private static bool ValidateLegacyPathCells(LevelMapDefinition definition, HashSet<Vector2Int> blockerCells, out string message)
     {
-        HashSet<Vector2Int> visitedCells = FindReachableCells(definition.startCell, definition.width, definition.height, null, blockedCells);
-
-        if (!visitedCells.Contains(definition.goalCell))
+        HashSet<Vector2Int> pathSet = new HashSet<Vector2Int>();
+        foreach (Vector2Int cell in definition.pathCells)
         {
-            message = "Start and goal are not connected.";
-            return false;
-        }
-
-        message = "Map is valid.";
-        return true;
-    }
-
-    private static HashSet<Vector2Int> FindReachableCells(
-        Vector2Int startCell,
-        int width,
-        int height,
-        HashSet<Vector2Int> allowedCells,
-        HashSet<Vector2Int> blockedCells)
-    {
-        Queue<Vector2Int> frontier = new Queue<Vector2Int>();
-        HashSet<Vector2Int> visitedCells = new HashSet<Vector2Int>();
-
-        if (!CanVisit(startCell, width, height, allowedCells, blockedCells))
-            return visitedCells;
-
-        frontier.Enqueue(startCell);
-        visitedCells.Add(startCell);
-
-        while (frontier.Count > 0)
-        {
-            Vector2Int currentCell = frontier.Dequeue();
-
-            foreach (Vector2Int direction in Directions)
+            if (!IsInBounds(cell, definition.width, definition.height))
             {
-                Vector2Int nextCell = currentCell + direction;
-                if (visitedCells.Contains(nextCell) || !CanVisit(nextCell, width, height, allowedCells, blockedCells))
+                message = $"Path tile {cell} is outside the map.";
+                return false;
+            }
+            if (blockerCells.Contains(cell))
+            {
+                message = $"Path tile {cell} overlaps a blocked cell.";
+                return false;
+            }
+            pathSet.Add(cell);
+        }
+        pathSet.Add(definition.startCell);
+        pathSet.Add(definition.goalCell);
+
+        // BFS along path cells; goal must be reachable.
+        HashSet<Vector2Int> visited = new HashSet<Vector2Int> { definition.startCell };
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        queue.Enqueue(definition.startCell);
+        while (queue.Count > 0)
+        {
+            Vector2Int cur = queue.Dequeue();
+            if (cur == definition.goalCell)
+            {
+                message = "Map is valid.";
+                return true;
+            }
+            foreach (Vector2Int dir in Directions)
+            {
+                Vector2Int n = cur + dir;
+                if (!pathSet.Contains(n) || !visited.Add(n))
                     continue;
-
-                visitedCells.Add(nextCell);
-                frontier.Enqueue(nextCell);
+                queue.Enqueue(n);
             }
         }
 
-        return visitedCells;
+        message = "Path cells do not form a continuous route from start to goal.";
+        return false;
     }
 
-    private static bool CanVisit(
-        Vector2Int cell,
-        int width,
-        int height,
-        HashSet<Vector2Int> allowedCells,
-        HashSet<Vector2Int> blockedCells)
+    private static bool ValidateOpenGridPathRaw(LevelMapDefinition definition, HashSet<Vector2Int> blockerCells, out string message)
     {
-        if (!IsInBounds(cell, width, height))
-            return false;
-
-        if (blockedCells.Contains(cell))
-            return false;
-
-        return allowedCells == null || allowedCells.Contains(cell);
-    }
-
-    private static bool TryBuildCellSet(
-        List<Vector2Int> cells,
-        int width,
-        int height,
-        string label,
-        out HashSet<Vector2Int> cellSet,
-        out string message)
-    {
-        cellSet = new HashSet<Vector2Int>();
-        message = string.Empty;
-
-        if (cells == null)
-            return true;
-
-        foreach (Vector2Int cell in cells)
+        Dictionary<Vector2Int, GroundType> ground = new Dictionary<Vector2Int, GroundType>();
+        if (definition.groundOverrides != null)
         {
-            if (!IsInBounds(cell, width, height))
+            foreach (GroundOverrideEntry entry in definition.groundOverrides)
             {
-                message = $"{label} tile {cell} is outside the map.";
-                return false;
+                if (entry != null)
+                    ground[entry.cell] = entry.type;
             }
-
-            cellSet.Add(cell);
         }
 
-        return true;
+        HashSet<Vector2Int> visited = new HashSet<Vector2Int> { definition.startCell };
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        queue.Enqueue(definition.startCell);
+
+        while (queue.Count > 0)
+        {
+            Vector2Int cur = queue.Dequeue();
+            if (cur == definition.goalCell)
+            {
+                message = "Map is valid.";
+                return true;
+            }
+            foreach (Vector2Int dir in Directions)
+            {
+                Vector2Int n = cur + dir;
+                if (!IsInBounds(n, definition.width, definition.height) || !visited.Add(n))
+                    continue;
+                if (n != definition.goalCell)
+                {
+                    if (blockerCells.Contains(n))
+                        continue;
+                    if (ground.TryGetValue(n, out GroundType gt) && (gt == GroundType.Water || gt == GroundType.Lava))
+                        continue;
+                }
+                queue.Enqueue(n);
+            }
+        }
+
+        message = "Start and goal are not connected.";
+        return false;
     }
 
-    private static bool ValidateGroundOverrides(LevelMapDefinition definition, HashSet<Vector2Int> blockedCells, out string message)
+    private static bool ValidateGroundOverridesRaw(LevelMapDefinition definition, HashSet<Vector2Int> blockerCells, out string message)
     {
         message = string.Empty;
-
         if (definition.groundOverrides == null || definition.groundOverrides.Count == 0)
             return true;
 
-        HashSet<Vector2Int> pathSet = new HashSet<Vector2Int>(definition.pathCells ?? new List<Vector2Int>());
+        // Path cells from authored sources (sequences union OR legacy list).
+        HashSet<Vector2Int> pathSet = new HashSet<Vector2Int>();
+        if (definition.pathSequences != null)
+        {
+            foreach (PathSequence seq in definition.pathSequences)
+            {
+                if (seq?.cells == null) continue;
+                foreach (Vector2Int cell in seq.cells)
+                    pathSet.Add(cell);
+            }
+        }
+        if (definition.pathCells != null)
+        {
+            foreach (Vector2Int cell in definition.pathCells)
+                pathSet.Add(cell);
+        }
         pathSet.Add(definition.startCell);
         pathSet.Add(definition.goalCell);
 
@@ -796,88 +1093,29 @@ public static class LevelMapValidator
         {
             if (entry == null)
                 continue;
-
             if (!IsInBounds(entry.cell, definition.width, definition.height))
             {
                 message = $"Ground tile {entry.cell} is outside the map.";
                 return false;
             }
-
             if (entry.type == GroundType.Ground || entry.type == GroundType.Path)
             {
                 message = $"Ground override for {entry.cell} must not be 'Ground' or 'Path'.";
                 return false;
             }
-
             if (pathSet.Contains(entry.cell))
             {
                 message = $"Ground override must not be on a path cell ({entry.cell}).";
                 return false;
             }
-
-            if (blockedCells.Contains(entry.cell))
+            if (blockerCells.Contains(entry.cell))
             {
-                message = $"Ground override and blocker overlap at {entry.cell}.";
+                message = $"Ground override and object overlap at {entry.cell}.";
                 return false;
             }
-
             if (!seen.Add(entry.cell))
             {
                 message = $"Ground override cell {entry.cell} is duplicated.";
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool ValidateOccupants(LevelMapDefinition definition, HashSet<Vector2Int> blockedCells, out string message)
-    {
-        message = string.Empty;
-
-        if (definition.occupants == null || definition.occupants.Count == 0)
-            return true;
-
-        HashSet<Vector2Int> pathSet = new HashSet<Vector2Int>(definition.pathCells ?? new List<Vector2Int>());
-        pathSet.Add(definition.startCell);
-        pathSet.Add(definition.goalCell);
-
-        HashSet<Vector2Int> seen = new HashSet<Vector2Int>();
-        foreach (OccupantEntry entry in definition.occupants)
-        {
-            if (entry == null)
-                continue;
-
-            if (entry.type == OccupantType.None)
-                continue;
-
-            if (!IsInBounds(entry.cell, definition.width, definition.height))
-            {
-                message = $"Object tile {entry.cell} is outside the map.";
-                return false;
-            }
-
-            if (pathSet.Contains(entry.cell))
-            {
-                message = $"Object must not be on a path cell ({entry.cell}).";
-                return false;
-            }
-
-            if (blockedCells.Contains(entry.cell))
-            {
-                message = $"Object and blocker overlap at {entry.cell}.";
-                return false;
-            }
-
-            if (entry.type == OccupantType.Destructible && entry.maxHp <= 0)
-            {
-                message = $"Destructible object at {entry.cell} needs maxHp > 0.";
-                return false;
-            }
-
-            if (!seen.Add(entry.cell))
-            {
-                message = $"Object cell {entry.cell} is duplicated.";
                 return false;
             }
         }
