@@ -1,72 +1,77 @@
-public static class GameSession
+using TD.Level;
+
+namespace TD.Core
 {
-    public static LevelData SelectedLevelData { get; private set; }
-    public static LevelMapDefinition SelectedMapDefinition { get; private set; }
-    public static string SelectedMapSeed { get; private set; }
-    public static bool IsEditorTestRun { get; private set; }
-    public static DifficultySettings SelectedDifficulty { get; private set; } = new DifficultySettings();
-
-    public static void SelectLevel(LevelData levelData)
+    public static class GameSession
     {
-        SelectedLevelData = levelData;
-        SelectedMapDefinition = null;
-        SelectedMapSeed = string.Empty;
-        SelectedDifficulty = new DifficultySettings();
-    }
+        public static LevelData SelectedLevelData { get; private set; }
+        public static LevelMapDefinition SelectedMapDefinition { get; private set; }
+        public static string SelectedMapSeed { get; private set; }
+        public static bool IsEditorTestRun { get; private set; }
+        public static DifficultySettings SelectedDifficulty { get; private set; } = new DifficultySettings();
 
-    public static bool SelectMapSeed(string mapSeed, out string error)
-    {
-        if (!LevelMapSeedUtility.TryDecode(mapSeed, out LevelMapDefinition definition, out error))
-            return false;
+        public static void SelectLevel(LevelData levelData)
+        {
+            SelectedLevelData = levelData;
+            SelectedMapDefinition = null;
+            SelectedMapSeed = string.Empty;
+            SelectedDifficulty = new DifficultySettings();
+        }
 
-        SelectMapDefinition(definition, LevelMapSeedUtility.Encode(definition));
-        return true;
-    }
+        public static bool SelectMapSeed(string mapSeed, out string error)
+        {
+            if (!LevelMapSeedUtility.TryDecode(mapSeed, out LevelMapDefinition definition, out error))
+                return false;
 
-    public static void SelectMapDefinition(LevelMapDefinition definition, string mapSeed = null)
-    {
-        SelectedLevelData = null;
-        SelectedMapDefinition = definition != null ? definition.CloneNormalized() : null;
-        SelectedMapSeed = !string.IsNullOrWhiteSpace(mapSeed) && SelectedMapDefinition != null
-            ? mapSeed
-            : SelectedMapDefinition != null ? LevelMapSeedUtility.Encode(SelectedMapDefinition) : string.Empty;
-        SelectedDifficulty = new DifficultySettings();
-    }
+            SelectMapDefinition(definition, LevelMapSeedUtility.Encode(definition));
+            return true;
+        }
 
-    public static void ClearSelectedLevel()
-    {
-        SelectedLevelData = null;
-        SelectedMapDefinition = null;
-        SelectedMapSeed = string.Empty;
-        SelectedDifficulty = new DifficultySettings();
-    }
+        public static void SelectMapDefinition(LevelMapDefinition definition, string mapSeed = null)
+        {
+            SelectedLevelData = null;
+            SelectedMapDefinition = definition != null ? definition.CloneNormalized() : null;
+            SelectedMapSeed = !string.IsNullOrWhiteSpace(mapSeed) && SelectedMapDefinition != null
+                ? mapSeed
+                : SelectedMapDefinition != null ? LevelMapSeedUtility.Encode(SelectedMapDefinition) : string.Empty;
+            SelectedDifficulty = new DifficultySettings();
+        }
 
-    public static void BeginTestRun(DifficultyLevel difficulty)
-    {
-        IsEditorTestRun = true;
-        SelectedDifficulty = DifficultySettings.ForLevel(difficulty);
-    }
+        public static void ClearSelectedLevel()
+        {
+            SelectedLevelData = null;
+            SelectedMapDefinition = null;
+            SelectedMapSeed = string.Empty;
+            SelectedDifficulty = new DifficultySettings();
+        }
 
-    public static void EndTestRun()
-    {
-        IsEditorTestRun = false;
-        SelectedDifficulty = new DifficultySettings();
-    }
+        public static void BeginTestRun(DifficultyLevel difficulty)
+        {
+            IsEditorTestRun = true;
+            SelectedDifficulty = DifficultySettings.ForLevel(difficulty);
+        }
 
-    public static void SelectDifficulty(DifficultySettings settings)
-    {
-        SelectedDifficulty = settings ?? new DifficultySettings();
-    }
+        public static void EndTestRun()
+        {
+            IsEditorTestRun = false;
+            SelectedDifficulty = new DifficultySettings();
+        }
 
-    public static bool IsMapEditorSession { get; private set; }
+        public static void SelectDifficulty(DifficultySettings settings)
+        {
+            SelectedDifficulty = settings ?? new DifficultySettings();
+        }
 
-    public static void BeginMapEditorMode()
-    {
-        IsMapEditorSession = true;
-    }
+        public static bool IsMapEditorSession { get; private set; }
 
-    public static void EndMapEditorMode()
-    {
-        IsMapEditorSession = false;
+        public static void BeginMapEditorMode()
+        {
+            IsMapEditorSession = true;
+        }
+
+        public static void EndMapEditorMode()
+        {
+            IsMapEditorSession = false;
+        }
     }
 }

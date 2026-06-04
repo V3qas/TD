@@ -1,6 +1,6 @@
 {
     "name": "TD.Editor",
-    "rootNamespace": "",
+    "rootNamespace": "TD.Editor",
     "references": [
         "TD.Runtime"
     ],

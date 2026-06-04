@@ -1,6 +1,6 @@
 {
     "name": "TD.Runtime",
-    "rootNamespace": "",
+    "rootNamespace": "TD",
     "references": [
         "Unity.InputSystem"
     ],

@@ -1,6 +1,6 @@
 {
     "name": "TD.Tests.EditMode",
-    "rootNamespace": "",
+    "rootNamespace": "TD.Tests.EditMode",
     "references": [
         "TD.Runtime",
         "UnityEngine.TestRunner",
