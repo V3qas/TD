@@ -14,6 +14,7 @@ namespace TD.Menu
     public class MainMenuController : MonoBehaviour
     {
         [SerializeField] private MainMenuConfig config;
+        [SerializeField] private Sprite backgroundSprite;
         [SerializeField] private Canvas targetCanvas;
         [SerializeField] private Font font;
         [SerializeField] private string gameplaySceneName = "Gameplay";
@@ -120,7 +121,7 @@ namespace TD.Menu
 
         private GameObject CreateFullScreenRoot()
         {
-            GameObject root = new GameObject("MainMenu", typeof(RectTransform), typeof(Image));
+            GameObject root = new GameObject("MainMenu", typeof(RectTransform));
             root.transform.SetParent(targetCanvas.transform, false);
 
             RectTransform rect = root.GetComponent<RectTransform>();
@@ -129,10 +130,27 @@ namespace TD.Menu
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
 
-            Image image = root.GetComponent<Image>();
-            image.color = new Color(0f, 0f, 0f, 0.72f);
+            CreateBackground(root.transform);
 
             return root;
+        }
+
+        private void CreateBackground(Transform parent)
+        {
+            GameObject background = new GameObject("Background", typeof(RectTransform), typeof(Image));
+            background.transform.SetParent(parent, false);
+
+            RectTransform rect = background.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            Image image = background.GetComponent<Image>();
+            image.sprite = backgroundSprite;
+            image.preserveAspect = false;
+            image.raycastTarget = false;
+            image.color = backgroundSprite != null ? Color.white : new Color(0f, 0f, 0f, 0.72f);
         }
 
         private GameObject CreatePanelFrame(Transform parent)
