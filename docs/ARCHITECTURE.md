@@ -108,21 +108,25 @@ Gameplay data is authored as ScriptableObjects under `Assets/ScriptableObjects/`
 | `TowerUpgradeData` | Per-tower upgrade ladder: upgrade name, cost, damage/speed/range bonuses, optional bullet override |
 | `EnemyData` | Enemy name, health, speed, shield, armor, kill reward |
 | `BulletData` | Projectile name, travel speed, damage multiplier, splash, piercing, slow, prefab, hit animator |
-| `LevelData` | Grid size, map seed, start/goal, blocked cells, path cells, ground overrides, occupants |
+| `LevelData` | Grid size, map seed, start/goal, path sequences, path cells, ground overrides, occupants (legacy `blockedCells` migrated on load) |
 | `MainMenuConfig` | Menu title, main button actions, campaign title, campaign levels and seeds |
 | `MapThemeDefinition` | Ground visuals and map theme colours |
 
 Maps support two interchangeable representations:
 
-- **Explicit cells** - `LevelData.startCell`, `goalCell`, `blockedCells`,
-  `pathCells`, `groundOverrides`, `occupants`.
+- **Explicit cells** - `LevelData.startCell`, `goalCell`, `pathSequences`
+  (one ordered cell list per enemy route; shared cells form natural
+  split / merge junctions for future enemy AI), `pathCells` (union cache),
+  `groundOverrides`, `occupants`.
 - **Seed string** - JSON encoded via `LevelMapSeedUtility`, decoded into a
   `LevelMapDefinition` and applied with `LevelData.ApplyDefinition()`.
 
 Map definitions use `GroundType` (`Ground`, `Path`, `Elevated`, `Water`, `Lava`)
 for terrain and `OccupantType` (`None`, `Rock`, `Destructible`) for objects placed
-on top of tiles. Legacy `blockedCells` are still supported and are treated as
-indestructible rocks when maps are loaded.
+on top of tiles. Schema version 3 enforces a single source of truth for blocked
+tiles: legacy `blockedCells` are migrated into `occupants` of type `Rock` during
+`Normalize()` and the field is then cleared. Maps may be at most
+`LevelMapDefinition.MaxSize` (70) cells per side.
 
 Custom maps created at runtime are persisted by `CustomMapStorage` as
 `Application.persistentDataPath/customMaps.json`, with one-time migration from the
@@ -207,13 +211,16 @@ public method or property is added, removed, or renamed.
 ### Level
 
 - `LevelData` - `width`, `height`, `mapSeed`, `startCell`, `goalCell`,
-  `blockedCells`, `pathCells`, `groundOverrides`, `occupants`;
+  `blockedCells` (legacy, cleared after `Normalize`), `pathCells`,
+  `pathSequences`, `groundOverrides`, `occupants`;
   `GetMapDefinition`, `TryGetMapDefinition`, `ApplyDefinition`.
-- `LevelMapDefinition` - constants `CurrentVersion`, `MaxSize`; fields
-  `version`, `width`, `height`, `startCell`, `goalCell`, `blockedCells`,
-  `pathCells`, `groundOverrides`, `occupants`; property `HasExplicitPath`;
-  methods `FromLegacy`, `Clone`, `CloneNormalized`, `Normalize`, `GetGround`,
-  `TryGetOccupant`, `IsBuildable`, `IsInBounds`.
+- `LevelMapDefinition` - constants `CurrentVersion` (3), `MaxSize` (70); fields
+  `version`, `width`, `height`, `startCell`, `goalCell`, `blockedCells` (legacy),
+  `pathCells`, `pathSequences`, `groundOverrides`, `occupants`; properties
+  `HasExplicitPath`, `HasMultiplePaths`; methods `FromLegacy`, `Clone`,
+  `CloneNormalized`, `Normalize`, `IsPath`, `GetGround`, `TryGetOccupant`,
+  `IsBuildable`, `IsInBounds`.
+- `PathSequence` - serializable ordered cell list (`cells`) describing one enemy route.
 - `GroundType` - enum `Ground`, `Path`, `Elevated`, `Water`, `Lava`.
 - `OccupantType` - enum `None`, `Rock`, `Destructible`.
 - `GroundOverrideEntry` - fields `cell`, `type`.
@@ -224,7 +231,7 @@ public method or property is added, removed, or renamed.
 - `CustomMapCollection` - field `maps`.
 - `CustomMapStorage` - `GetAll`, `Save`.
 - `MapGenerator` - `ScatterParams`, `GeneratePath`, `ScatterBlocks`,
-  `GenerateFullMap`.
+  `GenerateFullMap`, `GenerateForkAndMerge`.
 - `LevelLoader` - `DefaultLevelData`, `HasLoadedLevel`, `LoadedMapDefinition`;
   events `OnLevelLoaded`, `OnMapLoaded`; methods `LoadSelectedOrDefaultLevel`,
   `LoadLevel`, `LoadMapSeed`, `LoadMap`.
@@ -275,8 +282,9 @@ public method or property is added, removed, or renamed.
 - See [CODING_GUIDELINES.md](../CODING_GUIDELINES.md) for style and lifecycle rules.
 - Avoid allocations in `Update()` in hot gameplay paths.
 - Bullets and enemies should spawn/despawn via `PrefabPool`.
-- `mapSeed` is the portable representation for maps. Explicit `pathCells` are used
-  when a map was authored with a fixed path.
+- `mapSeed` is the portable representation for maps. Explicit `pathSequences`
+  (and the derived `pathCells` union cache) are used when a map was authored with
+  one or more fixed enemy routes.
 
 ---
 

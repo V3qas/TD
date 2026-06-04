@@ -131,4 +131,69 @@ public class LevelMapValidatorTests
         Assert.IsFalse(valid);
         Assert.IsNotEmpty(message);
     }
+
+    [Test]
+    public void Validate_RejectsStartOutOfBoundsWithoutSilentlyClamping()
+    {
+        LevelMapDefinition definition = new LevelMapDefinition
+        {
+            width = 5,
+            height = 5,
+            startCell = new Vector2Int(99, 99),
+            goalCell = new Vector2Int(0, 0)
+        };
+
+        bool valid = LevelMapValidator.Validate(definition, false, out string message);
+
+        Assert.IsFalse(valid, "Validator must reject OOB start instead of normalizing.");
+        Assert.IsTrue(message.Contains("Start"), message);
+    }
+
+    [Test]
+    public void Validate_RejectsPathSequenceThroughOccupant()
+    {
+        List<Vector2Int> path = new List<Vector2Int>
+        {
+            new Vector2Int(0, 0), new Vector2Int(1, 0), new Vector2Int(2, 0), new Vector2Int(3, 0)
+        };
+        LevelMapDefinition definition = new LevelMapDefinition
+        {
+            width = 4,
+            height = 1,
+            startCell = new Vector2Int(0, 0),
+            goalCell = new Vector2Int(3, 0),
+            pathSequences = new List<PathSequence> { new PathSequence(path) },
+            occupants = new List<OccupantEntry>
+            {
+                new OccupantEntry { cell = new Vector2Int(2, 0), type = OccupantType.Rock }
+            }
+        };
+
+        bool valid = LevelMapValidator.Validate(definition, true, out string message);
+
+        Assert.IsFalse(valid, "Validator must reject path/occupant overlap rather than dropping the occupant.");
+        Assert.IsNotEmpty(message);
+    }
+
+    [Test]
+    public void Validate_RejectsNonAdjacentPathSequenceStep()
+    {
+        List<Vector2Int> path = new List<Vector2Int>
+        {
+            new Vector2Int(0, 0), new Vector2Int(1, 0), new Vector2Int(3, 0)
+        };
+        LevelMapDefinition definition = new LevelMapDefinition
+        {
+            width = 4,
+            height = 1,
+            startCell = new Vector2Int(0, 0),
+            goalCell = new Vector2Int(3, 0),
+            pathSequences = new List<PathSequence> { new PathSequence(path) }
+        };
+
+        bool valid = LevelMapValidator.Validate(definition, true, out string message);
+
+        Assert.IsFalse(valid);
+        Assert.IsTrue(message.Contains("non-adjacent"), message);
+    }
 }

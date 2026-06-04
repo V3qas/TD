@@ -37,7 +37,7 @@ public class LevelMapDefinitionTests
     }
 
     [Test]
-    public void Normalize_DropsBlockedCellsThatOverlapStartOrGoal()
+    public void Normalize_MigratesLegacyBlockedCellsIntoOccupants_AndDropsOverlapsWithStartGoal()
     {
         LevelMapDefinition definition = new LevelMapDefinition
         {
@@ -55,8 +55,10 @@ public class LevelMapDefinitionTests
 
         definition.Normalize();
 
-        Assert.AreEqual(1, definition.blockedCells.Count);
-        Assert.AreEqual(new Vector2Int(1, 1), definition.blockedCells[0]);
+        Assert.AreEqual(0, definition.blockedCells.Count, "blockedCells must be cleared after migration.");
+        Assert.AreEqual(1, definition.occupants.Count, "Only the non-overlapping blocker should remain.");
+        Assert.AreEqual(new Vector2Int(1, 1), definition.occupants[0].cell);
+        Assert.AreEqual(OccupantType.Rock, definition.occupants[0].type);
     }
 
     [Test]
@@ -78,7 +80,9 @@ public class LevelMapDefinitionTests
 
         definition.Normalize();
 
-        Assert.AreEqual(1, definition.blockedCells.Count);
+        Assert.AreEqual(0, definition.blockedCells.Count);
+        Assert.AreEqual(1, definition.occupants.Count);
+        Assert.AreEqual(new Vector2Int(1, 1), definition.occupants[0].cell);
     }
 
     [Test]
@@ -100,15 +104,15 @@ public class LevelMapDefinitionTests
             height = 5,
             startCell = new Vector2Int(0, 0),
             goalCell = new Vector2Int(4, 4),
-            blockedCells = new List<Vector2Int> { new Vector2Int(1, 1) },
+            occupants = new List<OccupantEntry> { new OccupantEntry { cell = new Vector2Int(1, 1), type = OccupantType.Rock } },
             pathCells = new List<Vector2Int> { new Vector2Int(2, 2) }
         };
 
         LevelMapDefinition clone = definition.Clone();
-        clone.blockedCells.Add(new Vector2Int(3, 3));
+        clone.occupants.Add(new OccupantEntry { cell = new Vector2Int(3, 3), type = OccupantType.Rock });
         clone.pathCells.Add(new Vector2Int(3, 3));
 
-        Assert.AreEqual(1, definition.blockedCells.Count);
+        Assert.AreEqual(1, definition.occupants.Count);
         Assert.AreEqual(1, definition.pathCells.Count);
     }
 
@@ -135,7 +139,8 @@ public class LevelMapDefinitionTests
             legacyBlockedCells: new List<Vector2Int> { new Vector2Int(0, 0), new Vector2Int(99, 99) },
             legacyPathCells: null);
 
-        Assert.AreEqual(0, definition.blockedCells.Count, "Start cell and out-of-bounds should be removed.");
+        Assert.AreEqual(0, definition.blockedCells.Count, "blockedCells must always be empty after Normalize.");
+        Assert.AreEqual(0, definition.occupants.Count, "Start cell blocker is dropped, OOB blocker is dropped.");
         Assert.AreEqual(LevelMapDefinition.CurrentVersion, definition.version);
     }
 
@@ -256,5 +261,62 @@ public class LevelMapDefinitionTests
         Assert.IsTrue(definition.IsBuildable(new Vector2Int(3, 2)), "Elevated is buildable.");
         Assert.IsFalse(definition.IsBuildable(new Vector2Int(2, 0)), "Rock occupant blocks build.");
         Assert.IsTrue(definition.IsBuildable(new Vector2Int(0, 0)), "Plain ground is buildable.");
+    }
+
+    [Test]
+    public void Normalize_ReconstructsSinglePathSequenceFromUnorderedPathCells()
+    {
+        LevelMapDefinition definition = new LevelMapDefinition
+        {
+            width = 4,
+            height = 1,
+            startCell = new Vector2Int(0, 0),
+            goalCell = new Vector2Int(3, 0),
+            pathCells = new List<Vector2Int>
+            {
+                new Vector2Int(2, 0),
+                new Vector2Int(0, 0),
+                new Vector2Int(1, 0),
+                new Vector2Int(3, 0)
+            }
+        };
+
+        definition.Normalize();
+
+        Assert.AreEqual(1, definition.pathSequences.Count);
+        Assert.AreEqual(definition.startCell, definition.pathSequences[0].cells[0]);
+        Assert.AreEqual(definition.goalCell, definition.pathSequences[0].cells[definition.pathSequences[0].cells.Count - 1]);
+        Assert.IsFalse(definition.HasMultiplePaths);
+    }
+
+    [Test]
+    public void HasMultiplePaths_IsTrueForTwoSequences()
+    {
+        List<Vector2Int> top = new List<Vector2Int>
+        {
+            new Vector2Int(0, 1), new Vector2Int(1, 1), new Vector2Int(2, 1),
+            new Vector2Int(2, 2), new Vector2Int(3, 2), new Vector2Int(3, 1)
+        };
+        List<Vector2Int> bottom = new List<Vector2Int>
+        {
+            new Vector2Int(0, 1), new Vector2Int(1, 1), new Vector2Int(1, 0),
+            new Vector2Int(2, 0), new Vector2Int(3, 0), new Vector2Int(3, 1)
+        };
+
+        LevelMapDefinition definition = new LevelMapDefinition
+        {
+            width = 4,
+            height = 3,
+            startCell = new Vector2Int(0, 1),
+            goalCell = new Vector2Int(3, 1),
+            pathSequences = new List<PathSequence> { new PathSequence(top), new PathSequence(bottom) }
+        };
+        definition.Normalize();
+
+        Assert.IsTrue(definition.HasMultiplePaths);
+        Assert.IsTrue(definition.IsPath(new Vector2Int(2, 2)));
+        Assert.IsTrue(definition.IsPath(new Vector2Int(2, 0)));
+        Assert.IsTrue(definition.IsPath(new Vector2Int(1, 1)), "Junction cell shared by both paths.");
+        Assert.IsTrue(LevelMapValidator.Validate(definition, true, out string message), message);
     }
 }

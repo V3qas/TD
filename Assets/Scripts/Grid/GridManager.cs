@@ -126,11 +126,12 @@ public class GridManager : MonoBehaviour
         GoalCell = normalizedDefinition.goalCell;
         usesExplicitPath = normalizedDefinition.HasExplicitPath;
 
-        HashSet<Vector2Int> blockedCells = new HashSet<Vector2Int>(normalizedDefinition.blockedCells);
+        HashSet<Vector2Int> blockedCells = new HashSet<Vector2Int>();
         HashSet<Vector2Int> pathCells = new HashSet<Vector2Int>(normalizedDefinition.pathCells);
 
-        // New occupants (Rock, Destructible) act as blockers in pathfinding/build checks until
-        // Phase 5 introduces dedicated runtime objects.
+        // Occupants (Rock, Destructible) act as blockers in pathfinding/build checks.
+        // After Normalize, legacy v1 blockedCells have already been migrated into occupants,
+        // so this is the single source of truth for blocked tiles.
         if (normalizedDefinition.occupants != null)
         {
             for (int i = 0; i < normalizedDefinition.occupants.Count; i++)
