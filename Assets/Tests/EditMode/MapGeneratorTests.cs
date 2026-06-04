@@ -80,4 +80,47 @@ public class MapGeneratorTests
         foreach (OccupantEntry entry in definition.occupants)
             Assert.IsFalse(reserved.Contains(entry.cell));
     }
+
+    [Test]
+    public void GenerateForkAndMerge_ProducesTwoDistinctPathsWithVerticalBias()
+    {
+        LevelMapDefinition definition = MapGenerator.GenerateForkAndMerge(20, 11, 4242, MapGenerator.ScatterParams.Default);
+
+        Assert.IsTrue(definition.HasMultiplePaths,
+            "GenerateForkAndMerge must produce at least two pathSequences.");
+        Assert.AreEqual(2, definition.pathSequences.Count);
+
+        PathSequence a = definition.pathSequences[0];
+        PathSequence b = definition.pathSequences[1];
+
+        // Both end at start/goal.
+        Assert.AreEqual(definition.startCell, a.cells[0]);
+        Assert.AreEqual(definition.goalCell, a.cells[a.cells.Count - 1]);
+        Assert.AreEqual(definition.startCell, b.cells[0]);
+        Assert.AreEqual(definition.goalCell, b.cells[b.cells.Count - 1]);
+
+        // Routes must differ somewhere in the middle.
+        bool differs = a.cells.Count != b.cells.Count;
+        if (!differs)
+        {
+            for (int i = 0; i < a.cells.Count && !differs; i++)
+                differs = a.cells[i] != b.cells[i];
+        }
+        Assert.IsTrue(differs, "Fork-and-merge routes must not be identical.");
+
+        // Average row of one should be above midline, the other below.
+        int mid = definition.startCell.y;
+        float avgA = AverageRow(a.cells);
+        float avgB = AverageRow(b.cells);
+        Assert.AreNotEqual(Mathf.Sign(avgA - mid), Mathf.Sign(avgB - mid),
+            $"Paths should occupy opposite halves of the grid (avgA={avgA}, avgB={avgB}, mid={mid}).");
+    }
+
+    private static float AverageRow(List<Vector2Int> cells)
+    {
+        if (cells == null || cells.Count == 0) return 0f;
+        long sum = 0;
+        foreach (Vector2Int c in cells) sum += c.y;
+        return (float)sum / cells.Count;
+    }
 }

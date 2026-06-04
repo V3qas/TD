@@ -71,6 +71,15 @@ public static class MapGenerator
         float noiseOffsetY = (float)rng.NextDouble() * 1000f;
 
         HashSet<Vector2Int> reserved = new HashSet<Vector2Int>();
+        if (definition.pathSequences != null)
+        {
+            foreach (PathSequence seq in definition.pathSequences)
+            {
+                if (seq?.cells == null) continue;
+                foreach (Vector2Int cell in seq.cells)
+                    reserved.Add(cell);
+            }
+        }
         if (definition.pathCells != null)
             foreach (Vector2Int cell in definition.pathCells)
                 reserved.Add(cell);
@@ -138,12 +147,118 @@ public static class MapGenerator
             blockedCells = new List<Vector2Int>(),
             pathCells = path != null ? new List<Vector2Int>(path) : new List<Vector2Int>(),
             occupants = new List<OccupantEntry>(),
-            groundOverrides = new List<GroundOverrideEntry>()
+            groundOverrides = new List<GroundOverrideEntry>(),
+            pathSequences = new List<PathSequence>()
+        };
+
+        if (path != null && path.Count > 0)
+            definition.pathSequences.Add(new PathSequence(path));
+
+        ScatterBlocks(definition, seed ^ 0x5A5A5A, scatterParameters);
+        definition.Normalize();
+        return definition;
+    }
+
+    /// <summary>
+    /// Generates a map with up to two enemy paths sharing the same start and goal but
+    /// taking different routes - one is pushed toward the upper half of the grid, the
+    /// other toward the lower half. Cells where the sequences overlap form natural split /
+    /// merge junctions for future enemy AI.
+    ///
+    /// The vertical bias is implemented as an additional cost penalty per cell: rows above
+    /// the start row are cheaper for the "upper" path and more expensive for the "lower"
+    /// path (and vice versa). This nudges A* through the requested half but still allows
+    /// the routes to converge at start/goal so they form a real fork+merge shape.
+    ///
+    /// On very small or narrow grids (e.g. height &lt;= 2) the two biased searches can
+    /// collapse onto the same A* solution; in that case the duplicate is dropped and the
+    /// resulting map only carries a single PathSequence. Callers that strictly require two
+    /// distinct routes must therefore check <see cref="LevelMapDefinition.HasMultiplePaths"/>.
+    /// </summary>
+    public static LevelMapDefinition GenerateForkAndMerge(int width, int height, int seed, ScatterParams scatterParameters)
+    {
+        Vector2Int start = new Vector2Int(0, height / 2);
+        Vector2Int goal = new Vector2Int(width - 1, height / 2);
+
+        // Upper path: rows above midline cheap, rows below midline expensive.
+        List<Vector2Int> upper = GeneratePathBiased(width, height, start, goal, seed, verticalBias: +1f);
+        // Lower path: opposite bias, plus a different jitter seed so noise differs too.
+        List<Vector2Int> lower = GeneratePathBiased(width, height, start, goal, unchecked(seed * 31 + 1), verticalBias: -1f);
+
+        // Defensive fallback: if the bias still produced identical paths (very narrow maps,
+        // height==1, etc.), keep only the unique sequences. We never want two identical
+        // PathSequence entries because that adds no information for the AI later.
+        List<PathSequence> sequences = new List<PathSequence>();
+        if (upper != null && upper.Count > 0)
+            sequences.Add(new PathSequence(upper));
+        if (lower != null && lower.Count > 0 && (upper == null || !PathsEqual(upper, lower)))
+            sequences.Add(new PathSequence(lower));
+
+        LevelMapDefinition definition = new LevelMapDefinition
+        {
+            width = width,
+            height = height,
+            startCell = start,
+            goalCell = goal,
+            blockedCells = new List<Vector2Int>(),
+            pathCells = new List<Vector2Int>(),
+            occupants = new List<OccupantEntry>(),
+            groundOverrides = new List<GroundOverrideEntry>(),
+            pathSequences = sequences
         };
 
         ScatterBlocks(definition, seed ^ 0x5A5A5A, scatterParameters);
         definition.Normalize();
         return definition;
+    }
+
+    /// <summary>
+    /// Same as <see cref="GeneratePath"/> but adds a vertical bias to the per-cell cost.
+    /// Positive <paramref name="verticalBias"/> pushes the route toward the top half of the
+    /// grid, negative toward the bottom half. The magnitude of the penalty grows linearly
+    /// with the row distance from the start row.
+    /// </summary>
+    public static List<Vector2Int> GeneratePathBiased(int width, int height, Vector2Int start, Vector2Int goal, int seed, float verticalBias)
+    {
+        if (width <= 0 || height <= 0)
+            return new List<Vector2Int>();
+        if (!InBounds(start, width, height) || !InBounds(goal, width, height))
+            return new List<Vector2Int>();
+
+        System.Random rng = NewRng(seed);
+
+        // Penalty per row of "wrong side" distance. 2.0 is roughly half the worst-case
+        // jitter (MaxCostJitter == 4) so a single row of wrong-side travel does not always
+        // dominate noise, but a few rows do - this keeps A* free to take small detours
+        // while still pulling the route toward the requested half of the grid.
+        const float biasPerRow = 2f;
+        int midRow = start.y;
+
+        float[,] cellCost = new float[width, height];
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                float jitter = 1f + (float)rng.NextDouble() * (MaxCostJitter - MinCostJitter) + MinCostJitter;
+                // verticalBias > 0: penalize rows below midRow (encourage upper half).
+                // verticalBias < 0: penalize rows above midRow (encourage lower half).
+                float distance = (y - midRow) * -verticalBias; // >0 means "wrong side".
+                float penalty = distance > 0f ? distance * biasPerRow : 0f;
+                cellCost[x, y] = jitter + penalty;
+            }
+        }
+
+        return AStar(start, goal, width, height, cellCost);
+    }
+
+    private static bool PathsEqual(List<Vector2Int> a, List<Vector2Int> b)
+    {
+        if (a == null || b == null || a.Count != b.Count)
+            return false;
+        for (int i = 0; i < a.Count; i++)
+            if (a[i] != b[i])
+                return false;
+        return true;
     }
 
     private static System.Random NewRng(int seed)
