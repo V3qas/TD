@@ -164,7 +164,7 @@ public class RuntimeMapEditorController : MonoBehaviour
     {
         if (gridManager == null)
         {
-            SetValidation(false, "GridManager fehlt in der Szene.");
+            SetValidation(false, "GridManager is missing from the scene.");
             return;
         }
 
@@ -327,30 +327,30 @@ public class RuntimeMapEditorController : MonoBehaviour
 
     private void BuildSizeControls(Transform parent)
     {
-        CreateText("SizeTitle", parent, "Groesse", 18, TextAnchor.MiddleLeft, Color.white)
+        CreateText("SizeTitle", parent, "Size", 18, TextAnchor.MiddleLeft, Color.white)
             .gameObject.AddComponent<LayoutElement>().preferredHeight = 28f;
 
         widthInput = CreateInputField(parent, defaultWidth.ToString(), 16, 34f, false);
         heightInput = CreateInputField(parent, defaultHeight.ToString(), 16, 34f, false);
-        CreateButton(parent, "Neue Map", ApplyNewMapSize, true);
+        CreateButton(parent, "New Map", ApplyNewMapSize, true);
     }
 
     private void BuildToolControls(Transform parent)
     {
-        CreateText("ToolsTitle", parent, "Werkzeuge", 18, TextAnchor.MiddleLeft, Color.white)
+        CreateText("ToolsTitle", parent, "Tools", 18, TextAnchor.MiddleLeft, Color.white)
             .gameObject.AddComponent<LayoutElement>().preferredHeight = 28f;
 
-        CreateToolButton(parent, MapEditorTool.Path, "Pfad");
-        CreateToolButton(parent, MapEditorTool.Erase, "Loeschen");
-        CreateToolButton(parent, MapEditorTool.Rock, "Stein");
-        CreateToolButton(parent, MapEditorTool.Destructible, "Zerst.-Block");
-        CreateToolButton(parent, MapEditorTool.Elevated, "Erhöhung");
+        CreateToolButton(parent, MapEditorTool.Path, "Path");
+        CreateToolButton(parent, MapEditorTool.Erase, "Erase");
+        CreateToolButton(parent, MapEditorTool.Rock, "Rock");
+        CreateToolButton(parent, MapEditorTool.Destructible, "Destructible");
+        CreateToolButton(parent, MapEditorTool.Elevated, "Elevated");
         CreateToolButton(parent, MapEditorTool.Water, "Wasser");
         CreateToolButton(parent, MapEditorTool.Lava, "Lava");
         CreateToolButton(parent, MapEditorTool.Start, "Start");
         CreateToolButton(parent, MapEditorTool.Goal, "Stop");
 
-        CreateText("DestructibleTitle", parent, "Zerstörbar: HP / Belohnung", 14, TextAnchor.MiddleLeft, new Color(0.8f, 0.85f, 0.9f))
+        CreateText("DestructibleTitle", parent, "Destructible: HP / Reward", 14, TextAnchor.MiddleLeft, new Color(0.8f, 0.85f, 0.9f))
             .gameObject.AddComponent<LayoutElement>().preferredHeight = 22f;
 
         destructibleHpInput = CreateInputField(parent, DefaultDestructibleHp.ToString(), 14, 30f, false);
@@ -363,15 +363,15 @@ public class RuntimeMapEditorController : MonoBehaviour
             .gameObject.AddComponent<LayoutElement>().preferredHeight = 28f;
 
         seedInput = CreateInputField(parent, string.Empty, 13, 88f, true);
-        CreateButton(parent, "Seed laden", LoadSeedFromInput, true);
-        CreateButton(parent, "Seed kopieren", CopySeedToClipboard, true);
+        CreateButton(parent, "Load Seed", LoadSeedFromInput, true);
+        CreateButton(parent, "Copy Seed", CopySeedToClipboard, true);
 
-        CreateText("GenTitle", parent, "Generieren", 14, TextAnchor.MiddleLeft, new Color(0.8f, 0.85f, 0.9f))
+        CreateText("GenTitle", parent, "Generate", 14, TextAnchor.MiddleLeft, new Color(0.8f, 0.85f, 0.9f))
             .gameObject.AddComponent<LayoutElement>().preferredHeight = 22f;
 
-        CreateButton(parent, "Pfad generieren", GenerateRandomPath, true);
-        CreateButton(parent, "Blöcke streuen", ScatterRandomBlocks, true);
-        CreateButton(parent, "Komplette Map", GenerateFullRandomMap, true);
+        CreateButton(parent, "Generate Path", GenerateRandomPath, true);
+        CreateButton(parent, "Scatter Blocks", ScatterRandomBlocks, true);
+        CreateButton(parent, "Full Map", GenerateFullRandomMap, true);
     }
 
     private int ResolveSeed()
@@ -391,7 +391,7 @@ public class RuntimeMapEditorController : MonoBehaviour
 
         if (path == null || path.Count == 0)
         {
-            SetValidation(false, "Pfadgenerator hat keinen Weg gefunden. Anderen Seed versuchen.");
+            SetValidation(false, "Path generator found no route. Try another seed.");
             return;
         }
 
@@ -447,21 +447,21 @@ public class RuntimeMapEditorController : MonoBehaviour
         validationText = CreateText("Validation", parent, string.Empty, 15, TextAnchor.UpperLeft, new Color(0.82f, 0.84f, 0.88f));
         validationText.gameObject.AddComponent<LayoutElement>().preferredHeight = 78f;
 
-        saveCustomButton = CreateButton(parent, "Als Custom Map speichern", SaveCustomMap, false);
-        saveCampaignButton = CreateButton(parent, "In Kampagne speichern", SaveCampaignMap, false);
-        startTestButton = CreateButton(parent, "Testlauf Runde 1", StartTestRun, false);
-        CreateButton(parent, "Zurueck", CloseToMenu, true);
+        saveCustomButton = CreateButton(parent, "Save Custom Map", SaveCustomMap, false);
+        saveCampaignButton = CreateButton(parent, "Save to Campaign", SaveCampaignMap, false);
+        startTestButton = CreateButton(parent, "Test Round 1", StartTestRun, false);
+        CreateButton(parent, "Back", CloseToMenu, true);
     }
 
     private void BuildDifficultyControls(Transform parent)
     {
-        CreateText("DiffTitle", parent, "Schwierigkeitsgrad", 18, TextAnchor.MiddleLeft, Color.white)
+        CreateText("DiffTitle", parent, "Difficulty", 18, TextAnchor.MiddleLeft, Color.white)
             .gameObject.AddComponent<LayoutElement>().preferredHeight = 28f;
 
-        CreateDifficultyButton(parent, DifficultyLevel.Easy,      "Einfach");
+        CreateDifficultyButton(parent, DifficultyLevel.Easy,      "Easy");
         CreateDifficultyButton(parent, DifficultyLevel.Normal,    "Normal");
-        CreateDifficultyButton(parent, DifficultyLevel.Hard,      "Schwer");
-        CreateDifficultyButton(parent, DifficultyLevel.Nightmare, "Alptraum");
+        CreateDifficultyButton(parent, DifficultyLevel.Hard,      "Hard");
+        CreateDifficultyButton(parent, DifficultyLevel.Nightmare, "Nightmare");
     }
 
     private void CreateDifficultyButton(Transform parent, DifficultyLevel level, string label)
@@ -817,7 +817,7 @@ public class RuntimeMapEditorController : MonoBehaviour
         }
 
         seedInput.text = savedEntry.seed;
-        SetValidation(true, $"Custom Map gespeichert: {savedEntry.label}");
+        SetValidation(true, $"Custom map saved: {savedEntry.label}");
     }
 
     private void SaveCampaignMap()
@@ -832,7 +832,7 @@ public class RuntimeMapEditorController : MonoBehaviour
 #if UNITY_EDITOR
         if (menuConfig == null)
         {
-            SetValidation(false, "MainMenuConfig fehlt. Kampagnen-Seed konnte nicht gespeichert werden.");
+            SetValidation(false, "MainMenuConfig is missing. Campaign seed could not be saved.");
             return;
         }
 
@@ -853,9 +853,9 @@ public class RuntimeMapEditorController : MonoBehaviour
         EditorUtility.SetDirty(menuConfig);
         AssetDatabase.SaveAssets();
         seedInput.text = seed;
-        SetValidation(true, $"Kampagnen-Seed gespeichert: {campaignLevel.label}");
+        SetValidation(true, $"Campaign seed saved: {campaignLevel.label}");
 #else
-        SetValidation(false, "Kampagnen-Speichern ist nur im Unity Editor moeglich. Custom Maps werden lokal gespeichert.");
+        SetValidation(false, "Campaign saving is only available in the Unity Editor. Custom maps are saved locally.");
 #endif
     }
 

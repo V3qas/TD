@@ -16,17 +16,15 @@ public class Tower : MonoBehaviour
     public float AttackSpeed => EffectiveAttackSpeed;
     public float Range => EffectiveRange;
 
-    // ── Effektive Stats (Basis + kumulierte Upgrade-Boni) ────────────────────
-
     private float EffectiveDamage
     {
         get
         {
             float total = data.damage;
             int cap = Mathf.Min(currentUpgradeLevel, upgradeData != null && upgradeData.levels != null ? upgradeData.levels.Count : 0);
-            for (int i = 0; i < cap; i++)
-                if (upgradeData.levels[i] != null)
-                    total += upgradeData.levels[i].damageBonus;
+            for (int index = 0; index < cap; index++)
+                if (upgradeData.levels[index] != null)
+                    total += upgradeData.levels[index].damageBonus;
             return total;
         }
     }
@@ -37,10 +35,10 @@ public class Tower : MonoBehaviour
         {
             float total = data.attackSpeed;
             int cap = Mathf.Min(currentUpgradeLevel, upgradeData != null && upgradeData.levels != null ? upgradeData.levels.Count : 0);
-            for (int i = 0; i < cap; i++)
-                if (upgradeData.levels[i] != null)
-                    total += upgradeData.levels[i].attackSpeedBonus;
-            return Mathf.Max(0.01f, total); // verhindert Division durch 0
+            for (int index = 0; index < cap; index++)
+                if (upgradeData.levels[index] != null)
+                    total += upgradeData.levels[index].attackSpeedBonus;
+            return Mathf.Max(0.01f, total);
         }
     }
 
@@ -50,9 +48,9 @@ public class Tower : MonoBehaviour
         {
             float total = data.range + terrainRangeBonus;
             int cap = Mathf.Min(currentUpgradeLevel, upgradeData != null && upgradeData.levels != null ? upgradeData.levels.Count : 0);
-            for (int i = 0; i < cap; i++)
-                if (upgradeData.levels[i] != null)
-                    total += upgradeData.levels[i].rangeBonus;
+            for (int index = 0; index < cap; index++)
+                if (upgradeData.levels[index] != null)
+                    total += upgradeData.levels[index].rangeBonus;
             return total;
         }
     }
@@ -67,8 +65,8 @@ public class Tower : MonoBehaviour
     }
 
     /// <summary>
-    /// Gibt den aktuell gültigen BulletData zurück.
-    /// Iteriert die Upgrade-Stufen von oben nach unten und nimmt das erste Override.
+    /// Returns the currently active bullet data.
+    /// Walks upgrade levels from highest to lowest and uses the first override.
     /// </summary>
     private BulletData EffectiveBulletData
     {
@@ -77,23 +75,22 @@ public class Tower : MonoBehaviour
             if (upgradeData != null && upgradeData.levels != null)
             {
                 int cap = Mathf.Min(currentUpgradeLevel, upgradeData.levels.Count);
-                for (int i = cap - 1; i >= 0; i--)
+                for (int index = cap - 1; index >= 0; index--)
                 {
-                    if (upgradeData.levels[i] != null && upgradeData.levels[i].overrideBulletData != null)
-                        return upgradeData.levels[i].overrideBulletData;
+                    if (upgradeData.levels[index] != null && upgradeData.levels[index].overrideBulletData != null)
+                        return upgradeData.levels[index].overrideBulletData;
                 }
             }
+
             return data.bulletData;
         }
     }
 
-    // ── Initialisierung ──────────────────────────────────────────────────────
-
     /// <summary>
-    /// Initialisiert den Turm. Muss direkt nach Instantiate aufgerufen werden.
+    /// Initializes the tower. Must be called immediately after Instantiate.
     /// </summary>
-    /// <param name="towerData">Pflicht: Basis-Werte des Turms.</param>
-    /// <param name="towerUpgradeData">Optional: Upgrade-Pfad. Null = keine Upgrades möglich.</param>
+    /// <param name="towerData">Required base tower stats.</param>
+    /// <param name="towerUpgradeData">Optional upgrade path. Null means upgrades are unavailable.</param>
     public void Initialize(TowerData towerData, TowerUpgradeData towerUpgradeData = null)
     {
         data = towerData;
@@ -103,8 +100,6 @@ public class Tower : MonoBehaviour
         totalInvested = towerData != null ? towerData.cost : 0;
     }
 
-    // ── Upgrades ─────────────────────────────────────────────────────────────
-
     public bool CanUpgrade()
     {
         return upgradeData != null
@@ -113,15 +108,16 @@ public class Tower : MonoBehaviour
             && upgradeData.levels[currentUpgradeLevel] != null;
     }
 
-    /// <summary>Gibt die Kosten der nächsten Upgrade-Stufe zurück, oder -1 wenn kein Upgrade möglich.</summary>
+    /// <summary>Returns the next upgrade cost, or -1 when no upgrade is available.</summary>
     public int GetNextUpgradeCost()
     {
         if (!CanUpgrade())
             return -1;
+
         return upgradeData.levels[currentUpgradeLevel].cost;
     }
 
-    /// <summary>Führt das nächste Upgrade durch. Gibt false zurück, wenn kein Upgrade verfügbar.</summary>
+    /// <summary>Applies the next upgrade. Returns false when no upgrade is available.</summary>
     public bool TryUpgrade()
     {
         if (!CanUpgrade())
@@ -132,13 +128,11 @@ public class Tower : MonoBehaviour
         return true;
     }
 
-    /// <summary>Gibt den Verkaufswert zurück (50% des investierten Goldes).</summary>
+    /// <summary>Returns the sell value (50% of invested gold).</summary>
     public int GetSellValue()
     {
         return Mathf.RoundToInt(totalInvested * 0.5f);
     }
-
-    // ── Kampflogik ───────────────────────────────────────────────────────────
 
     private void Update()
     {
@@ -160,9 +154,8 @@ public class Tower : MonoBehaviour
 
     /// <summary>
     /// Targeting priority:
-    ///  1. Marked Destructibles in range — the player has explicitly told the
-    ///     towers to break these, so they take precedence over enemies.
-    ///  2. Nearest enemy in range.
+    /// 1. Marked Destructibles in range - the player explicitly targeted these.
+    /// 2. Nearest enemy in range.
     /// </summary>
     private IDamageable FindNearestTarget()
     {
@@ -172,10 +165,12 @@ public class Tower : MonoBehaviour
         IReadOnlyList<Destructible> markedTargets = Destructible.MarkedTargets;
         Destructible nearestMarked = null;
         float nearestMarkedSqr = rangeSqr;
-        for (int i = 0; i < markedTargets.Count; i++)
+        for (int index = 0; index < markedTargets.Count; index++)
         {
-            Destructible marked = markedTargets[i];
-            if (marked == null || marked.IsDead) continue;
+            Destructible marked = markedTargets[index];
+            if (marked == null || marked.IsDead)
+                continue;
+
             float sqr = (position - marked.WorldPosition).sqrMagnitude;
             if (sqr <= nearestMarkedSqr)
             {
@@ -183,6 +178,7 @@ public class Tower : MonoBehaviour
                 nearestMarked = marked;
             }
         }
+
         if (nearestMarked != null)
             return nearestMarked;
 
@@ -190,9 +186,9 @@ public class Tower : MonoBehaviour
         Enemy nearest = null;
         float nearestSqrDist = rangeSqr;
 
-        for (int i = 0; i < enemies.Count; i++)
+        for (int index = 0; index < enemies.Count; index++)
         {
-            Enemy enemy = enemies[i];
+            Enemy enemy = enemies[index];
             if (enemy == null || enemy.IsDead)
                 continue;
 

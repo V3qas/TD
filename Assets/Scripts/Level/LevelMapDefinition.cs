@@ -403,7 +403,7 @@ public static class LevelMapSeedUtility
 
         if (string.IsNullOrWhiteSpace(seedOrJson))
         {
-            error = "Seed oder JSON ist leer.";
+            error = "Seed or JSON is empty.";
             return false;
         }
 
@@ -430,13 +430,13 @@ public static class LevelMapSeedUtility
         }
         catch (Exception exception)
         {
-            error = $"Seed konnte nicht gelesen werden: {exception.Message}";
+            error = $"Seed could not be read: {exception.Message}";
             return false;
         }
 
         if (definition == null)
         {
-            error = "Seed enthaelt keine Map-Daten.";
+            error = "Seed contains no map data.";
             return false;
         }
 
@@ -596,32 +596,32 @@ public static class LevelMapValidator
     {
         if (definition == null)
         {
-            message = "Map-Daten fehlen.";
+            message = "Map data is missing.";
             return false;
         }
 
         if (definition.width < 1 || definition.width > LevelMapDefinition.MaxSize ||
             definition.height < 1 || definition.height > LevelMapDefinition.MaxSize)
         {
-            message = $"Die Map darf maximal {LevelMapDefinition.MaxSize}x{LevelMapDefinition.MaxSize} Tiles gross sein.";
+            message = $"The map may be at most {LevelMapDefinition.MaxSize}x{LevelMapDefinition.MaxSize} tiles.";
             return false;
         }
 
         if (!IsInBounds(definition.startCell, definition.width, definition.height))
         {
-            message = "Start liegt ausserhalb der Map.";
+            message = "Start is outside the map.";
             return false;
         }
 
         if (!IsInBounds(definition.goalCell, definition.width, definition.height))
         {
-            message = "Stop liegt ausserhalb der Map.";
+            message = "Goal is outside the map.";
             return false;
         }
 
         if (definition.startCell == definition.goalCell)
         {
-            message = "Start und Stop muessen unterschiedliche Tiles sein.";
+            message = "Start and goal must be different tiles.";
             return false;
         }
 
@@ -630,7 +630,7 @@ public static class LevelMapValidator
 
         if (blockedCells.Contains(definition.startCell) || blockedCells.Contains(definition.goalCell))
         {
-            message = "Start und Stop duerfen nicht blockiert sein.";
+            message = "Start and goal must not be blocked.";
             return false;
         }
 
@@ -643,7 +643,7 @@ public static class LevelMapValidator
         bool hasExplicitPath = definition.pathCells != null && definition.pathCells.Count > 0;
         if (requireExplicitPath && !hasExplicitPath)
         {
-            message = "Es muss ein durchgehender Pfad gezeichnet werden.";
+            message = "A continuous path must be drawn.";
             return false;
         }
 
@@ -655,7 +655,7 @@ public static class LevelMapValidator
 
     private static bool ValidateExplicitPath(LevelMapDefinition definition, HashSet<Vector2Int> blockedCells, out string message)
     {
-        if (!TryBuildCellSet(definition.pathCells, definition.width, definition.height, "Pfad", out HashSet<Vector2Int> pathCells, out message))
+        if (!TryBuildCellSet(definition.pathCells, definition.width, definition.height, "Path", out HashSet<Vector2Int> pathCells, out message))
             return false;
 
         pathCells.Add(definition.startCell);
@@ -665,7 +665,7 @@ public static class LevelMapValidator
         {
             if (blockedCells.Contains(pathCell))
             {
-                message = "Der Pfad darf keine blockierten Tiles enthalten.";
+                message = "The path must not contain blocked tiles.";
                 return false;
             }
         }
@@ -674,17 +674,17 @@ public static class LevelMapValidator
 
         if (!visitedCells.Contains(definition.goalCell))
         {
-            message = "Start und Stop muessen durch einen durchgehenden Pfad verbunden sein.";
+            message = "Start and goal must be connected by a continuous path.";
             return false;
         }
 
         if (visitedCells.Count != pathCells.Count)
         {
-            message = "Alle gezeichneten Pfad-Tiles muessen mit dem Start verbunden sein.";
+            message = "All drawn path tiles must be connected to the start.";
             return false;
         }
 
-        message = "Map ist gueltig.";
+        message = "Map is valid.";
         return true;
     }
 
@@ -694,11 +694,11 @@ public static class LevelMapValidator
 
         if (!visitedCells.Contains(definition.goalCell))
         {
-            message = "Start und Stop sind nicht verbunden.";
+            message = "Start and goal are not connected.";
             return false;
         }
 
-        message = "Map ist gueltig.";
+        message = "Map is valid.";
         return true;
     }
 
@@ -770,7 +770,7 @@ public static class LevelMapValidator
         {
             if (!IsInBounds(cell, width, height))
             {
-                message = $"{label}-Tile {cell} liegt ausserhalb der Map.";
+                message = $"{label} tile {cell} is outside the map.";
                 return false;
             }
 
@@ -799,31 +799,31 @@ public static class LevelMapValidator
 
             if (!IsInBounds(entry.cell, definition.width, definition.height))
             {
-                message = $"Gelaende-Tile {entry.cell} liegt ausserhalb der Map.";
+                message = $"Ground tile {entry.cell} is outside the map.";
                 return false;
             }
 
             if (entry.type == GroundType.Ground || entry.type == GroundType.Path)
             {
-                message = $"Gelaende-Override fuer {entry.cell} darf nicht 'Ground' oder 'Path' sein.";
+                message = $"Ground override for {entry.cell} must not be 'Ground' or 'Path'.";
                 return false;
             }
 
             if (pathSet.Contains(entry.cell))
             {
-                message = $"Gelaende-Override darf nicht auf einer Pfad-Zelle liegen ({entry.cell}).";
+                message = $"Ground override must not be on a path cell ({entry.cell}).";
                 return false;
             }
 
             if (blockedCells.Contains(entry.cell))
             {
-                message = $"Gelaende-Override und Blocker ueberlappen sich bei {entry.cell}.";
+                message = $"Ground override and blocker overlap at {entry.cell}.";
                 return false;
             }
 
             if (!seen.Add(entry.cell))
             {
-                message = $"Gelaende-Override-Zelle {entry.cell} ist doppelt vorhanden.";
+                message = $"Ground override cell {entry.cell} is duplicated.";
                 return false;
             }
         }
@@ -853,31 +853,31 @@ public static class LevelMapValidator
 
             if (!IsInBounds(entry.cell, definition.width, definition.height))
             {
-                message = $"Objekt-Tile {entry.cell} liegt ausserhalb der Map.";
+                message = $"Object tile {entry.cell} is outside the map.";
                 return false;
             }
 
             if (pathSet.Contains(entry.cell))
             {
-                message = $"Objekt darf nicht auf einer Pfad-Zelle liegen ({entry.cell}).";
+                message = $"Object must not be on a path cell ({entry.cell}).";
                 return false;
             }
 
             if (blockedCells.Contains(entry.cell))
             {
-                message = $"Objekt und Blocker ueberlappen sich bei {entry.cell}.";
+                message = $"Object and blocker overlap at {entry.cell}.";
                 return false;
             }
 
             if (entry.type == OccupantType.Destructible && entry.maxHp <= 0)
             {
-                message = $"Zerstoerbares Objekt bei {entry.cell} braucht maxHp > 0.";
+                message = $"Destructible object at {entry.cell} needs maxHp > 0.";
                 return false;
             }
 
             if (!seen.Add(entry.cell))
             {
-                message = $"Objekt-Zelle {entry.cell} ist doppelt vorhanden.";
+                message = $"Object cell {entry.cell} is duplicated.";
                 return false;
             }
         }

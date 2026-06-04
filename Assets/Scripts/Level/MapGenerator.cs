@@ -158,10 +158,8 @@ public static class MapGenerator
         return cell.x >= 0 && cell.y >= 0 && cell.x < width && cell.y < height;
     }
 
-    // ──────────────────────────────────────────────────────────────────
     // A* path search with per-cell cost. Self-contained: kept here so the
     // generator does not depend on Pathfinder (which works on a built grid).
-    // ──────────────────────────────────────────────────────────────────
     private static readonly Vector2Int[] FourNeighbours =
     {
         new Vector2Int(1, 0),
@@ -227,7 +225,7 @@ public static class MapGenerator
             }
         }
 
-        // No path found — return empty list.
+        // No path found - return empty list.
         return new List<Vector2Int>();
     }
 

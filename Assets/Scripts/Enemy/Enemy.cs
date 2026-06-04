@@ -5,14 +5,32 @@ using UnityEngine;
 
 public class Enemy : MonoBehaviour, IDamageable
 {
-    /// <summary>Wird gefeuert, wenn der Gegner stirbt. Parameter: dieser Enemy.</summary>
+    /// <summary>Raised when this enemy dies.</summary>
     public event Action<Enemy> OnDied;
     public event Action<Enemy> OnReachedGoal;
 
-    // ── Aktiver-Gegner-Registry (vermeidet FindObjectsByType in Towers) ─────
     private static readonly List<Enemy> activeEnemies = new List<Enemy>();
-    /// <summary>Alle aktuell aktiven (lebenden, nicht despawnten) Gegner. Read-only.</summary>
+    /// <summary>All active, living enemies. Read-only.</summary>
     public static IReadOnlyList<Enemy> ActiveEnemies => activeEnemies;
+
+    private EnemyData data;
+    private float currentHealth;
+    private float maxHealth;
+    private float currentShield;
+    private float scaledSpeed;
+    private int scaledReward;
+    private List<Vector3> waypoints;
+    private int waypointIndex;
+    private HealthBar healthBar;
+    private float slowFactor = 1f;
+    private Coroutine slowCoroutine;
+
+    public bool IsDead => currentHealth <= 0f;
+    public EnemyData Data => data;
+    public int Reward => scaledReward;
+    public float CurrentHealth => currentHealth;
+    public float MaxHealth => maxHealth;
+    public Vector3 WorldPosition => transform.position;
 
     private void OnEnable()
     {
@@ -24,34 +42,9 @@ public class Enemy : MonoBehaviour, IDamageable
         activeEnemies.Remove(this);
     }
 
-    private EnemyData data;
-    private float currentHealth;
-    private float maxHealth;
-    private float currentShield;
-    private float scaledSpeed;
-    private int scaledReward;
-    private List<Vector3> waypoints;
-    private int waypointIndex;
-    private HealthBar healthBar;
-
-    // Slow-Effekt
-    private float slowFactor = 1f;
-    private Coroutine slowCoroutine;
-
-    public bool IsDead => currentHealth <= 0f;
-    public EnemyData Data => data;
-    public int Reward => scaledReward;
-
-    // ── IDamageable ──────────────────────────────────────────────────────────
-    public float CurrentHealth => currentHealth;
-    public float MaxHealth => maxHealth;
-    public Vector3 WorldPosition => transform.position;
-
     /// <summary>
-    /// Initialisiert den Gegner mit seinen Daten und dem Wegpunkt-Pfad.
+    /// Initializes this enemy with static data and world-space waypoints.
     /// </summary>
-    /// <param name="enemyData">Statische Daten (Werte aus dem ScriptableObject).</param>
-    /// <param name="path">Weltkoordinaten-Pfad vom Spawn zum Ziel.</param>
     public void Initialize(EnemyData enemyData, List<Vector3> path)
     {
         data = enemyData;
@@ -65,8 +58,6 @@ public class Enemy : MonoBehaviour, IDamageable
         waypointIndex = 0;
         slowFactor = 1f;
 
-        // Falls aus dem Pool reaktiviert: laufende Slow-Coroutine aus dem
-        // vorigen Leben stoppen, sonst koennte sie den frischen Slow löschen.
         if (slowCoroutine != null)
         {
             StopCoroutine(slowCoroutine);
@@ -84,9 +75,8 @@ public class Enemy : MonoBehaviour, IDamageable
     }
 
     /// <summary>
-    /// Ersetzt die Wegpunkte zur Laufzeit (z.B. wenn sich der Pfad nach einer
-    /// Tower-Platzierung aendert). Sucht den naehesten Wegpunkt im neuen Pfad
-    /// und setzt den Index entsprechend, damit der Gegner nicht zurueck laeuft.
+    /// Replaces waypoints at runtime and keeps the enemy moving forward on the
+    /// new path from the nearest waypoint.
     /// </summary>
     public void SetWaypoints(List<Vector3> newWaypoints)
     {
@@ -97,19 +87,17 @@ public class Enemy : MonoBehaviour, IDamageable
         int nearestIndex = 0;
         float nearestSqr = float.MaxValue;
 
-        for (int i = 0; i < newWaypoints.Count; i++)
+        for (int index = 0; index < newWaypoints.Count; index++)
         {
-            float sqr = (newWaypoints[i] - position).sqrMagnitude;
+            float sqr = (newWaypoints[index] - position).sqrMagnitude;
             if (sqr < nearestSqr)
             {
                 nearestSqr = sqr;
-                nearestIndex = i;
+                nearestIndex = index;
             }
         }
 
         waypoints = newWaypoints;
-        // Naechster Zielpunkt ist der naechste Wegpunkt nach dem naehesten,
-        // damit wir vorwaerts gehen (sofern vorhanden).
         waypointIndex = Mathf.Min(nearestIndex + 1, newWaypoints.Count - 1);
     }
 
@@ -143,8 +131,8 @@ public class Enemy : MonoBehaviour, IDamageable
     }
 
     /// <summary>
-    /// Verarbeitet eingehenden Schaden.
-    /// Reihenfolge: Schild absorbiert zuerst (ohne Rüstung), dann Rüstung reduziert, dann HP.
+    /// Applies incoming damage. Shields absorb first, armor then reduces
+    /// remaining damage, and health receives the final amount.
     /// </summary>
     public void TakeDamage(float rawDamage)
     {
@@ -153,7 +141,6 @@ public class Enemy : MonoBehaviour, IDamageable
 
         if (data == null)
         {
-            // Defensive: pre-Initialize call from a test — apply raw damage.
             currentHealth = Mathf.Max(0f, currentHealth - rawDamage);
             if (currentHealth <= 0f)
                 Die();
@@ -162,7 +149,6 @@ public class Enemy : MonoBehaviour, IDamageable
 
         float damage = rawDamage;
 
-        // Schild absorbiert Schaden (keine Rüstungsreduzierung auf Schild)
         if (currentShield > 0f)
         {
             float absorbed = Mathf.Min(currentShield, damage);
@@ -170,9 +156,7 @@ public class Enemy : MonoBehaviour, IDamageable
             damage -= absorbed;
         }
 
-        // Rüstung reduziert verbleibenden Schaden
         damage = Mathf.Max(0f, damage - data.armor);
-
         currentHealth -= damage;
 
         if (currentHealth <= 0f)
@@ -183,13 +167,12 @@ public class Enemy : MonoBehaviour, IDamageable
     }
 
     /// <summary>
-    /// Wendet einen Slow-Effekt an. Überschreibt einen laufenden Slow,
-    /// wenn der neue Faktor kleiner (stärker) ist.
+    /// Applies a slow effect. Weaker slows do not override a stronger one.
     /// </summary>
     public void ApplySlow(float factor, float duration)
     {
         if (factor >= slowFactor)
-            return; // schwächerer Slow wird ignoriert
+            return;
 
         if (slowCoroutine != null)
             StopCoroutine(slowCoroutine);
@@ -219,19 +202,21 @@ public class Enemy : MonoBehaviour, IDamageable
 
     private void ReleaseToPool()
     {
-        // Alle Listener loesen, damit eine spaetere Wiederverwendung nicht
-        // alte Subscriber re-feuert.
         OnDied = null;
         OnReachedGoal = null;
         waypoints = null;
+
         if (slowCoroutine != null)
         {
             StopCoroutine(slowCoroutine);
             slowCoroutine = null;
         }
+
         slowFactor = 1f;
+
         if (healthBar != null)
             healthBar.Unbind();
+
         PrefabPool.Release(gameObject);
     }
 }

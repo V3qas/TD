@@ -5,20 +5,19 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Zeigt den Titelscreen (Splash-Art + blinkender Hinweis).
-/// Beliebige Taste oder Mausklick startet den Fade zur Menu-Szene.
+/// Shows the title screen and fades to the menu after keyboard or mouse input.
 /// </summary>
 public class TitleScreenController : MonoBehaviour
 {
-    [Header("Referenzen")]
-    [Tooltip("Das Sprite der Splash-Art (V3Q Defense)")]
+    [Header("References")]
+    [Tooltip("Splash-art sprite shown on the title screen.")]
     [SerializeField] private Sprite splashSprite;
 
-    [Header("Einstellungen")]
+    [Header("Settings")]
     [SerializeField] private string menuSceneName = "Menu";
     [SerializeField] private float fadeDuration = 0.8f;
     [SerializeField] private float pressTextBlinkSpeed = 1.4f;
-    [SerializeField] private string pressAnyKeyText = "Drücke eine beliebige Taste ...";
+    [SerializeField] private string pressAnyKeyText = "Press any key ...";
 
     private Canvas canvas;
     private Image splashImage;
@@ -41,9 +40,8 @@ public class TitleScreenController : MonoBehaviour
         if (transitionStarted)
             return;
 
-        bool keyPressed  = Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame;
-        bool mouseClick  = Mouse.current    != null && Mouse.current.leftButton.wasPressedThisFrame;
-        bool gamepadAny  = Gamepad.current  != null && Gamepad.current.allControls.Count > 0;
+        bool keyPressed = Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame;
+        bool mouseClick = Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame;
 
         if (keyPressed || mouseClick)
             StartTransition();
@@ -55,11 +53,8 @@ public class TitleScreenController : MonoBehaviour
         StartCoroutine(FadeToMenu());
     }
 
-    // ── UI Aufbau ────────────────────────────────────────────────────────────
-
     private void BuildUi()
     {
-        // Canvas
         GameObject canvasObject = new GameObject("TitleCanvas",
             typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         canvas = canvasObject.GetComponent<Canvas>();
@@ -71,31 +66,27 @@ public class TitleScreenController : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.matchWidthOrHeight = 0.5f;
 
-        // Hintergrund (Schwarz) – sichtbar wenn kein Sprite gesetzt
         GameObject bgObject = new GameObject("Background",
             typeof(RectTransform), typeof(Image));
         bgObject.transform.SetParent(canvasObject.transform, false);
         FillRect(bgObject.GetComponent<RectTransform>());
         bgObject.GetComponent<Image>().color = Color.black;
 
-        // Splash Art
         GameObject splashObject = new GameObject("SplashArt",
             typeof(RectTransform), typeof(Image));
         splashObject.transform.SetParent(canvasObject.transform, false);
         FillRect(splashObject.GetComponent<RectTransform>());
         splashImage = splashObject.GetComponent<Image>();
-        splashImage.sprite    = splashSprite;
-        splashImage.color     = Color.white;
-        splashImage.preserveAspect = false; // füllt den gesamten Screen
+        splashImage.sprite = splashSprite;
+        splashImage.color = Color.white;
+        splashImage.preserveAspect = false;
 
         if (splashSprite == null)
         {
-            // Fallback: dunkles Grau + Titel-Text
             splashImage.color = new Color(0.05f, 0.06f, 0.1f);
             CreateFallbackTitle(canvasObject.transform);
         }
 
-        // „Drücke eine beliebige Taste"-Text
         GameObject pressObject = new GameObject("PressAnyKey",
             typeof(RectTransform), typeof(Text));
         pressObject.transform.SetParent(canvasObject.transform, false);
@@ -103,18 +94,17 @@ public class TitleScreenController : MonoBehaviour
         RectTransform pressRect = pressObject.GetComponent<RectTransform>();
         pressRect.anchorMin = new Vector2(0f, 0f);
         pressRect.anchorMax = new Vector2(1f, 0f);
-        pressRect.pivot     = new Vector2(0.5f, 0f);
+        pressRect.pivot = new Vector2(0.5f, 0f);
         pressRect.sizeDelta = new Vector2(0f, 80f);
         pressRect.anchoredPosition = new Vector2(0f, 60f);
 
         pressText = pressObject.GetComponent<Text>();
-        pressText.text      = pressAnyKeyText;
-        pressText.font      = GetFont();
-        pressText.fontSize  = 36;
+        pressText.text = pressAnyKeyText;
+        pressText.font = GetFont();
+        pressText.fontSize = 36;
         pressText.alignment = TextAnchor.MiddleCenter;
-        pressText.color     = new Color(0.92f, 0.92f, 1f);
+        pressText.color = new Color(0.92f, 0.92f, 1f);
 
-        // Schwarzer Fade-Overlay (startet transparent, wird für Übergang genutzt)
         GameObject fadeObject = new GameObject("FadeOverlay",
             typeof(RectTransform), typeof(Image));
         fadeObject.transform.SetParent(canvasObject.transform, false);
@@ -137,14 +127,12 @@ public class TitleScreenController : MonoBehaviour
         titleRect.offsetMax = Vector2.zero;
 
         Text titleText = titleObject.GetComponent<Text>();
-        titleText.text      = "V3Q\nDEFENSE";
-        titleText.font      = GetFont();
-        titleText.fontSize  = 96;
+        titleText.text = "V3Q\nDEFENSE";
+        titleText.font = GetFont();
+        titleText.fontSize = 96;
         titleText.alignment = TextAnchor.MiddleCenter;
-        titleText.color     = new Color(0.5f, 0.85f, 1f);
+        titleText.color = new Color(0.5f, 0.85f, 1f);
     }
-
-    // ── Coroutines ───────────────────────────────────────────────────────────
 
     private IEnumerator BlinkPressText()
     {
@@ -153,17 +141,17 @@ public class TitleScreenController : MonoBehaviour
             float alpha = Mathf.Abs(Mathf.Sin(Time.unscaledTime * pressTextBlinkSpeed * Mathf.PI));
             if (pressText != null)
             {
-                Color c = pressText.color;
-                c.a = Mathf.Lerp(0.35f, 1f, alpha);
-                pressText.color = c;
+                Color color = pressText.color;
+                color.a = Mathf.Lerp(0.35f, 1f, alpha);
+                pressText.color = color;
             }
+
             yield return null;
         }
     }
 
     private IEnumerator FadeToMenu()
     {
-        // Text sofort ausblenden
         if (pressText != null)
             pressText.enabled = false;
 
@@ -182,8 +170,6 @@ public class TitleScreenController : MonoBehaviour
         SceneManager.LoadScene(menuSceneName);
     }
 
-    // ── Hilfsmethoden ────────────────────────────────────────────────────────
-
     private static void FillRect(RectTransform rect)
     {
         rect.anchorMin = Vector2.zero;
@@ -194,7 +180,7 @@ public class TitleScreenController : MonoBehaviour
 
     private static Font GetFont()
     {
-        Font f = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        return f != null ? f : Resources.GetBuiltinResource<Font>("Arial.ttf");
+        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        return font != null ? font : Resources.GetBuiltinResource<Font>("Arial.ttf");
     }
 }

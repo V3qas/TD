@@ -53,7 +53,6 @@ public class Destructible : MonoBehaviour, IDamageable
         markedTargets.Clear();
     }
 
-    // ── IDamageable ──────────────────────────────────────────────────────
     public float CurrentHealth => currentHealth;
     public float MaxHealth => maxHealth;
     public bool IsDead => currentHealth <= 0f;

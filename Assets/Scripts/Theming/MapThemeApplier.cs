@@ -6,7 +6,7 @@ using UnityEngine;
 /// systems (e.g. <see cref="GroundOverlaySpawner"/>) through
 /// <see cref="ActiveTheme"/>.
 ///
-/// If <see cref="theme"/> is null nothing is rendered — gameplay falls back to
+/// If <see cref="theme"/> is null nothing is rendered - gameplay falls back to
 /// the GroundOverlaySpawner default tinted quads.
 /// </summary>
 [DisallowMultipleComponent]

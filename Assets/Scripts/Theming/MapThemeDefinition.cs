@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>
 /// ScriptableObject describing the visual theme of a map (background, ground
 /// tile sprites/colors per <see cref="GroundType"/>). The actual gameplay rules
-/// are unchanged — themes only affect rendering.
+/// are unchanged - themes only affect rendering.
 ///
 /// A null sprite means the renderer falls back to a tinted 1x1 quad.
 /// </summary>

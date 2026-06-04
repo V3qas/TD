@@ -39,7 +39,7 @@ Documentation maintenance
   - a runtime flow described in `docs/ARCHITECTURE.md`,
   must be reflected in `docs/ARCHITECTURE.md` in the **same** commit / PR.
 - When code is removed or renamed, the corresponding lines in the docs must be removed
-  or updated — never leave stale entries behind.
+  or updated - never leave stale entries behind.
 - Append a dated one-line entry to the "Change Log" section at the bottom of
   `docs/ARCHITECTURE.md` for every doc-affecting change.
 - Internal-only refactors (no public API change) do not require doc updates.
@@ -60,12 +60,12 @@ Enforcement & tools (suggested)
 - Add an `.editorconfig` to standardize formatting and some naming rules for Roslyn analyzers.
 - Consider adding `StyleCop.Analyzers` (NuGet) and a ruleset to surface naming/format issues.
 - Use `dotnet format` or Unity formatting tools before committing.
-- Code reviews remain the primary guardrail for the "no comments" rule — automated tools can help but will not fully enforce intent.
+- Code reviews remain the primary guardrail for the "no comments" rule - automated tools can help but will not fully enforce intent.
 
 Examples
 - Good commit: `feat(menu): add main menu controller`
-- Bad variable name: `int cnt;` — better: `int enemyCount;`
-- Bad abbreviation: `custAddr` — better: `customerAddress`
+- Bad variable name: `int cnt;` - better: `int enemyCount;`
+- Bad abbreviation: `custAddr` - better: `customerAddress`
 
 Exceptions
 - Short, explicit comments allowed when a behavior is surprising or required by an external system. Keep them minimal and state the reason.
@@ -84,7 +84,7 @@ Unity-specific conventions
 - Scene & Prefab naming:
   - Scenes: PascalCase (`Boot`, `Menu`, `Gameplay`).
   - Prefabs: PascalCase, optionally suffixed by role (`BasicEnemy`, `ConfirmDialog`).
-  - GameObjects in scene: Name should match the dominant component (`GridManager`, `LevelLoader`) — avoid misleading names like `MainMenu` for an editor controller.
+  - GameObjects in scene: Name should match the dominant component (`GridManager`, `LevelLoader`) - avoid misleading names like `MainMenu` for an editor controller.
 - Asset / folder layout:
   - `Assets/Scripts/<Domain>/` (e.g. `Core`, `Grid`, `UI`, `Towers`, `Enemy`, `Level`, `Menu`, `Pathfinding`).
   - `Assets/Scenes/`, `Assets/Prefabs/`, `Assets/Sprites/`, `Assets/ScriptableObjects/`.

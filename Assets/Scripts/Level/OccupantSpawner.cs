@@ -33,14 +33,16 @@ public class OccupantSpawner : MonoBehaviour
         if (gridManager == null) gridManager = FindAnyObjectByType<GridManager>();
         if (clickCamera == null) clickCamera = Camera.main;
         if (buildManager == null) buildManager = FindAnyObjectByType<BuildManager>();
-        Debug.Log($"[OccupantSpawner] Awake on '{gameObject.name}'. levelLoader={(levelLoader!=null)} gridManager={(gridManager!=null)} camera={(clickCamera!=null)} mouseAvailable={(Mouse.current!=null)}");
+        if (verboseClickLogging)
+            Debug.Log($"[OccupantSpawner] Awake on '{gameObject.name}'. levelLoader={(levelLoader != null)} gridManager={(gridManager != null)} camera={(clickCamera != null)} mouseAvailable={(Mouse.current != null)}");
     }
 
     private void Update()
     {
         if (Mouse.current == null) return;
         if (!Mouse.current.leftButton.wasPressedThisFrame) return;
-        Debug.Log("[OccupantSpawner] LMB detected.");
+        if (verboseClickLogging)
+            Debug.Log("[OccupantSpawner] LMB detected.");
 
         if (buildManager != null && buildManager.IsPlacingTower)
         {
@@ -142,7 +144,8 @@ public class OccupantSpawner : MonoBehaviour
 
         int occupantCount = definition.occupants != null ? definition.occupants.Count : 0;
         int legacyBlockedCount = definition.blockedCells != null ? definition.blockedCells.Count : 0;
-        Debug.Log($"[OccupantSpawner] HandleMapLoaded: occupants={occupantCount}, legacy blockedCells={legacyBlockedCount}.");
+        if (verboseClickLogging)
+            Debug.Log($"[OccupantSpawner] HandleMapLoaded: occupants={occupantCount}, legacy blockedCells={legacyBlockedCount}.");
 
         if (definition.occupants != null)
         {
@@ -181,7 +184,8 @@ public class OccupantSpawner : MonoBehaviour
             }
         }
 
-        Debug.Log($"[OccupantSpawner] After spawn: {spawned.Count} objects, {Destructible.ActiveTargets.Count} active destructibles.");
+        if (verboseClickLogging)
+            Debug.Log($"[OccupantSpawner] After spawn: {spawned.Count} objects, {Destructible.ActiveTargets.Count} active destructibles.");
     }
 
     private void ClearSpawned()

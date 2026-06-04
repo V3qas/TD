@@ -114,10 +114,10 @@ public class InGameHudController : MonoBehaviour
         contextTitleText.text = string.IsNullOrWhiteSpace(data.towerName) ? "Tower" : data.towerName;
         contextBodyText.text =
             $"Level: {tower.CurrentUpgradeLevel + 1}\n" +
-            $"Schaden: {tower.Damage:0.#}\n" +
-            $"Tempo: {tower.AttackSpeed:0.##}/s\n" +
-            $"Reichweite: {tower.Range:0.#}\n" +
-            $"Naechstes Upgrade: {GetUpgradeText(tower)}";
+            $"Damage: {tower.Damage:0.#}\n" +
+            $"Speed: {tower.AttackSpeed:0.##}/s\n" +
+            $"Range: {tower.Range:0.#}\n" +
+            $"Next upgrade: {GetUpgradeText(tower)}";
 
         towerIconImage.sprite = data.icon;
         towerIconImage.enabled = data.icon != null;
@@ -126,7 +126,7 @@ public class InGameHudController : MonoBehaviour
         {
             sellButton.gameObject.SetActive(true);
             if (sellButtonText != null)
-                sellButtonText.text = $"Verkaufen ({tower.GetSellValue()} Gold)";
+                sellButtonText.text = $"Sell ({tower.GetSellValue()} Gold)";
         }
 
         RefreshUpgradeButton();
@@ -145,8 +145,8 @@ public class InGameHudController : MonoBehaviour
         if (upgradeButton != null)
             upgradeButton.gameObject.SetActive(false);
 
-        contextTitleText.text = "Turmauswahl";
-        contextBodyText.text = "Waehle einen Turm aus der Liste, um ihn im Ghostmode zu platzieren.";
+        contextTitleText.text = "Tower Selection";
+        contextBodyText.text = "Choose a tower from the list to place it in ghost mode.";
         towerIconImage.sprite = null;
         towerIconImage.enabled = false;
 
@@ -179,13 +179,13 @@ public class InGameHudController : MonoBehaviour
     private void UpdateRoundText(int round)
     {
         if (roundText != null)
-            roundText.text = $"Runde: {round}";
+            roundText.text = $"Round: {round}";
     }
 
     private void UpdateMoneyText(int money)
     {
         if (moneyText != null)
-            moneyText.text = $"Geld: {money}";
+            moneyText.text = $"Gold: {money}";
 
         UpdateTowerButtonStates();
     }
@@ -253,15 +253,15 @@ public class InGameHudController : MonoBehaviour
         layout.childForceExpandWidth = true;
         layout.childForceExpandHeight = false;
 
-        backToEditorButton = CreateButton(hudRoot.transform, "Zurueck zum Editor", HandleBackToEditorClicked, true);
+        backToEditorButton = CreateButton(hudRoot.transform, "Back to Editor", HandleBackToEditorClicked, true);
         backToEditorButton.gameObject.SetActive(false);
 
-        menuButton = CreateButton(hudRoot.transform, "Menue", HandleMenuClicked, true);
+        menuButton = CreateButton(hudRoot.transform, "Menu", HandleMenuClicked, true);
         menuButton.gameObject.SetActive(false);
 
-        roundText = CreateText("RoundText", hudRoot.transform, "Runde: 1", 22, TextAnchor.MiddleRight, Color.white);
+        roundText = CreateText("RoundText", hudRoot.transform, "Round: 1", 22, TextAnchor.MiddleRight, Color.white);
         roundText.gameObject.AddComponent<LayoutElement>().preferredHeight = 34f;
-        moneyText = CreateText("MoneyText", hudRoot.transform, "Geld: 0", 20, TextAnchor.MiddleRight, new Color(1f, 0.86f, 0.32f));
+        moneyText = CreateText("MoneyText", hudRoot.transform, "Gold: 0", 20, TextAnchor.MiddleRight, new Color(1f, 0.86f, 0.32f));
         moneyText.gameObject.AddComponent<LayoutElement>().preferredHeight = 32f;
 
         CreateDivider(hudRoot.transform);
@@ -288,17 +288,17 @@ public class InGameHudController : MonoBehaviour
         iconRect.pivot = new Vector2(0.5f, 0.5f);
         iconRect.sizeDelta = new Vector2(64f, 64f);
 
-        contextTitleText = CreateText("ContextTitle", parent, "Auswahl", 20, TextAnchor.MiddleLeft, Color.white);
+        contextTitleText = CreateText("ContextTitle", parent, "Selection", 20, TextAnchor.MiddleLeft, Color.white);
         contextTitleText.gameObject.AddComponent<LayoutElement>().preferredHeight = 34f;
 
-        contextBodyText = CreateText("ContextBody", parent, "Kein Turm ausgewaehlt.", 16, TextAnchor.UpperLeft, new Color(0.82f, 0.84f, 0.88f));
+        contextBodyText = CreateText("ContextBody", parent, "No tower selected.", 16, TextAnchor.UpperLeft, new Color(0.82f, 0.84f, 0.88f));
         contextBodyText.gameObject.AddComponent<LayoutElement>().preferredHeight = 150f;
 
         upgradeButton = CreateButton(parent, "Upgrade", UpgradeSelectedTower, true);
         upgradeButtonText = upgradeButton.GetComponentInChildren<Text>();
         upgradeButton.gameObject.SetActive(false);
 
-        sellButton = CreateButton(parent, "Verkaufen", SellSelectedTower, true);
+        sellButton = CreateButton(parent, "Sell", SellSelectedTower, true);
         sellButtonText = sellButton.GetComponentInChildren<Text>();
         sellButton.gameObject.SetActive(false);
     }
@@ -315,14 +315,14 @@ public class InGameHudController : MonoBehaviour
         layout.childForceExpandWidth = true;
         layout.childForceExpandHeight = false;
 
-        Text title = CreateText("TowerListTitle", towerListPanel.transform, "Baubare Tuerme", 18, TextAnchor.MiddleLeft, Color.white);
+        Text title = CreateText("TowerListTitle", towerListPanel.transform, "Buildable Towers", 18, TextAnchor.MiddleLeft, Color.white);
         title.gameObject.AddComponent<LayoutElement>().preferredHeight = 30f;
 
         towerBuildButtons.Clear();
 
         if (buildManager == null || buildManager.AvailableTowers.Count == 0)
         {
-            Text emptyText = CreateText("NoTowerBuildOptions", towerListPanel.transform, "Keine Tuerme konfiguriert.", 15, TextAnchor.MiddleLeft, new Color(0.82f, 0.84f, 0.88f));
+            Text emptyText = CreateText("NoTowerBuildOptions", towerListPanel.transform, "No towers configured.", 15, TextAnchor.MiddleLeft, new Color(0.82f, 0.84f, 0.88f));
             emptyText.gameObject.AddComponent<LayoutElement>().preferredHeight = 44f;
             return;
         }
@@ -340,7 +340,7 @@ public class InGameHudController : MonoBehaviour
             });
         }
 
-        CreateButton(towerListPanel.transform, "Auswahl abbrechen", ClearBuildSelection, true);
+        CreateButton(towerListPanel.transform, "Cancel Selection", ClearBuildSelection, true);
         UpdateTowerButtonStates();
     }
 
@@ -421,14 +421,14 @@ public class InGameHudController : MonoBehaviour
             return;
         }
 
-        contextTitleText.text = "Baumodus";
+        contextTitleText.text = "Build Mode";
         contextBodyText.text =
             $"{GetTowerName(towerData)}\n" +
-            $"Kosten: {towerData.cost}\n" +
-            $"Schaden: {towerData.damage:0.#}\n" +
-            $"Tempo: {towerData.attackSpeed:0.##}/s\n" +
-            $"Reichweite: {towerData.range:0.#}\n" +
-            "Linksklick baut. Rechtsklick oder Esc bricht ab.";
+            $"Cost: {towerData.cost}\n" +
+            $"Damage: {towerData.damage:0.#}\n" +
+            $"Speed: {towerData.attackSpeed:0.##}/s\n" +
+            $"Range: {towerData.range:0.#}\n" +
+            "Left-click builds. Right-click or Esc cancels.";
 
         towerIconImage.sprite = towerData.icon;
         towerIconImage.enabled = towerData.icon != null;

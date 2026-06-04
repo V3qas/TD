@@ -20,7 +20,7 @@ public class GridManager : MonoBehaviour
     private readonly Dictionary<Vector2Int, OccupantType> previewOccupants = new Dictionary<Vector2Int, OccupantType>();
     private readonly Dictionary<Vector2Int, GroundType> previewGroundOverrides = new Dictionary<Vector2Int, GroundType>();
 
-    // Cached Start→Goal path (BFS result). Recomputed on grid build and occupancy changes.
+    // Cached Start-to-goal path (BFS result). Recomputed on grid build and occupancy changes.
     private List<GridCell> cachedEnemyPath;
     private HashSet<Vector2Int> cachedEnemyPathLookup = new HashSet<Vector2Int>();
     private bool usesExplicitPath;

@@ -30,7 +30,7 @@ public static class PrefabPool
         return instance;
     }
 
-    /// <summary>Gibt eine Instanz zurueck in ihren Pool. Faellt auf Destroy zurueck, wenn die Instanz nicht gepoolt war.</summary>
+    /// <summary>Returns an instance to its pool. Falls back to Destroy when the instance was not pooled.</summary>
     public static void Release(GameObject instance)
     {
         if (instance == null)

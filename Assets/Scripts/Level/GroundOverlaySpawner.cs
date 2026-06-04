@@ -5,7 +5,7 @@ using UnityEngine;
 /// Renders ground overlay sprites for Elevated / Water / Lava cells during
 /// gameplay. The headless GridManager.BuildGrid path does not create cell
 /// visuals, so this component handles them so themed terrain is visible at
-/// runtime — not only inside the editor preview.
+/// runtime - not only inside the editor preview.
 ///
 /// Sprites are runtime-generated 1x1 quads tinted per ground type. Phase 7
 /// will swap these for proper themed sprites.
