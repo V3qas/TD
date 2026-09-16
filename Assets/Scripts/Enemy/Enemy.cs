@@ -40,7 +40,7 @@ namespace TD.Enemies
 
         private void OnEnable()
         {
-            activeEnemies.Add(this);
+            RegisterActiveEnemy();
         }
 
         private void OnDisable()
@@ -53,6 +53,7 @@ namespace TD.Enemies
         /// </summary>
         public void Initialize(EnemyData enemyData, List<Vector3> path)
         {
+            RegisterActiveEnemy();
             data = enemyData;
             DifficultySettings difficulty = GameSession.SelectedDifficulty;
             maxHealth = enemyData.maxHealth * difficulty.healthMultiplier;
@@ -72,6 +73,12 @@ namespace TD.Enemies
 
             EnsureHealthBar();
             healthBar.Bind(this);
+        }
+
+        private void RegisterActiveEnemy()
+        {
+            if (isActiveAndEnabled && !activeEnemies.Contains(this))
+                activeEnemies.Add(this);
         }
 
         private void EnsureHealthBar()

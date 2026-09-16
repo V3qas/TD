@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 using TD.Grid;
 using TD.Level;
 using TD.Pathfinding;
@@ -56,6 +57,8 @@ namespace TD.Tests.EditMode
         [Test]
         public void FindPath_ReturnsNullWhenBlockersIsolateGoal()
         {
+            LogAssert.Expect(LogType.Error, "GridManager: Map data is invalid (Start and goal are not connected.).");
+
             gridManager.BuildGrid(new LevelMapDefinition
             {
                 width = 3,

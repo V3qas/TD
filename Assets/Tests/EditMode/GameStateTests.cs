@@ -17,6 +17,7 @@ namespace TD.Tests.EditMode
 
             gameStateObject = new GameObject("GameStateTests");
             gameState = gameStateObject.AddComponent<GameState>();
+            gameState.ResetState();
         }
 
         [TearDown]
