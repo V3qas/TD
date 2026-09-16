@@ -11,6 +11,7 @@ namespace TD.Towers
         [SerializeField] private Camera mainCamera;
         [SerializeField] private InGameHudController hudController;
         [SerializeField] private BuildManager buildManager;
+        [SerializeField] private GameState gameState;
         [SerializeField] private Color selectedRangeColor = new Color(1f, 1f, 1f, 0.9f);
 
         private RangeIndicator selectedTowerRangeIndicator;
@@ -32,10 +33,19 @@ namespace TD.Towers
 
             if (buildManager == null)
                 buildManager = FindAnyObjectByType<BuildManager>();
+
+            if (gameState == null)
+                gameState = GameState.GetOrCreate();
         }
 
         private void Update()
         {
+            if (gameState != null && !gameState.IsPlaying)
+            {
+                HideRangeIndicator();
+                return;
+            }
+
             if (buildManager != null && buildManager.IsPlacingTower)
             {
                 HideRangeIndicator();

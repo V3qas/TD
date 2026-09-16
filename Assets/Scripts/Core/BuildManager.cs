@@ -75,6 +75,14 @@ namespace TD.Core
 
         private void Update()
         {
+            if (gameState != null && !gameState.IsPlaying)
+            {
+                if (IsPlacingTower)
+                    ClearSelectedTowerToBuild();
+
+                return;
+            }
+
             if (Mouse.current == null)
                 return;
 
@@ -112,7 +120,7 @@ namespace TD.Core
 
         public void SelectTowerToBuild(TowerData towerData)
         {
-            if (towerData == null)
+            if (towerData == null || (gameState != null && !gameState.IsPlaying))
                 return;
 
             if (!availableTowers.Contains(towerData))
@@ -136,7 +144,7 @@ namespace TD.Core
 
         public bool CanAfford(TowerData towerData)
         {
-            if (towerData == null)
+            if (towerData == null || (gameState != null && !gameState.IsPlaying))
                 return false;
 
             return gameState == null || gameState.Money >= towerData.cost;
@@ -320,7 +328,7 @@ namespace TD.Core
 
         public void SellTower(Tower tower)
         {
-            if (tower == null || gridManager == null)
+            if (tower == null || gridManager == null || (gameState != null && !gameState.IsPlaying))
                 return;
 
             int sellValue = tower.GetSellValue();

@@ -34,6 +34,7 @@ namespace TD.UI
         private GameObject towerListPanel;
         private Text roundText;
         private Text moneyText;
+        private Text livesText;
         private Text contextTitleText;
         private Text contextBodyText;
         private Image towerIconImage;
@@ -43,6 +44,11 @@ namespace TD.UI
         private Text sellButtonText;
         private Button backToEditorButton;
         private Button menuButton;
+        private GameObject matchEndOverlay;
+        private Text matchEndTitleText;
+        private Text matchEndBodyText;
+        private Button restartButton;
+        private Text matchExitButtonText;
         private Tower currentSelectedTower;
         private TowerSelectionController towerSelectionController;
 
@@ -86,6 +92,8 @@ namespace TD.UI
 
             gameState.OnRoundChanged -= UpdateRoundText;
             gameState.OnMoneyChanged -= UpdateMoneyText;
+            gameState.OnLivesChanged -= UpdateLivesText;
+            gameState.OnMatchEnded -= HandleMatchEnded;
 
             if (buildManager != null)
                 buildManager.OnBuildSelectionChanged -= HandleBuildSelectionChanged;
@@ -96,6 +104,9 @@ namespace TD.UI
             if (hudRoot != null)
                 hudRoot.SetActive(true);
 
+            if (matchEndOverlay != null)
+                matchEndOverlay.SetActive(false);
+
             RefreshTopButtons();
         }
 
@@ -103,11 +114,14 @@ namespace TD.UI
         {
             if (hudRoot != null)
                 hudRoot.SetActive(false);
+
+            if (matchEndOverlay != null)
+                matchEndOverlay.SetActive(false);
         }
 
         public void ShowTower(Tower tower)
         {
-            if (tower == null || tower.Data == null)
+            if ((gameState != null && !gameState.IsPlaying) || tower == null || tower.Data == null)
             {
                 ClearContext();
                 return;
@@ -150,7 +164,9 @@ namespace TD.UI
                 upgradeButton.gameObject.SetActive(false);
 
             contextTitleText.text = "Tower Selection";
-            contextBodyText.text = "Choose a tower from the list to place it in ghost mode.";
+            contextBodyText.text =
+                "Choose a tower below, then left-click a free tile to build.\n" +
+                "Right-click or Esc cancels. Select a placed tower to upgrade or sell it.";
             towerIconImage.sprite = null;
             towerIconImage.enabled = false;
 
@@ -162,6 +178,8 @@ namespace TD.UI
         {
             gameState.OnRoundChanged += UpdateRoundText;
             gameState.OnMoneyChanged += UpdateMoneyText;
+            gameState.OnLivesChanged += UpdateLivesText;
+            gameState.OnMatchEnded += HandleMatchEnded;
 
             if (buildManager != null)
                 buildManager.OnBuildSelectionChanged += HandleBuildSelectionChanged;
@@ -171,7 +189,11 @@ namespace TD.UI
         {
             UpdateRoundText(gameState.CurrentRound);
             UpdateMoneyText(gameState.Money);
+            UpdateLivesText(gameState.Lives);
             ClearContext();
+
+            if (matchEndOverlay != null)
+                matchEndOverlay.SetActive(false);
         }
 
         private string GetUpgradeText(Tower tower)
@@ -183,7 +205,7 @@ namespace TD.UI
         private void UpdateRoundText(int round)
         {
             if (roundText != null)
-                roundText.text = $"Round: {round}";
+                roundText.text = $"Wave: {round} / {gameState.MaxRounds}";
         }
 
         private void UpdateMoneyText(int money)
@@ -192,6 +214,12 @@ namespace TD.UI
                 moneyText.text = $"Gold: {money}";
 
             UpdateTowerButtonStates();
+        }
+
+        private void UpdateLivesText(int lives)
+        {
+            if (livesText != null)
+                livesText.text = $"Lives: {lives}";
         }
 
         private void EnsureCanvas()
@@ -263,15 +291,65 @@ namespace TD.UI
             menuButton = CreateButton(hudRoot.transform, "Menu", HandleMenuClicked, true);
             menuButton.gameObject.SetActive(false);
 
-            roundText = CreateText("RoundText", hudRoot.transform, "Round: 1", 22, TextAnchor.MiddleRight, Color.white);
+            roundText = CreateText("RoundText", hudRoot.transform, "Wave: 1 / 5", 22, TextAnchor.MiddleRight, Color.white);
             roundText.gameObject.AddComponent<LayoutElement>().preferredHeight = 34f;
             moneyText = CreateText("MoneyText", hudRoot.transform, "Gold: 0", 20, TextAnchor.MiddleRight, new Color(1f, 0.86f, 0.32f));
             moneyText.gameObject.AddComponent<LayoutElement>().preferredHeight = 32f;
+            livesText = CreateText("LivesText", hudRoot.transform, "Lives: 10", 20, TextAnchor.MiddleRight, new Color(0.94f, 0.42f, 0.42f));
+            livesText.gameObject.AddComponent<LayoutElement>().preferredHeight = 32f;
 
             CreateDivider(hudRoot.transform);
             BuildContextArea(hudRoot.transform);
             CreateDivider(hudRoot.transform);
             BuildTowerListArea(hudRoot.transform);
+            BuildMatchEndOverlay();
+        }
+
+        private void BuildMatchEndOverlay()
+        {
+            matchEndOverlay = new GameObject("MatchEndOverlay", typeof(RectTransform), typeof(Image));
+            matchEndOverlay.transform.SetParent(targetCanvas.transform, false);
+
+            RectTransform overlayRect = matchEndOverlay.GetComponent<RectTransform>();
+            overlayRect.anchorMin = Vector2.zero;
+            overlayRect.anchorMax = Vector2.one;
+            overlayRect.offsetMin = Vector2.zero;
+            overlayRect.offsetMax = Vector2.zero;
+
+            Image overlayImage = matchEndOverlay.GetComponent<Image>();
+            overlayImage.color = new Color(0f, 0f, 0f, 0.78f);
+
+            GameObject panel = new GameObject("MatchEndPanel", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup));
+            panel.transform.SetParent(matchEndOverlay.transform, false);
+
+            RectTransform panelRect = panel.GetComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRect.pivot = new Vector2(0.5f, 0.5f);
+            panelRect.sizeDelta = new Vector2(420f, 300f);
+
+            panel.GetComponent<Image>().color = new Color(0.07f, 0.08f, 0.1f, 0.98f);
+
+            VerticalLayoutGroup layout = panel.GetComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(32, 32, 28, 28);
+            layout.spacing = 16f;
+            layout.childAlignment = TextAnchor.MiddleCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+
+            matchEndTitleText = CreateText("MatchEndTitle", panel.transform, "Victory", 34, TextAnchor.MiddleCenter, Color.white);
+            matchEndTitleText.gameObject.AddComponent<LayoutElement>().preferredHeight = 54f;
+
+            matchEndBodyText = CreateText("MatchEndBody", panel.transform, string.Empty, 19, TextAnchor.MiddleCenter, new Color(0.84f, 0.86f, 0.9f));
+            matchEndBodyText.gameObject.AddComponent<LayoutElement>().preferredHeight = 58f;
+
+            restartButton = CreateButton(panel.transform, "Restart", HandleRestartClicked, true);
+            Button exitButton = CreateButton(panel.transform, "Main Menu", HandleMatchExitClicked, true);
+            matchExitButtonText = exitButton.GetComponentInChildren<Text>();
+
+            matchEndOverlay.SetActive(false);
         }
 
         private void BuildContextArea(Transform parent)
@@ -511,16 +589,70 @@ namespace TD.UI
 
         private void HandleMenuClicked()
         {
+            GameSession.EndTestRun();
+            GameSession.EndMapEditorMode();
+            GameSession.ClearSelectedLevel();
             SceneManager.LoadScene(menuSceneName);
         }
 
         private void HandleBackToEditorClicked()
         {
+            if (matchEndOverlay != null)
+                matchEndOverlay.SetActive(false);
+
             OnBackToEditorRequested?.Invoke();
+        }
+
+        private void HandleMatchEnded(MatchState result)
+        {
+            buildManager?.ClearSelectedTowerToBuild();
+            towerSelectionController?.DeselectTower();
+            ClearContext();
+            UpdateTowerButtonStates();
+
+            if (matchEndTitleText != null)
+                matchEndTitleText.text = result == MatchState.Won ? "Victory" : "Defeat";
+
+            if (matchEndBodyText != null)
+            {
+                matchEndBodyText.text = result == MatchState.Won
+                    ? "All waves cleared. The base is safe."
+                    : "The base has fallen.";
+            }
+
+            bool editorTest = GameSession.IsEditorTestRun;
+            if (restartButton != null)
+                restartButton.gameObject.SetActive(!editorTest);
+
+            if (matchExitButtonText != null)
+                matchExitButtonText.text = editorTest ? "Back to Editor" : "Main Menu";
+
+            if (matchEndOverlay != null)
+                matchEndOverlay.SetActive(true);
+        }
+
+        private void HandleRestartClicked()
+        {
+            Scene activeScene = SceneManager.GetActiveScene();
+            SceneManager.LoadScene(activeScene.name);
+        }
+
+        private void HandleMatchExitClicked()
+        {
+            if (GameSession.IsEditorTestRun)
+            {
+                HandleBackToEditorClicked();
+                return;
+            }
+
+            HandleMenuClicked();
         }
 
         private void SellSelectedTower()
         {
+            if (gameState != null && !gameState.IsPlaying)
+                return;
+
             if (buildManager != null && currentSelectedTower != null)
                 buildManager.SellTower(currentSelectedTower);
 
@@ -531,7 +663,7 @@ namespace TD.UI
 
         private void UpgradeSelectedTower()
         {
-            if (currentSelectedTower == null)
+            if ((gameState != null && !gameState.IsPlaying) || currentSelectedTower == null)
                 return;
 
             int cost = currentSelectedTower.GetNextUpgradeCost();

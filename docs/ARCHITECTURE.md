@@ -105,7 +105,13 @@ Cross-scene state lives on `GameSession` (static): selected level, map seed,
 difficulty, editor flags. Runtime state lives on `GameState` (singleton
 MonoBehaviour): current round, money, base lives, configured maximum rounds, and
 the authoritative `Playing` / `Won` / `Lost` match state. MVP restarts reload the
-`Gameplay` scene; `GameState.ResetState()` restores the complete starting state.
+  `Gameplay` scene; `GameState.ResetState()` restores the complete starting state.
+
+`InGameHudController` observes the match state. It displays lives and finite wave
+progress, blocks build/selection actions after the match, and presents the final
+result. Restart reloads `Gameplay`; returning to the menu clears transient session
+selection and editor/test flags. Editor test runs replace the menu action with a
+return to the runtime editor.
 
 ---
 
@@ -353,3 +359,5 @@ Append a one-line entry whenever this document is updated.
 - 2026-09-16: Connected `EnemySpawner` to the match lifecycle, added per-enemy
   goal damage, stopped spawning on loss, and completed the match after the final
   configured wave is empty.
+- 2026-09-16: Added lives and finite-wave HUD output, match-end overlays,
+  scene-reload restart, menu cleanup, and post-match build/selection locks.
