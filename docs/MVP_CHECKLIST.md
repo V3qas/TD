@@ -107,7 +107,7 @@ Voraussetzungen fuer den ersten Smoke-Test.
 
 ## 2. Tests fuer den Match-Loop (P0)
 
-- [ ] Testen, dass ein Gegner am Ziel Basisleben reduziert.
+- [x] Testen, dass ein Gegner am Ziel Basisleben reduziert.
 - [x] Testen, dass Basisleben nicht unter null fallen.
 - [x] Testen, dass null Basisleben genau einmal `Lost` ausloest.
 - [ ] Testen, dass die letzte abgeschlossene Welle `Won` ausloest.
@@ -117,7 +117,7 @@ Voraussetzungen fuer den ersten Smoke-Test.
 - [x] Testen, dass ein Neustart den vollstaendigen Ausgangszustand wiederherstellt.
 - [ ] Testen, dass ein Sieg erst ausgeloest wird, wenn nach Welle fuenf sowohl Spawn-Queue als auch aktive Gegner leer sind.
 - [x] Einen EditMode-Konfigurationstest fuer die MVP-Szenen und Pflichtreferenzen ergaenzen, damit fehlende Menu-, Runner- oder Upgrade-Assets auffallen.
-- [ ] Einen PlayMode-Test fuer den Ablauf Gegner-Spawn bis Ziel und Lebensverlust ergaenzen.
+- [x] Einen PlayMode-Test fuer den Ablauf Gegner-Spawn bis Ziel und Lebensverlust ergaenzen.
 - [ ] Einen PlayMode-Smoke-Test fuer Laden der Kampagne, Spawning und Match-Ende ergaenzen.
 - [x] Alle EditMode-Tests im Unity Test Runner erfolgreich ausfuehren (83/83 am 2026-09-16).
 - [ ] Alle PlayMode-Tests im Unity Test Runner erfolgreich ausfuehren.
