@@ -103,7 +103,9 @@ when the user begins a test run.
 
 Cross-scene state lives on `GameSession` (static): selected level, map seed,
 difficulty, editor flags. Runtime state lives on `GameState` (singleton
-MonoBehaviour): current round and money.
+MonoBehaviour): current round, money, base lives, configured maximum rounds, and
+the authoritative `Playing` / `Won` / `Lost` match state. MVP restarts reload the
+`Gameplay` scene; `GameState.ResetState()` restores the complete starting state.
 
 ---
 
@@ -155,9 +157,11 @@ public method or property is added, removed, or renamed.
   `BeginMapEditorMode`, `EndMapEditorMode`; properties `SelectedLevelData`,
   `SelectedMapDefinition`, `SelectedMapSeed`, `IsEditorTestRun`,
   `SelectedDifficulty`, `IsMapEditorSession`.
-- `GameState` - `Instance`, `CurrentRound`, `Money`; events `OnRoundChanged`,
-  `OnMoneyChanged`; methods `GetOrCreate`, `ResetState`, `SetRound`, `AddMoney`,
-  `TrySpendMoney`, `ResetMoney`.
+- `MatchState` - enum `Playing`, `Won`, `Lost`.
+- `GameState` - `Instance`, `CurrentRound`, `Money`, `Lives`, `StartingLives`,
+  `MaxRounds`, `State`, `IsPlaying`; events `OnRoundChanged`, `OnMoneyChanged`,
+  `OnLivesChanged`, `OnMatchEnded`; methods `GetOrCreate`, `ResetState`,
+  `SetRound`, `AddMoney`, `TrySpendMoney`, `DamageBase`, `Win`, `Lose`.
 - `DifficultySettings` - fields `level`, `healthMultiplier`, `speedMultiplier`,
   `rewardMultiplier`, `amountMultiplier`, `amountScaleMultiplier`.
 - `BuildManager` - `IsPlacingTower`, `SelectedTowerToBuild`, `AvailableTowers`;
@@ -343,3 +347,5 @@ Append a one-line entry whenever this document is updated.
   keep enemy spawning exclusive to explicit editor test runs.
 - 2026-09-16: Expanded `GroundOverlaySpawner` to render the complete gameplay
   grid while leaving map-editor authoring visuals with `GridPreviewRenderer`.
+- 2026-09-16: Added the authoritative `GameState` match lifecycle with base
+  lives, maximum rounds, guarded economy, and idempotent win/loss transitions.

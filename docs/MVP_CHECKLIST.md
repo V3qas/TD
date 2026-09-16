@@ -49,31 +49,31 @@ Voraussetzungen fuer den ersten Smoke-Test.
 - [x] Dabei verhindern, dass im Map-Editor vor einem ausdruecklichen Testlauf Gegner spawnen.
 - [x] `EnemyData_Runner` im Runner-Eintrag des `EnemySpawner` zuweisen.
 - [x] Mindestens ein `TowerUpgradeData`-Asset erstellen, konfigurieren und im `BuildManager` zuweisen.
-- [ ] Karte, Pfad, Start, Ziel und baubare Flaechen im normalen Kampagnenmodus sichtbar und unterscheidbar machen; `BuildGrid()` erzeugt aktuell keine Zellvisualisierung und Level 1 besitzt keine Ground-Overrides.
-- [ ] Einen Smoke-Test `Boot -> Single Campaign -> Level 1 -> Gegner-Spawn -> Tower bauen -> Gegner besiegen -> Belohnung` erfolgreich durchlaufen.
+- [x] Karte, Pfad, Start, Ziel und baubare Flaechen im normalen Kampagnenmodus sichtbar und unterscheidbar machen.
+- [x] Einen Smoke-Test `Boot -> Single Campaign -> Level 1 -> Gegner-Spawn -> Tower bauen -> Gegner besiegen -> Belohnung` erfolgreich durchlaufen.
 
 ## 1. Geschlossenen Match-Loop implementieren (P0)
 
 ### Verantwortlichkeiten und Konfiguration
 
-- [ ] Eine eindeutige Quelle fuer `StartingLives` und `MaxRounds` festlegen und fuer den MVP auf zehn Leben beziehungsweise fuenf Wellen konfigurieren.
-- [ ] Festlegen, welche Komponente den Match-Ablauf koordiniert und allein Sieg, Niederlage und Rundenwechsel ausloest.
-- [ ] Festlegen, ob ein Neustart die `Gameplay`-Szene neu laedt oder den Zustand im selben Szenenlauf zuruecksetzt; fuer den MVP ist ein sauberer Scene-Reload die risikoaermere Variante.
+- [x] `GameState` als eindeutige Quelle fuer `StartingLives` und `MaxRounds` festlegen und fuer den MVP auf zehn Leben beziehungsweise fuenf Wellen konfigurieren.
+- [x] `GameState` als Autoritaet fuer Match-Zustandswechsel und `EnemySpawner` als Verantwortlichen fuer Wellenfortschritt festlegen.
+- [x] Einen Neustart fuer den MVP als Reload der `Gameplay`-Szene festlegen.
 
 ### GameState
 
-- [ ] `GameState` um `Lives` erweitern.
-- [ ] Eine konfigurierbare Anzahl `StartingLives` hinzufuegen.
-- [ ] `GameState` um `MaxRounds` erweitern.
-- [ ] Einen Match-Zustand mit mindestens `Playing`, `Won` und `Lost` einfuehren.
-- [ ] Ein Event fuer Aenderungen der Basisleben bereitstellen.
-- [ ] Ein Event fuer das Ende einer Partie bereitstellen.
-- [ ] Eine Methode zum Beschaedigen der Basis implementieren.
-- [ ] Sicherstellen, dass Basisleben niemals unter null fallen.
-- [ ] Methoden beziehungsweise zentrale Logik fuer Sieg und Niederlage implementieren.
-- [ ] Sicherstellen, dass Sieg oder Niederlage pro Partie nur einmal ausgeloest werden.
-- [ ] Geldtransaktionen und andere Gameplay-Zustandsaenderungen nach Match-Ende ablehnen.
-- [ ] Beim Neustart Geld, Runde, Leben und Match-Zustand vollstaendig zuruecksetzen.
+- [x] `GameState` um `Lives` erweitern.
+- [x] Eine konfigurierbare Anzahl `StartingLives` hinzufuegen.
+- [x] `GameState` um `MaxRounds` erweitern.
+- [x] Einen Match-Zustand mit mindestens `Playing`, `Won` und `Lost` einfuehren.
+- [x] Ein Event fuer Aenderungen der Basisleben bereitstellen.
+- [x] Ein Event fuer das Ende einer Partie bereitstellen.
+- [x] Eine Methode zum Beschaedigen der Basis implementieren.
+- [x] Sicherstellen, dass Basisleben niemals unter null fallen.
+- [x] Methoden beziehungsweise zentrale Logik fuer Sieg und Niederlage implementieren.
+- [x] Sicherstellen, dass Sieg oder Niederlage pro Partie nur einmal ausgeloest werden.
+- [x] Geldtransaktionen und andere Gameplay-Zustandsaenderungen nach Match-Ende ablehnen.
+- [x] Beim Neustart Geld, Runde, Leben und Match-Zustand vollstaendig zuruecksetzen.
 
 ### EnemySpawner und Rundenablauf
 

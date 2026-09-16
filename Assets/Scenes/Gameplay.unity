@@ -245,6 +245,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameState
   startingRound: 1
   startingMoney: 100
+  startingLives: 10
+  maxRounds: 5
 --- !u!4 &812569990
 Transform:
   m_ObjectHideFlags: 0
