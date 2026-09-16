@@ -101,6 +101,45 @@ namespace TD.Tests.PlayMode
             Assert.That(matchEndCount, Is.EqualTo(1));
         }
 
+        [UnityTest]
+        public IEnumerator PenultimateRound_CompletesWithoutTriggeringVictory()
+        {
+            GameState gameState = CreateComponent<GameState>("GameState");
+            gameState.SetRound(gameState.MaxRounds - 1);
+
+            GridManager gridManager = CreateTwoCellGrid();
+            EnemyData enemyData = CreateEnemyData(0f);
+            EnemySpawner spawner = CreateSpawner(
+                gameState,
+                gridManager,
+                enemyData,
+                CreateEnemyPrefab(),
+                timeBetweenRounds: 0f);
+
+            spawner.gameObject.SetActive(true);
+            yield return null;
+            spawner.BeginSpawning();
+
+            Enemy spawnedEnemy = null;
+            float timeout = Time.realtimeSinceStartup + 2f;
+            while (spawnedEnemy == null && Time.realtimeSinceStartup < timeout)
+            {
+                spawnedEnemy = FindActiveEnemy(enemyData);
+                yield return null;
+            }
+
+            Assert.That(spawnedEnemy, Is.Not.Null, "The penultimate-round enemy was not spawned.");
+            spawnedEnemy.TakeDamage(spawnedEnemy.MaxHealth);
+
+            timeout = Time.realtimeSinceStartup + 2f;
+            while (gameState.CurrentRound < gameState.MaxRounds && Time.realtimeSinceStartup < timeout)
+                yield return null;
+
+            Assert.That(gameState.CurrentRound, Is.EqualTo(gameState.MaxRounds));
+            Assert.That(gameState.State, Is.EqualTo(MatchState.Playing),
+                "Completing the penultimate round must not trigger victory.");
+        }
+
         private GridManager CreateTwoCellGrid()
         {
             GridManager gridManager = CreateComponent<GridManager>("GridManager");
@@ -137,7 +176,8 @@ namespace TD.Tests.PlayMode
             GameState gameState,
             GridManager gridManager,
             EnemyData enemyData,
-            GameObject enemyPrefab)
+            GameObject enemyPrefab,
+            float timeBetweenRounds = 999f)
         {
             GameObject spawnerObject = new GameObject("EnemySpawner");
             cleanup.Add(spawnerObject);
@@ -146,7 +186,7 @@ namespace TD.Tests.PlayMode
             SetField(spawner, "gridManager", gridManager);
             SetField(spawner, "gameState", gameState);
             SetField(spawner, "startAutomatically", false);
-            SetField(spawner, "timeBetweenRounds", 999f);
+            SetField(spawner, "timeBetweenRounds", timeBetweenRounds);
             SetField(spawner, "spawnEntries", new List<EnemySpawnEntry>
             {
                 new EnemySpawnEntry

@@ -111,7 +111,7 @@ Voraussetzungen fuer den ersten Smoke-Test.
 - [x] Testen, dass Basisleben nicht unter null fallen.
 - [x] Testen, dass null Basisleben genau einmal `Lost` ausloest.
 - [x] Testen, dass die letzte abgeschlossene Welle `Won` ausloest.
-- [ ] Testen, dass vor der letzten Welle kein Sieg ausgeloest wird.
+- [x] Testen, dass vor der letzten Welle kein Sieg ausgeloest wird.
 - [x] Testen, dass nach Match-Ende keine weitere Welle startet.
 - [x] Testen, dass nach Match-Ende kein Geld mehr durch spaete Todesereignisse gutgeschrieben wird.
 - [x] Testen, dass ein Neustart den vollstaendigen Ausgangszustand wiederherstellt.
