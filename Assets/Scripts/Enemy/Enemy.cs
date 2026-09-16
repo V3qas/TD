@@ -33,6 +33,7 @@ namespace TD.Enemies
         public bool IsDead => currentHealth <= 0f;
         public EnemyData Data => data;
         public int Reward => scaledReward;
+        public int GoalDamage => data != null ? Mathf.Max(1, data.goalDamage) : 1;
         public float CurrentHealth => currentHealth;
         public float MaxHealth => maxHealth;
         public Vector3 WorldPosition => transform.position;

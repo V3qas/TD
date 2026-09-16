@@ -77,15 +77,15 @@ Voraussetzungen fuer den ersten Smoke-Test.
 
 ### EnemySpawner und Rundenablauf
 
-- [ ] Beim Erreichen des Ziels Basisleben abziehen.
-- [ ] Den Basisschaden pro Gegnertyp konfigurieren und beim Zielereignis anwenden.
-- [ ] Das Spawning nach einer Niederlage stoppen.
-- [ ] Nach der letzten konfigurierten Welle keine weitere Runde starten.
-- [ ] Nach der letzten Welle warten, bis Spawn-Queue und aktive Gegner leer sind.
-- [ ] Danach den Sieg ausloesen.
-- [ ] Laufende Gegner bei Neustart oder Rueckkehr zum Menue sauber freigeben.
-- [ ] Verhindern, dass nach dem Match-Ende noch Belohnungen oder Rundenwechsel auftreten.
-- [ ] Event-Abonnements beim Stoppen, Neustart und Szenenwechsel sauber loesen.
+- [x] Beim Erreichen des Ziels Basisleben abziehen.
+- [x] Den Basisschaden pro Gegnertyp konfigurieren und beim Zielereignis anwenden.
+- [x] Das Spawning nach einer Niederlage stoppen.
+- [x] Nach der letzten konfigurierten Welle keine weitere Runde starten.
+- [x] Nach der letzten Welle warten, bis Spawn-Queue und aktive Gegner leer sind.
+- [x] Danach den Sieg ausloesen.
+- [x] Laufende Gegner bei Neustart oder Rueckkehr zum Menue sauber freigeben.
+- [x] Verhindern, dass nach dem Match-Ende noch Belohnungen oder Rundenwechsel auftreten.
+- [x] Event-Abonnements beim Stoppen, Neustart und Szenenwechsel sauber loesen.
 
 ### Neustart und Laufzeit-Cleanup
 

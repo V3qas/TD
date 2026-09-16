@@ -190,11 +190,12 @@ public method or property is added, removed, or renamed.
 
 ### Enemy & Combat
 
-- `Enemy` - `ActiveEnemies`, `IsDead`, `Data`, `Reward`, `CurrentHealth`,
-  `MaxHealth`, `WorldPosition`; events `OnDied`, `OnReachedGoal`; methods
+- `Enemy` - `ActiveEnemies`, `IsDead`, `Data`, `Reward`, `GoalDamage`,
+  `CurrentHealth`, `MaxHealth`, `WorldPosition`; events `OnDied`,
+  `OnReachedGoal`; methods
   `Initialize`, `SetWaypoints`, `TakeDamage`, `ApplySlow`.
 - `EnemyData` - public fields `enemyName`, `maxHealth`, `speed`, `shield`,
-  `armor`, `reward`.
+  `armor`, `goalDamage`, `reward`.
 - `EnemySpawnEntry` - enemy data/prefab plus round scaling fields
   `firstRound`, `baseAmount`, `amountPerRound`, `spawnInterval`.
 - `EnemySpawner` - `BeginSpawning`, `RestartSpawning`, `RestartSpawningFromRound`,
@@ -349,3 +350,6 @@ Append a one-line entry whenever this document is updated.
   grid while leaving map-editor authoring visuals with `GridPreviewRenderer`.
 - 2026-09-16: Added the authoritative `GameState` match lifecycle with base
   lives, maximum rounds, guarded economy, and idempotent win/loss transitions.
+- 2026-09-16: Connected `EnemySpawner` to the match lifecycle, added per-enemy
+  goal damage, stopped spawning on loss, and completed the match after the final
+  configured wave is empty.

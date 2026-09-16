@@ -21,6 +21,9 @@ namespace TD.Enemies
         [Tooltip("Flat damage reduction per hit after shield damage.")]
         public float armor = 0f;
 
+        [Tooltip("Base lives removed when this enemy reaches the goal.")]
+        [Min(1)] public int goalDamage = 1;
+
         [Header("Reward")]
         [Tooltip("Gold awarded when this enemy is killed.")]
         public int reward = 10;

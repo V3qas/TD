@@ -56,11 +56,14 @@ namespace TD.Enemies
         private int currentRound = 1;
         private int aliveEnemies;
         private bool subscribedToGridPathChanged;
+        private bool subscribedToMatchEnded;
 
         private void Start()
         {
             if (gameState == null)
                 gameState = GameState.GetOrCreate();
+
+            SubscribeToGameState();
 
             if (startAutomatically && !GameSession.IsMapEditorSession)
                 BeginSpawning();
@@ -68,7 +71,7 @@ namespace TD.Enemies
 
         private void Update()
         {
-            if (!isSpawning || cachedPath == null)
+            if (!isSpawning || cachedPath == null || gameState == null || !gameState.IsPlaying)
                 return;
 
             if (spawnQueue.Count > 0)
@@ -87,6 +90,12 @@ namespace TD.Enemies
 
             if (aliveEnemies <= 0)
             {
+                if (currentRound >= gameState.MaxRounds)
+                {
+                    gameState.Win();
+                    return;
+                }
+
                 roundBreakTimer -= Time.deltaTime;
 
                 if (roundBreakTimer <= 0f)
@@ -98,6 +107,11 @@ namespace TD.Enemies
         {
             if (gameState == null)
                 gameState = GameState.GetOrCreate();
+
+            SubscribeToGameState();
+
+            if (!gameState.IsPlaying)
+                return;
 
             if (startRoutine != null)
                 StopCoroutine(startRoutine);
@@ -149,11 +163,20 @@ namespace TD.Enemies
             if (gridManager == null)
             {
                 Debug.LogError("EnemySpawner: GridManager is missing.");
+                startRoutine = null;
                 yield break;
             }
 
             while (!gridManager.HasGrid)
+            {
+                if (gameState == null || !gameState.IsPlaying)
+                {
+                    startRoutine = null;
+                    yield break;
+                }
+
                 yield return null;
+            }
 
             BuildPath();
             currentRound = gameState != null ? gameState.CurrentRound : 1;
@@ -166,6 +189,15 @@ namespace TD.Enemies
 
         private void StartRound(int round)
         {
+            if (gameState == null || !gameState.IsPlaying)
+                return;
+
+            if (round > gameState.MaxRounds)
+            {
+                gameState.Win();
+                return;
+            }
+
             currentRound = Mathf.Max(1, round);
             gameState?.SetRound(currentRound);
 
@@ -239,6 +271,26 @@ namespace TD.Enemies
                 gridManager.OnPathChanged -= HandleGridPathChanged;
                 subscribedToGridPathChanged = false;
             }
+
+            if (subscribedToMatchEnded && gameState != null)
+            {
+                gameState.OnMatchEnded -= HandleMatchEnded;
+                subscribedToMatchEnded = false;
+            }
+        }
+
+        private void SubscribeToGameState()
+        {
+            if (subscribedToMatchEnded || gameState == null)
+                return;
+
+            gameState.OnMatchEnded += HandleMatchEnded;
+            subscribedToMatchEnded = true;
+        }
+
+        private void HandleMatchEnded(MatchState _)
+        {
+            StopSpawning(true);
         }
 
         private void BuildSpawnQueueForRound()
@@ -295,8 +347,10 @@ namespace TD.Enemies
 
         private void HandleEnemyReachedGoal(Enemy enemy)
         {
+            int goalDamage = enemy != null ? enemy.GoalDamage : 1;
             UnregisterEnemy(enemy);
             aliveEnemies = Mathf.Max(0, aliveEnemies - 1);
+            gameState?.DamageBase(goalDamage);
         }
 
         private void UnregisterEnemy(Enemy enemy)
