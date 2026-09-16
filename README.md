@@ -5,6 +5,7 @@ A 2D grid-based tower defense game with a runtime map editor and a campaign mode
 ## Documentation
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - high-level architecture, subsystems, public API contract, and runtime flow.
+- [docs/MVP_CHECKLIST.md](docs/MVP_CHECKLIST.md) - checkable implementation and release plan for the first playable MVP.
 - [CODING_GUIDELINES.md](CODING_GUIDELINES.md) - coding, naming, commit, and documentation-maintenance rules.
 
 > Any change that affects a public API, a subsystem boundary, a scene, a ScriptableObject schema, or a runtime flow must update `docs/ARCHITECTURE.md` in the same commit.
