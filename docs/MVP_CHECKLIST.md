@@ -22,11 +22,11 @@ starten oder zum Hauptmenue zurueckkehren kann.
 - [ ] Zwei unterschiedliche Gegnertypen einsetzen.
 - [ ] Eine Partie auf fuenf feste Wellen begrenzen.
 - [ ] Startgeld, Baukosten und Belohnungen sinnvoll konfigurieren.
-- [ ] Die Partie mit zehn Basisleben starten.
-- [ ] Fuer erreichte Gegnerziele Basisleben abziehen.
+- [x] Die Partie mit zehn Basisleben starten.
+- [x] Fuer erreichte Gegnerziele Basisleben abziehen.
 - [ ] Nach Abschluss der letzten Welle einen Sieg ausloesen.
-- [ ] Bei null Basisleben eine Niederlage ausloesen.
-- [ ] Neustart und Rueckkehr zum Hauptmenue nach Spielende anbieten.
+- [x] Bei null Basisleben eine Niederlage ausloesen.
+- [x] Neustart und Rueckkehr zum Hauptmenue nach Spielende anbieten.
 - [ ] Einen eigenstaendig spielbaren Windows-Build erstellen.
 
 ## Bereits vorhandene Basis
@@ -95,14 +95,14 @@ Voraussetzungen fuer den ersten Smoke-Test.
 
 ### HUD und Bedienung
 
-- [ ] Aktuelle Basisleben im HUD anzeigen.
-- [ ] Die Rundenanzeige als `Welle X / Y` darstellen.
+- [x] Aktuelle Basisleben im HUD anzeigen.
+- [x] Die Rundenanzeige als `Welle X / Y` darstellen.
 - [ ] Ein eindeutiges Sieg-Overlay anzeigen.
-- [ ] Ein eindeutiges Niederlage-Overlay anzeigen.
-- [ ] Einen funktionierenden `Restart`-Button anbieten.
-- [ ] Einen funktionierenden `Main Menu`-Button anbieten.
-- [ ] Gameplay-Eingaben und Tower-Bau nach Match-Ende sperren.
-- [ ] HUD und Overlays nach einem Neustart korrekt zuruecksetzen.
+- [x] Ein eindeutiges Niederlage-Overlay anzeigen.
+- [x] Einen funktionierenden `Restart`-Button anbieten.
+- [x] Einen funktionierenden `Main Menu`-Button anbieten.
+- [x] Gameplay-Eingaben und Tower-Bau nach Match-Ende sperren.
+- [x] HUD und Overlays nach einem Neustart korrekt zuruecksetzen.
 - [ ] Eine kurze, sichtbare Erklaerung fuer Tower-Auswahl, Platzierung, Abbruch, Upgrade und Verkauf anbieten.
 
 ## 2. Tests fuer den Match-Loop (P0)
