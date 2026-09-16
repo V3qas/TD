@@ -35,10 +35,10 @@ TD/
 `Assets/Scripts/` is grouped by subsystem; one folder per subsystem, each under a
 `TD.<Subsystem>` namespace (`TD.Core`, `TD.Grid`, `TD.Pathfinding`, `TD.Enemies`,
 `TD.Towers`, `TD.Bullets`, `TD.Combat`, `TD.Level`, `TD.UI`, `TD.Menu`, `TD.Theming`;
-editor code is `TD.Editor`, tests are `TD.Tests.EditMode`). The enemy subsystem uses
-the plural `TD.Enemies` to avoid colliding with the `Enemy` type. Three assembly
-definitions split runtime, editor, and test code so the test assembly can reference
-runtime code without leaking editor-only types.
+editor code is `TD.Editor`, tests are `TD.Tests.EditMode` and `TD.Tests.PlayMode`).
+The enemy subsystem uses the plural `TD.Enemies` to avoid colliding with the `Enemy`
+type. Four assembly definitions split runtime, editor, EditMode tests, and PlayMode
+tests so test code can reference runtime code without leaking editor-only types.
 
 ---
 
@@ -52,8 +52,8 @@ Runtime code is grouped by domain:
 | Grid        | `Assets/Scripts/Grid/`        | Grid cells, build/path occupancy, cached enemy paths; preview overlay rendering split into `GridPreviewRenderer` |
 | Pathfinding | `Assets/Scripts/Pathfinding/` | BFS pathfinding |
 | Enemy       | `Assets/Scripts/Enemy/`       | Enemy stats, runtime enemies, round spawning; round composition split into `WavePlanner` |
-| Towers      | `Assets/Scripts/Towers/`      | Towers, upgrades, selection, range indicators; targeting via `ITargetProvider` |
-| Bullets     | `Assets/Scripts/Bullets/`     | Projectile stats and projectile runtime behaviour |
+| Towers      | `Assets/Scripts/Towers/`      | Towers, upgrades, selection, range indicators; per-instance targeting modes via `ITargetProvider` |
+| Bullets     | `Assets/Scripts/Bullets/`     | Projectile stats and straight predictive projectile flight |
 | Combat      | `Assets/Scripts/Combat/`      | Shared damage contract, rocks, destructible blockers |
 | Level       | `Assets/Scripts/Level/`       | Level data, map seeds, loading, camera framing, map occupants |
 | UI          | `Assets/Scripts/UI/`          | HUD and runtime map editor |
@@ -197,9 +197,9 @@ public method or property is added, removed, or renamed.
 ### Enemy & Combat
 
 - `Enemy` - `ActiveEnemies`, `IsDead`, `Data`, `Reward`, `GoalDamage`,
-  `CurrentHealth`, `MaxHealth`, `WorldPosition`; events `OnDied`,
-  `OnReachedGoal`; methods
-  `Initialize`, `SetWaypoints`, `TakeDamage`, `ApplySlow`.
+  `CurrentHealth`, `MaxHealth`, `CurrentSpeed`, `PathProgress`, `WorldPosition`;
+  events `OnDied`, `OnReachedGoal`; methods `Initialize`, `SetWaypoints`,
+  `PredictPosition`, `TakeDamage`, `ApplySlow`.
 - `EnemyData` - public fields `enemyName`, `maxHealth`, `speed`, `shield`,
   `armor`, `goalDamage`, `reward`.
 - `EnemySpawnEntry` - enemy data/prefab plus round scaling fields
@@ -214,17 +214,19 @@ public method or property is added, removed, or renamed.
 - `Destructible` - `MarkedTargets`, `ActiveTargets`, `IsMarked`,
   `ClearMarkedTargets`, `Initialize`, `TakeDamage`, `ToggleMarked`, `Mark`,
   `Unmark`.
-- `ITargetProvider` - `FindTarget(origin, range)`; abstraction that decouples
+- `ITargetProvider` - `FindTarget(origin, range, targetingMode)`; abstraction that decouples
   towers from the global enemy/destructible registries.
 - `Rock` - marker component for indestructible occupant objects.
 
 ### Towers & Bullets
 
 - `Tower` - `Data`, `CurrentUpgradeLevel`, `Damage`, `AttackSpeed`, `Range`,
-  `Initialize`, `SetTerrainRangeBonus`, `SetTargetProvider`, `CanUpgrade`,
-  `GetNextUpgradeCost`, `TryUpgrade`, `GetSellValue`.
+  `TargetingMode`, `Initialize`, `SetTerrainRangeBonus`, `SetTargetProvider`,
+  `SetTargetingMode`, `CycleTargetingMode`, `CanUpgrade`, `GetNextUpgradeCost`,
+  `TryUpgrade`, `GetSellValue`.
 - `DefaultTargetProvider` - `ITargetProvider` implementation (singleton
-  `Instance`); marked destructibles first, then nearest enemy in range.
+  `Instance`); marked destructibles first, then an enemy selected per tower by
+  path progress, current health, or effective speed.
 - `TowerData` - public fields `towerName`, `icon`, `cost`, `damage`,
   `attackSpeed`, `range`, `bulletData`, `towerPrefab`.
 - `TowerUpgradeData` - nested `UpgradeLevel` with `upgradeName`, `cost`,
@@ -235,7 +237,8 @@ public method or property is added, removed, or renamed.
   `hitAnimator`.
 - `RangeIndicator` - `Show(center, radius, color)`, `Hide()`.
 - `TowerSelectionController` - `Configure`, `DeselectTower`, `RefreshTowerRange`.
-- `Bullet` - `Initialize(bulletData, damage, target)`.
+- `Bullet` - `Destination`, `Initialize(bulletData, damage, target)`; predicts an
+  enemy position along its path at launch and then keeps a fixed straight trajectory.
 
 ### Level
 
@@ -361,3 +364,5 @@ Append a one-line entry whenever this document is updated.
   configured wave is empty.
 - 2026-09-16: Added lives and finite-wave HUD output, match-end overlays,
   scene-reload restart, menu cleanup, and post-match build/selection locks.
+- 2026-09-16: Added straight predictive projectile flight and independent per-tower
+  targeting modes for path progress, health, and effective enemy speed.

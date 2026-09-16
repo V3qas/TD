@@ -29,6 +29,7 @@ namespace TD.Enemies
         private HealthBar healthBar;
         private float slowFactor = 1f;
         private Coroutine slowCoroutine;
+        private float totalPathLength;
 
         public bool IsDead => currentHealth <= 0f;
         public EnemyData Data => data;
@@ -36,6 +37,8 @@ namespace TD.Enemies
         public int GoalDamage => data != null ? Mathf.Max(1, data.goalDamage) : 1;
         public float CurrentHealth => currentHealth;
         public float MaxHealth => maxHealth;
+        public float CurrentSpeed => Mathf.Max(0f, scaledSpeed * slowFactor);
+        public float PathProgress => CalculatePathProgress();
         public Vector3 WorldPosition => transform.position;
 
         private void OnEnable()
@@ -64,6 +67,7 @@ namespace TD.Enemies
             waypoints = path;
             waypointIndex = 0;
             slowFactor = 1f;
+            RecalculatePathLength();
 
             if (slowCoroutine != null)
             {
@@ -112,6 +116,65 @@ namespace TD.Enemies
 
             waypoints = newWaypoints;
             waypointIndex = Mathf.Min(nearestIndex + 1, newWaypoints.Count - 1);
+            RecalculatePathLength();
+        }
+
+        public Vector3 PredictPosition(float seconds)
+        {
+            if (waypoints == null || waypoints.Count == 0 || seconds <= 0f || CurrentSpeed <= 0f)
+                return transform.position;
+
+            float remainingTravel = CurrentSpeed * seconds;
+            Vector3 predictedPosition = transform.position;
+            int targetIndex = Mathf.Clamp(waypointIndex, 0, waypoints.Count - 1);
+
+            for (int index = targetIndex; index < waypoints.Count; index++)
+            {
+                Vector3 waypoint = waypoints[index];
+                float segmentLength = Vector3.Distance(predictedPosition, waypoint);
+
+                if (segmentLength <= Mathf.Epsilon)
+                {
+                    predictedPosition = waypoint;
+                    continue;
+                }
+
+                if (remainingTravel <= segmentLength)
+                    return Vector3.MoveTowards(predictedPosition, waypoint, remainingTravel);
+
+                remainingTravel -= segmentLength;
+                predictedPosition = waypoint;
+            }
+
+            return predictedPosition;
+        }
+
+        private float CalculatePathProgress()
+        {
+            if (waypoints == null || waypoints.Count < 2 || totalPathLength <= Mathf.Epsilon)
+                return 0f;
+
+            float remainingDistance = 0f;
+            Vector3 position = transform.position;
+            int targetIndex = Mathf.Clamp(waypointIndex, 0, waypoints.Count - 1);
+
+            for (int index = targetIndex; index < waypoints.Count; index++)
+            {
+                remainingDistance += Vector3.Distance(position, waypoints[index]);
+                position = waypoints[index];
+            }
+
+            return 1f - Mathf.Clamp01(remainingDistance / totalPathLength);
+        }
+
+        private void RecalculatePathLength()
+        {
+            totalPathLength = 0f;
+            if (waypoints == null)
+                return;
+
+            for (int index = 1; index < waypoints.Count; index++)
+                totalPathLength += Vector3.Distance(waypoints[index - 1], waypoints[index]);
         }
 
         private void Update()

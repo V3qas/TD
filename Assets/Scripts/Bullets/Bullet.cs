@@ -11,6 +11,9 @@ namespace TD.Bullets
         private float damage;
         private IDamageable target;
         private bool hasHit;
+        private Vector3 destination;
+
+        public Vector3 Destination => destination;
 
         public void Initialize(BulletData bulletData, float damage, IDamageable target)
         {
@@ -18,6 +21,7 @@ namespace TD.Bullets
             this.damage = damage;
             this.target = target;
             hasHit = false;
+            destination = CalculateDestination(target, bulletData != null ? bulletData.travelSpeed : 0f);
         }
 
         private void OnDisable()
@@ -26,6 +30,7 @@ namespace TD.Bullets
             target = null;
             hasHit = false;
             damage = 0f;
+            destination = Vector3.zero;
         }
 
         private void Update()
@@ -45,19 +50,37 @@ namespace TD.Bullets
                 return;
             }
 
-            Vector3 targetPosition = target.WorldPosition;
-            Vector3 direction = targetPosition - transform.position;
-            float step = data.travelSpeed * Time.deltaTime;
+            float step = Mathf.Max(0.01f, data.travelSpeed) * Time.deltaTime;
+            float distance = Vector3.Distance(transform.position, destination);
 
-            if (direction.magnitude <= step)
+            if (distance <= step)
             {
-                transform.position = targetPosition;
+                transform.position = destination;
                 OnReachedTarget();
             }
             else
             {
-                transform.position += direction.normalized * step;
+                transform.position = Vector3.MoveTowards(transform.position, destination, step);
             }
+        }
+
+        private Vector3 CalculateDestination(IDamageable damageable, float projectileSpeed)
+        {
+            if (damageable == null)
+                return transform.position;
+
+            Vector3 predictedPosition = damageable.WorldPosition;
+            if (!(damageable is Enemy enemy) || projectileSpeed <= 0f)
+                return predictedPosition;
+
+            float travelTime = Vector3.Distance(transform.position, predictedPosition) / projectileSpeed;
+            for (int iteration = 0; iteration < 4; iteration++)
+            {
+                predictedPosition = enemy.PredictPosition(travelTime);
+                travelTime = Vector3.Distance(transform.position, predictedPosition) / projectileSpeed;
+            }
+
+            return predictedPosition;
         }
 
         private void OnReachedTarget()

@@ -42,6 +42,8 @@ namespace TD.UI
         private Text upgradeButtonText;
         private Button sellButton;
         private Text sellButtonText;
+        private Button targetingButton;
+        private Text targetingButtonText;
         private Button backToEditorButton;
         private Button menuButton;
         private GameObject matchEndOverlay;
@@ -135,6 +137,7 @@ namespace TD.UI
                 $"Damage: {tower.Damage:0.#}\n" +
                 $"Speed: {tower.AttackSpeed:0.##}/s\n" +
                 $"Range: {tower.Range:0.#}\n" +
+                $"Targeting: {tower.TargetingMode.ToDisplayName()}\n" +
                 $"Next upgrade: {GetUpgradeText(tower)}";
 
             towerIconImage.sprite = data.icon;
@@ -145,6 +148,14 @@ namespace TD.UI
                 sellButton.gameObject.SetActive(true);
                 if (sellButtonText != null)
                     sellButtonText.text = $"Sell ({tower.GetSellValue()} Gold)";
+            }
+
+            if (targetingButton != null)
+            {
+                targetingButton.gameObject.SetActive(true);
+                targetingButton.interactable = true;
+                if (targetingButtonText != null)
+                    targetingButtonText.text = $"Targeting: {tower.TargetingMode.ToDisplayName()}";
             }
 
             RefreshUpgradeButton();
@@ -162,6 +173,9 @@ namespace TD.UI
 
             if (upgradeButton != null)
                 upgradeButton.gameObject.SetActive(false);
+
+            if (targetingButton != null)
+                targetingButton.gameObject.SetActive(false);
 
             contextTitleText.text = "Tower Selection";
             contextBodyText.text =
@@ -374,7 +388,11 @@ namespace TD.UI
             contextTitleText.gameObject.AddComponent<LayoutElement>().preferredHeight = 34f;
 
             contextBodyText = CreateText("ContextBody", parent, "No tower selected.", 16, TextAnchor.UpperLeft, new Color(0.82f, 0.84f, 0.88f));
-            contextBodyText.gameObject.AddComponent<LayoutElement>().preferredHeight = 150f;
+            contextBodyText.gameObject.AddComponent<LayoutElement>().preferredHeight = 170f;
+
+            targetingButton = CreateButton(parent, "Targeting", CycleSelectedTowerTargeting, true);
+            targetingButtonText = targetingButton.GetComponentInChildren<Text>();
+            targetingButton.gameObject.SetActive(false);
 
             upgradeButton = CreateButton(parent, "Upgrade", UpgradeSelectedTower, true);
             upgradeButtonText = upgradeButton.GetComponentInChildren<Text>();
@@ -659,6 +677,15 @@ namespace TD.UI
             towerSelectionController?.DeselectTower();
             currentSelectedTower = null;
             ClearContext();
+        }
+
+        private void CycleSelectedTowerTargeting()
+        {
+            if ((gameState != null && !gameState.IsPlaying) || currentSelectedTower == null)
+                return;
+
+            currentSelectedTower.CycleTargetingMode();
+            ShowTower(currentSelectedTower);
         }
 
         private void UpgradeSelectedTower()

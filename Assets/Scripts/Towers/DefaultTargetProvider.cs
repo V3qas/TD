@@ -18,7 +18,7 @@ namespace TD.Towers
     {
         public static DefaultTargetProvider Instance { get; } = new DefaultTargetProvider();
 
-        public IDamageable FindTarget(Vector3 origin, float range)
+        public IDamageable FindTarget(Vector3 origin, float range, TargetingMode mode = TargetingMode.First)
         {
             float rangeSqr = range * range;
 
@@ -43,8 +43,8 @@ namespace TD.Towers
                 return nearestMarked;
 
             IReadOnlyList<Enemy> enemies = Enemy.ActiveEnemies;
-            Enemy nearest = null;
-            float nearestSqrDist = rangeSqr;
+            Enemy best = null;
+            float bestSqrDistance = float.MaxValue;
             for (int index = 0; index < enemies.Count; index++)
             {
                 Enemy enemy = enemies[index];
@@ -52,14 +52,53 @@ namespace TD.Towers
                     continue;
 
                 float sqrDist = (origin - enemy.transform.position).sqrMagnitude;
-                if (sqrDist <= nearestSqrDist)
+                if (sqrDist > rangeSqr)
+                    continue;
+
+                if (best == null || IsPreferred(enemy, best, mode, sqrDist, bestSqrDistance))
                 {
-                    nearestSqrDist = sqrDist;
-                    nearest = enemy;
+                    best = enemy;
+                    bestSqrDistance = sqrDist;
                 }
             }
 
-            return nearest;
+            return best;
+        }
+
+        private static bool IsPreferred(
+            Enemy candidate,
+            Enemy current,
+            TargetingMode mode,
+            float candidateSqrDistance,
+            float currentSqrDistance)
+        {
+            float candidateMetric = GetMetric(candidate, mode);
+            float currentMetric = GetMetric(current, mode);
+
+            if (!Mathf.Approximately(candidateMetric, currentMetric))
+            {
+                bool preferHigher = mode != TargetingMode.Last && mode != TargetingMode.LowestHealth;
+                return preferHigher ? candidateMetric > currentMetric : candidateMetric < currentMetric;
+            }
+
+            return candidateSqrDistance < currentSqrDistance;
+        }
+
+        private static float GetMetric(Enemy enemy, TargetingMode mode)
+        {
+            switch (mode)
+            {
+                case TargetingMode.First:
+                case TargetingMode.Last:
+                    return enemy.PathProgress;
+                case TargetingMode.HighestHealth:
+                case TargetingMode.LowestHealth:
+                    return enemy.CurrentHealth;
+                case TargetingMode.Fastest:
+                    return enemy.CurrentSpeed;
+                default:
+                    return enemy.PathProgress;
+            }
         }
     }
 }

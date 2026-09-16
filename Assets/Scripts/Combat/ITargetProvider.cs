@@ -1,4 +1,5 @@
 using UnityEngine;
+using TD.Towers;
 
 namespace TD.Combat
 {
@@ -13,6 +14,6 @@ namespace TD.Combat
         /// Returns the best target within <paramref name="range"/> of
         /// <paramref name="origin"/>, or null when nothing is in range.
         /// </summary>
-        IDamageable FindTarget(Vector3 origin, float range);
+        IDamageable FindTarget(Vector3 origin, float range, TargetingMode mode = TargetingMode.First);
     }
 }

@@ -14,12 +14,14 @@ namespace TD.Towers
         private int totalInvested;
         private float terrainRangeBonus;
         private ITargetProvider targetProvider;
+        private TargetingMode targetingMode = TargetingMode.First;
 
         public TowerData Data => data;
         public int CurrentUpgradeLevel => currentUpgradeLevel;
         public float Damage => EffectiveDamage;
         public float AttackSpeed => EffectiveAttackSpeed;
         public float Range => EffectiveRange;
+        public TargetingMode TargetingMode => targetingMode;
 
         private float EffectiveDamage
         {
@@ -103,6 +105,7 @@ namespace TD.Towers
             currentUpgradeLevel = 0;
             attackTimer = 0f;
             totalInvested = towerData != null ? towerData.cost : 0;
+            targetingMode = TargetingMode.First;
             if (targetProvider == null)
                 targetProvider = DefaultTargetProvider.Instance;
         }
@@ -114,6 +117,18 @@ namespace TD.Towers
         public void SetTargetProvider(ITargetProvider provider)
         {
             targetProvider = provider;
+        }
+
+        public void SetTargetingMode(TargetingMode mode)
+        {
+            targetingMode = mode;
+        }
+
+        public TargetingMode CycleTargetingMode()
+        {
+            int modeCount = System.Enum.GetValues(typeof(TargetingMode)).Length;
+            targetingMode = (TargetingMode)(((int)targetingMode + 1) % modeCount);
+            return targetingMode;
         }
 
         public bool CanUpgrade()
@@ -174,7 +189,7 @@ namespace TD.Towers
         private IDamageable FindNearestTarget()
         {
             return targetProvider != null
-                ? targetProvider.FindTarget(transform.position, EffectiveRange)
+                ? targetProvider.FindTarget(transform.position, EffectiveRange, targetingMode)
                 : null;
         }
 

@@ -119,7 +119,7 @@ Voraussetzungen fuer den ersten Smoke-Test.
 - [x] Einen EditMode-Konfigurationstest fuer die MVP-Szenen und Pflichtreferenzen ergaenzen, damit fehlende Menu-, Runner- oder Upgrade-Assets auffallen.
 - [x] Einen PlayMode-Test fuer den Ablauf Gegner-Spawn bis Ziel und Lebensverlust ergaenzen.
 - [x] Einen PlayMode-Smoke-Test fuer Laden der Kampagne, Spawning und Match-Ende ergaenzen.
-- [x] Alle EditMode-Tests im Unity Test Runner erfolgreich ausfuehren (83/83 am 2026-09-16).
+- [x] Alle EditMode-Tests im Unity Test Runner erfolgreich ausfuehren (89/89 am 2026-09-16).
 - [x] Alle PlayMode-Tests im Unity Test Runner erfolgreich ausfuehren (4/4 am 2026-09-16).
 
 ## 3. Erstes Level balancieren (P1)
@@ -138,6 +138,8 @@ Voraussetzungen fuer den ersten Smoke-Test.
 
 ## 4. Spiel-Feedback und Verstaendlichkeit (P1)
 
+- [x] Projektile auf einer geraden, beim Abschuss vorausberechneten Flugbahn darstellen.
+- [x] Pro Tower ein unabhaengiges Targeting fuer First, Last, Most HP, Least HP und Fastest anbieten.
 - [ ] Treffer visuell oder akustisch erkennbar machen.
 - [ ] Den Tod eines Gegners klar darstellen.
 - [ ] Das Erreichen des Ziels und den Verlust eines Basislebens hervorheben.

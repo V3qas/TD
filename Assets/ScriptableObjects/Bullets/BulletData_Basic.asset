@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: BulletData_Basic
   m_EditorClassIdentifier: Assembly-CSharp::BulletData
   bulletName: Basic Bullet
-  travelSpeed: 8
+  travelSpeed: 16
   damageMultiplier: 1
   splashRadius: 0
   isPiercing: 0
