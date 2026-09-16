@@ -17,14 +17,14 @@ starten oder zum Hauptmenue zurueckkehren kann.
 
 ### Geplanter Spielumfang
 
-- [ ] Eine vollstaendig spielbare Kampagnenkarte bereitstellen.
-- [ ] Einen baubaren Tower mit mindestens einem funktionierenden Upgrade anbieten.
-- [ ] Zwei unterschiedliche Gegnertypen einsetzen.
-- [ ] Eine Partie auf fuenf feste Wellen begrenzen.
+- [x] Eine vollstaendig spielbare Kampagnenkarte bereitstellen.
+- [x] Einen baubaren Tower mit mindestens einem funktionierenden Upgrade anbieten.
+- [x] Zwei unterschiedliche Gegnertypen einsetzen.
+- [x] Eine Partie auf fuenf feste Wellen begrenzen.
 - [ ] Startgeld, Baukosten und Belohnungen sinnvoll konfigurieren.
 - [x] Die Partie mit zehn Basisleben starten.
 - [x] Fuer erreichte Gegnerziele Basisleben abziehen.
-- [ ] Nach Abschluss der letzten Welle einen Sieg ausloesen.
+- [x] Nach Abschluss der letzten Welle einen Sieg ausloesen.
 - [x] Bei null Basisleben eine Niederlage ausloesen.
 - [x] Neustart und Rueckkehr zum Hauptmenue nach Spielende anbieten.
 - [ ] Einen eigenstaendig spielbaren Windows-Build erstellen.
@@ -97,7 +97,7 @@ Voraussetzungen fuer den ersten Smoke-Test.
 
 - [x] Aktuelle Basisleben im HUD anzeigen.
 - [x] Die Rundenanzeige als `Welle X / Y` darstellen.
-- [ ] Ein eindeutiges Sieg-Overlay anzeigen.
+- [x] Ein eindeutiges Sieg-Overlay anzeigen.
 - [x] Ein eindeutiges Niederlage-Overlay anzeigen.
 - [x] Einen funktionierenden `Restart`-Button anbieten.
 - [x] Einen funktionierenden `Main Menu`-Button anbieten.
@@ -155,7 +155,7 @@ Voraussetzungen fuer den ersten Smoke-Test.
 - [ ] Noch nicht implementierte Menuepunkte deaktivieren oder als `Coming Soon` kennzeichnen.
 - [ ] `Infinite`, `Challenge`, `Tower Upgrade` und `Options` nicht als fertige Funktionen darstellen.
 - [ ] Entscheiden, ob der Runtime-Map-Editor im MVP-Menue sichtbar bleibt.
-- [ ] Sicherstellen, dass Boot, Menue, Gameplay und Rueckkehr zum Menue durchgehend funktionieren.
+- [x] Sicherstellen, dass Boot, Menue, Gameplay und Rueckkehr zum Menue durchgehend funktionieren.
 - [ ] Beim Verlassen des Gameplays temporaere Session-, Editor- und Testzustaende konsistent bereinigen.
 - [ ] Menue und HUD bei kleinen Aufloesungen auf abgeschnittene oder ueberlappende Elemente pruefen.
 
