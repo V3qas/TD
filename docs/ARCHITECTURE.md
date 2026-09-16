@@ -253,7 +253,9 @@ public method or property is added, removed, or renamed.
 - `LevelLoader` - `DefaultLevelData`, `HasLoadedLevel`, `LoadedMapDefinition`;
   events `OnLevelLoaded`, `OnMapLoaded`; methods `LoadSelectedOrDefaultLevel`,
   `LoadLevel`, `LoadMapSeed`, `LoadMap`.
-- `GroundOverlaySpawner` - renders `groundOverrides` on level/map load.
+- `GroundOverlaySpawner` - renders the complete gameplay grid on level/map load,
+  including buildable ground, path, start/goal cells, and special terrain. Runtime
+  map-editor authoring continues to use `GridPreviewRenderer` instead.
 - `OccupantSpawner` - spawns rocks/destructibles from `occupants` and routes
   click-to-mark targeting.
 - `MapCameraFrame` - `IsValid`, `CameraRect`, `OrthographicSize`, `Aspect`,
@@ -339,3 +341,5 @@ Append a one-line entry whenever this document is updated.
   the testable `WavePlanner`.
 - 2026-09-16: Documented campaign auto-spawning and the map-editor guard used to
   keep enemy spawning exclusive to explicit editor test runs.
+- 2026-09-16: Expanded `GroundOverlaySpawner` to render the complete gameplay
+  grid while leaving map-editor authoring visuals with `GridPreviewRenderer`.
