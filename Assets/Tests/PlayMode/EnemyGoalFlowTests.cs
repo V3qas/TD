@@ -34,7 +34,75 @@ namespace TD.Tests.PlayMode
         public IEnumerator SpawnedEnemy_ReachingGoal_RemovesOneLifeOnce()
         {
             GameState gameState = CreateComponent<GameState>("GameState");
+            GridManager gridManager = CreateTwoCellGrid();
+            EnemyData enemyData = CreateEnemyData(100f);
+            EnemySpawner spawner = CreateSpawner(gameState, gridManager, enemyData, CreateEnemyPrefab());
 
+            int livesEventCount = 0;
+            gameState.OnLivesChanged += _ => livesEventCount++;
+
+            spawner.gameObject.SetActive(true);
+            yield return null;
+            spawner.BeginSpawning();
+
+            float timeout = Time.realtimeSinceStartup + 2f;
+            while (gameState.Lives == gameState.StartingLives && Time.realtimeSinceStartup < timeout)
+                yield return null;
+
+            Assert.That(gameState.Lives, Is.EqualTo(gameState.StartingLives - 1));
+            Assert.That(livesEventCount, Is.EqualTo(1));
+            Assert.That(gameState.State, Is.EqualTo(MatchState.Playing));
+        }
+
+        [UnityTest]
+        public IEnumerator FinalRound_WaitsForLastEnemy_ThenWinsOnceWithoutRoundSix()
+        {
+            GameState gameState = CreateComponent<GameState>("GameState");
+            gameState.SetRound(gameState.MaxRounds);
+
+            GridManager gridManager = CreateTwoCellGrid();
+            EnemyData enemyData = CreateEnemyData(0f);
+            EnemySpawner spawner = CreateSpawner(gameState, gridManager, enemyData, CreateEnemyPrefab());
+
+            int matchEndCount = 0;
+            gameState.OnMatchEnded += _ => matchEndCount++;
+
+            spawner.gameObject.SetActive(true);
+            yield return null;
+            spawner.BeginSpawning();
+
+            Enemy spawnedEnemy = null;
+            float timeout = Time.realtimeSinceStartup + 2f;
+            while (spawnedEnemy == null && Time.realtimeSinceStartup < timeout)
+            {
+                spawnedEnemy = FindActiveEnemy(enemyData);
+                yield return null;
+            }
+
+            Assert.That(spawnedEnemy, Is.Not.Null, "The final-round enemy was not spawned.");
+            Assert.That(gameState.CurrentRound, Is.EqualTo(gameState.MaxRounds));
+            Assert.That(gameState.State, Is.EqualTo(MatchState.Playing),
+                "Victory must wait until the last active enemy is gone.");
+
+            spawnedEnemy.TakeDamage(spawnedEnemy.MaxHealth);
+
+            timeout = Time.realtimeSinceStartup + 2f;
+            while (gameState.State == MatchState.Playing && Time.realtimeSinceStartup < timeout)
+                yield return null;
+
+            Assert.That(gameState.State, Is.EqualTo(MatchState.Won));
+            Assert.That(matchEndCount, Is.EqualTo(1));
+            Assert.That(gameState.CurrentRound, Is.EqualTo(gameState.MaxRounds));
+
+            spawner.BeginSpawning();
+            yield return null;
+
+            Assert.That(FindActiveEnemy(enemyData), Is.Null, "No enemy may spawn after match end.");
+            Assert.That(matchEndCount, Is.EqualTo(1));
+        }
+
+        private GridManager CreateTwoCellGrid()
+        {
             GridManager gridManager = CreateComponent<GridManager>("GridManager");
             gridManager.BuildGrid(new LevelMapDefinition
             {
@@ -43,18 +111,34 @@ namespace TD.Tests.PlayMode
                 startCell = new Vector2Int(0, 0),
                 goalCell = new Vector2Int(1, 0)
             });
+            return gridManager;
+        }
 
+        private EnemyData CreateEnemyData(float speed)
+        {
             EnemyData enemyData = ScriptableObject.CreateInstance<EnemyData>();
             cleanup.Add(enemyData);
             enemyData.maxHealth = 1f;
-            enemyData.speed = 100f;
+            enemyData.speed = speed;
             enemyData.goalDamage = 1;
+            return enemyData;
+        }
 
+        private GameObject CreateEnemyPrefab()
+        {
             GameObject enemyPrefab = new GameObject("EnemyPrefab");
             cleanup.Add(enemyPrefab);
             enemyPrefab.SetActive(false);
             enemyPrefab.AddComponent<Enemy>();
+            return enemyPrefab;
+        }
 
+        private EnemySpawner CreateSpawner(
+            GameState gameState,
+            GridManager gridManager,
+            EnemyData enemyData,
+            GameObject enemyPrefab)
+        {
             GameObject spawnerObject = new GameObject("EnemySpawner");
             cleanup.Add(spawnerObject);
             spawnerObject.SetActive(false);
@@ -67,7 +151,7 @@ namespace TD.Tests.PlayMode
             {
                 new EnemySpawnEntry
                 {
-                    label = "Goal test enemy",
+                    label = "PlayMode test enemy",
                     enemyData = enemyData,
                     enemyPrefab = enemyPrefab,
                     firstRound = 1,
@@ -76,21 +160,20 @@ namespace TD.Tests.PlayMode
                     spawnInterval = 0.05f
                 }
             });
+            return spawner;
+        }
 
-            int livesEventCount = 0;
-            gameState.OnLivesChanged += _ => livesEventCount++;
+        private static Enemy FindActiveEnemy(EnemyData enemyData)
+        {
+            IReadOnlyList<Enemy> enemies = Enemy.ActiveEnemies;
+            for (int index = 0; index < enemies.Count; index++)
+            {
+                Enemy enemy = enemies[index];
+                if (enemy != null && enemy.Data == enemyData)
+                    return enemy;
+            }
 
-            spawnerObject.SetActive(true);
-            yield return null;
-            spawner.BeginSpawning();
-
-            float timeout = Time.realtimeSinceStartup + 2f;
-            while (gameState.Lives == gameState.StartingLives && Time.realtimeSinceStartup < timeout)
-                yield return null;
-
-            Assert.That(gameState.Lives, Is.EqualTo(gameState.StartingLives - 1));
-            Assert.That(livesEventCount, Is.EqualTo(1));
-            Assert.That(gameState.State, Is.EqualTo(MatchState.Playing));
+            return null;
         }
 
         private T CreateComponent<T>(string objectName) where T : Component
