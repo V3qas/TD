@@ -417,7 +417,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 94cdfba1dd3d8c34a9c9c177d655dd1c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MainMenuController
-  config: {fileID: 0}
+  config: {fileID: 11400000, guid: 416033981194e4e4982b2d8dee237a08, type: 2}
   backgroundSprite: {fileID: 21300000, guid: e2ac623e73e94b32bc6be8f1c338c80a, type: 3}
   targetCanvas: {fileID: 0}
   font: {fileID: 0}

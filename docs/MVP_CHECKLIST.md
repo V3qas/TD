@@ -44,11 +44,11 @@ Voraussetzungen fuer den ersten Smoke-Test.
 
 ## 0. Bestehende Gameplay-Basis korrekt verdrahten (P0)
 
-- [ ] `MainMenuConfig_Main` in der `Menu`-Szene zuweisen; aktuell ist `config` leer und die Kampagnenauswahl enthaelt dadurch kein Level.
-- [ ] Sicherstellen, dass nach erfolgreichem Laden einer Kampagnenkarte das Spawning beginnt; aktuell ist `startAutomatically` deaktiviert und kein normaler Kampagnenpfad ruft `BeginSpawning()` auf.
-- [ ] Dabei verhindern, dass im Map-Editor vor einem ausdruecklichen Testlauf Gegner spawnen.
-- [ ] `EnemyData_Runner` im Runner-Eintrag des `EnemySpawner` zuweisen; aktuell ist dort nur das Prefab gesetzt.
-- [ ] Mindestens ein `TowerUpgradeData`-Asset erstellen, konfigurieren und im `BuildManager` zuweisen; aktuell ist `towerUpgradeData` leer.
+- [x] `MainMenuConfig_Main` in der `Menu`-Szene zuweisen, damit die Kampagnenauswahl Level 1 enthaelt.
+- [x] Sicherstellen, dass nach erfolgreichem Laden einer Kampagnenkarte das Spawning beginnt.
+- [x] Dabei verhindern, dass im Map-Editor vor einem ausdruecklichen Testlauf Gegner spawnen.
+- [x] `EnemyData_Runner` im Runner-Eintrag des `EnemySpawner` zuweisen.
+- [x] Mindestens ein `TowerUpgradeData`-Asset erstellen, konfigurieren und im `BuildManager` zuweisen.
 - [ ] Karte, Pfad, Start, Ziel und baubare Flaechen im normalen Kampagnenmodus sichtbar und unterscheidbar machen; `BuildGrid()` erzeugt aktuell keine Zellvisualisierung und Level 1 besitzt keine Ground-Overrides.
 - [ ] Einen Smoke-Test `Boot -> Single Campaign -> Level 1 -> Gegner-Spawn -> Tower bauen -> Gegner besiegen -> Belohnung` erfolgreich durchlaufen.
 

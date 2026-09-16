@@ -62,7 +62,7 @@ namespace TD.Enemies
             if (gameState == null)
                 gameState = GameState.GetOrCreate();
 
-            if (startAutomatically)
+            if (startAutomatically && !GameSession.IsMapEditorSession)
                 BeginSpawning();
         }
 

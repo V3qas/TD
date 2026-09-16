@@ -1,6 +1,6 @@
 # Tower Defense - Architecture Overview
 
-Last reviewed: June 2026.
+Last reviewed: September 2026.
 
 This document describes the current state of the Unity Tower Defense project. It is the
 single source of truth for the high-level structure of the codebase. Any code change
@@ -95,6 +95,11 @@ Gameplay
   TowerSelectionController -> RangeIndicator + InGameHudController
   GameState -> InGameHudController
 ```
+
+In regular campaign and custom-map sessions, `EnemySpawner` starts automatically
+and waits until `GridManager` has built a valid grid. Map-editor sessions suppress
+that automatic start; `RuntimeMapEditorController` starts spawning explicitly only
+when the user begins a test run.
 
 Cross-scene state lives on `GameSession` (static): selected level, map seed,
 difficulty, editor flags. Runtime state lives on `GameState` (singleton
@@ -332,3 +337,5 @@ Append a one-line entry whenever this document is updated.
   `ITargetProvider`/`DefaultTargetProvider`, split `GridManager` preview rendering
   into `GridPreviewRenderer`, and extracted `EnemySpawner` round composition into
   the testable `WavePlanner`.
+- 2026-09-16: Documented campaign auto-spawning and the map-editor guard used to
+  keep enemy spawning exclusive to explicit editor test runs.
