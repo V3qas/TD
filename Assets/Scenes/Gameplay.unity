@@ -343,6 +343,7 @@ MonoBehaviour:
   towerToBuild: {fileID: 11400000, guid: b5e45d72d1e77124980d5ffa432f24d9, type: 2}
   availableTowers:
   - {fileID: 11400000, guid: b5e45d72d1e77124980d5ffa432f24d9, type: 2}
+  - {fileID: 11400000, guid: 8c42d5fbe90761b3da64c1e6f7320844, type: 2}
   towerUpgradeData: {fileID: 11400000, guid: a24e51f657fa4cb9a4fed2d0e7a1c829, type: 2}
   validGhostColor: {r: 0.35, g: 0.85, b: 1, a: 0.45}
   invalidGhostColor: {r: 1, g: 0.25, b: 0.2, a: 0.45}

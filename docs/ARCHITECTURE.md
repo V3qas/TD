@@ -176,7 +176,8 @@ public method or property is added, removed, or renamed.
 - `Difficulty` - enum `DifficultyLevel { Easy, Normal, Hard, Nightmare }`,
   `DifficultySettings.ForLevel(level)`.
 - `PrefabPool` (static) - `Spawn(prefab, position, rotation)`, `Release(instance)`,
-  `Clear()`.
+  `Clear()`. Releasing an already pooled instance has no effect, including when
+  match-end cleanup overlaps an enemy's own release.
 - `PooledObject` - `SourcePrefab` marker used by `PrefabPool`.
 
 ### Grid & Pathfinding
@@ -228,17 +229,23 @@ public method or property is added, removed, or renamed.
   `Instance`); marked destructibles first, then an enemy selected per tower by
   path progress, current health, or effective speed.
 - `TowerData` - public fields `towerName`, `icon`, `cost`, `damage`,
-  `attackSpeed`, `range`, `bulletData`, `towerPrefab`.
+  `attackSpeed`, `range`, `bulletData`, `towerPrefab`; derived combat values
+  `DamagePerShot`, `AttacksPerSecond`, `TargetingRange`, and `GetTargetingRange`.
 - `TowerUpgradeData` - nested `UpgradeLevel` with `upgradeName`, `cost`,
   `damageBonus`, `attackSpeedBonus`, `rangeBonus`, `overrideBulletData`; field
   `levels`.
-- `BulletData` - public fields `bulletName`, `travelSpeed`, `damageMultiplier`,
-  `splashRadius`, `isPiercing`, `slowFactor`, `slowDuration`, `bulletPrefab`,
-  `hitAnimator`.
+- `BulletData` - `BulletType` selects a travelling projectile or instant laser;
+  fields configure travel speed, laser length/width/duration, damage, attack
+  speed and range multipliers, splash, piercing, slow, prefab, and hit animator.
+  `ModifyDamage`, `ModifyAttackSpeed`, and `ModifyRange` apply the multipliers.
 - `RangeIndicator` - `Show(center, radius, color)`, `Hide()`.
 - `TowerSelectionController` - `Configure`, `DeselectTower`, `RefreshTowerRange`.
 - `Bullet` - `Destination`, `Initialize(bulletData, damage, target)`; predicts an
-  enemy position along its path at launch and then keeps a fixed straight trajectory.
+  enemy position using its current effective speed at launch, then keeps a fixed
+  straight trajectory. Projectiles sweep their collider along each movement step
+  and damage only an enemy or marked destructible they actually intersect. A
+  missed direct shot deals no damage; splash resolves at its impact or endpoint.
+  Lasers damage only targets intersected by the configured beam.
 
 ### Level
 
@@ -366,3 +373,6 @@ Append a one-line entry whenever this document is updated.
   scene-reload restart, menu cleanup, and post-match build/selection locks.
 - 2026-09-16: Added straight predictive projectile flight and independent per-tower
   targeting modes for path progress, health, and effective enemy speed.
+- 2026-09-19: Documented bullet-based tower modifiers and laser configuration;
+  made pool releases idempotent and tied straight projectile and laser damage to
+  physical path intersections, with slowed speed used for shot leading.

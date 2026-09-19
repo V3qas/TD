@@ -525,9 +525,9 @@ namespace TD.UI
             contextBodyText.text =
                 $"{GetTowerName(towerData)}\n" +
                 $"Cost: {towerData.cost}\n" +
-                $"Damage: {towerData.damage:0.#}\n" +
-                $"Speed: {towerData.attackSpeed:0.##}/s\n" +
-                $"Range: {towerData.range:0.#}\n" +
+                $"Damage: {towerData.DamagePerShot:0.#}\n" +
+                $"Speed: {towerData.AttacksPerSecond:0.##}/s\n" +
+                $"Range: {towerData.TargetingRange:0.#}\n" +
                 "Left-click builds. Right-click or Esc cancels.";
 
             towerIconImage.sprite = towerData.icon;

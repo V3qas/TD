@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using TD.Combat;
 using TD.Core;
@@ -7,20 +8,51 @@ namespace TD.Bullets
 {
     public class Bullet : MonoBehaviour
     {
+        private readonly List<RaycastHit2D> castHits = new List<RaycastHit2D>(16);
         private BulletData data;
         private float damage;
         private IDamageable target;
         private bool hasHit;
         private Vector3 destination;
+        private bool isLaser;
+        private float laserLifetime;
+        private SpriteRenderer spriteRenderer;
+        private Collider2D projectileCollider;
+        private Vector3 defaultLocalScale;
+        private bool componentsCached;
 
         public Vector3 Destination => destination;
 
+        private void Awake()
+        {
+            CacheComponents();
+        }
+
+        private void CacheComponents()
+        {
+            spriteRenderer = GetComponent<SpriteRenderer>();
+            projectileCollider = GetComponent<Collider2D>();
+            defaultLocalScale = transform.localScale;
+            componentsCached = true;
+        }
+
         public void Initialize(BulletData bulletData, float damage, IDamageable target)
         {
+            if (!componentsCached)
+                CacheComponents();
+
             this.data = bulletData;
             this.damage = damage;
             this.target = target;
             hasHit = false;
+            isLaser = bulletData != null && bulletData.bulletType == BulletType.Laser;
+
+            if (isLaser)
+            {
+                FireLaser();
+                return;
+            }
+
             destination = CalculateDestination(target, bulletData != null ? bulletData.travelSpeed : 0f);
         }
 
@@ -31,37 +63,174 @@ namespace TD.Bullets
             hasHit = false;
             damage = 0f;
             destination = Vector3.zero;
+            isLaser = false;
+            laserLifetime = 0f;
+            data = null;
+            transform.localScale = defaultLocalScale;
         }
 
         private void Update()
         {
-            if (hasHit)
-                return;
-
-            if (target == null || target.IsDead)
+            if (isLaser)
             {
-                PrefabPool.Release(gameObject);
+                laserLifetime -= Time.deltaTime;
+                if (laserLifetime <= 0f)
+                    PrefabPool.Release(gameObject);
                 return;
             }
 
-            if (target is Destructible destructible && !destructible.IsMarked)
+            if (hasHit)
+                return;
+
+            if (data == null)
             {
                 PrefabPool.Release(gameObject);
                 return;
             }
 
             float step = Mathf.Max(0.01f, data.travelSpeed) * Time.deltaTime;
-            float distance = Vector3.Distance(transform.position, destination);
+            Vector3 nextPosition = Vector3.MoveTowards(transform.position, destination, step);
+            if (TryHitAlongPath(nextPosition))
+                return;
 
-            if (distance <= step)
+            transform.position = nextPosition;
+            if ((destination - nextPosition).sqrMagnitude <= Mathf.Epsilon)
+                OnReachedDestination();
+        }
+
+        private bool TryHitAlongPath(Vector3 nextPosition)
+        {
+            Vector2 movement = nextPosition - transform.position;
+            float distance = movement.magnitude;
+            if (distance <= Mathf.Epsilon)
+                return false;
+
+            Physics2D.SyncTransforms();
+            ContactFilter2D filter = ContactFilter2D.noFilter;
+            filter.useTriggers = true;
+            Vector2 direction = movement / distance;
+            float hitRadius = 0.05f;
+            if (projectileCollider is CircleCollider2D circleCollider)
             {
-                transform.position = destination;
-                OnReachedTarget();
+                Vector3 scale = transform.lossyScale;
+                hitRadius = circleCollider.radius * Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
             }
+            else if (projectileCollider != null)
+            {
+                Bounds bounds = projectileCollider.bounds;
+                hitRadius = Mathf.Max(bounds.extents.x, bounds.extents.y);
+            }
+
+            int hitCount = Physics2D.CircleCast(
+                transform.position,
+                Mathf.Max(0.01f, hitRadius),
+                direction,
+                filter,
+                castHits,
+                distance);
+            IDamageable closestTarget = null;
+            float closestDistance = float.PositiveInfinity;
+
+            for (int index = 0; index < hitCount; index++)
+            {
+                RaycastHit2D hit = castHits[index];
+                if (hit.collider == null || hit.collider.gameObject == gameObject)
+                    continue;
+
+                IDamageable damageable = hit.collider.GetComponentInParent<IDamageable>();
+                if (!CanHit(damageable) || hit.distance >= closestDistance)
+                    continue;
+
+                closestTarget = damageable;
+                closestDistance = hit.distance;
+            }
+
+            if (closestTarget == null)
+                return false;
+
+            transform.position += (Vector3)(direction * closestDistance);
+            hasHit = true;
+            if (data.splashRadius > 0f)
+                HitSplash();
             else
+                ApplyHit(closestTarget);
+
+            PrefabPool.Release(gameObject);
+            return true;
+        }
+
+        private void FireLaser()
+        {
+            Vector3 origin = transform.position;
+            Vector3 targetPosition = target != null ? target.WorldPosition : origin + Vector3.right;
+            Vector2 direction = targetPosition - origin;
+            if (direction.sqrMagnitude <= Mathf.Epsilon)
+                direction = Vector2.right;
+            else
+                direction.Normalize();
+
+            float beamLength = Mathf.Max(0.1f, data.maxTravelDistance);
+            float beamWidth = Mathf.Max(0.01f, data.beamWidth);
+            destination = origin + (Vector3)(direction * beamLength);
+            laserLifetime = Mathf.Max(0.01f, data.beamDuration);
+
+            HitLaserPath(origin, direction, beamLength, beamWidth);
+
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            transform.SetPositionAndRotation(
+                Vector3.Lerp(origin, destination, 0.5f),
+                Quaternion.Euler(0f, 0f, angle));
+            transform.localScale = new Vector3(beamLength, beamWidth, defaultLocalScale.z);
+
+            if (spriteRenderer == null)
+                Debug.LogWarning($"Laser bullet '{name}' has no SpriteRenderer for its beam visual.");
+        }
+
+        private void HitLaserPath(Vector2 origin, Vector2 direction, float beamLength, float beamWidth)
+        {
+            Physics2D.SyncTransforms();
+            RaycastHit2D[] hits = Physics2D.CircleCastAll(
+                origin,
+                beamWidth * 0.5f,
+                direction,
+                beamLength);
+
+            HashSet<IDamageable> hitTargets = data.isPiercing ? new HashSet<IDamageable>() : null;
+            IDamageable closestTarget = null;
+            float closestDistance = float.PositiveInfinity;
+
+            foreach (RaycastHit2D hit in hits)
             {
-                transform.position = Vector3.MoveTowards(transform.position, destination, step);
+                IDamageable damageable = hit.collider != null
+                    ? hit.collider.GetComponentInParent<IDamageable>()
+                    : null;
+                if (!CanHit(damageable))
+                    continue;
+
+                if (!data.isPiercing)
+                {
+                    if (hit.distance < closestDistance)
+                    {
+                        closestTarget = damageable;
+                        closestDistance = hit.distance;
+                    }
+                    continue;
+                }
+
+                ApplyUniqueHit(damageable, hitTargets);
             }
+
+            if (closestTarget != null)
+                ApplyHit(closestTarget);
+        }
+
+        private void ApplyUniqueHit(IDamageable victim, HashSet<IDamageable> hitTargets)
+        {
+            if (victim == null)
+                return;
+
+            if (hitTargets.Add(victim))
+                ApplyHit(victim);
         }
 
         private Vector3 CalculateDestination(IDamageable damageable, float projectileSpeed)
@@ -83,41 +252,49 @@ namespace TD.Bullets
             return predictedPosition;
         }
 
-        private void OnReachedTarget()
+        private void OnReachedDestination()
         {
             hasHit = true;
 
             if (data.splashRadius > 0f)
                 HitSplash();
-            else
-                ApplyHit(target);
 
             PrefabPool.Release(gameObject);
         }
 
         private void HitSplash()
         {
+            Physics2D.SyncTransforms();
             Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, data.splashRadius);
             foreach (Collider2D hit in hits)
             {
-                IDamageable damageable = hit.GetComponent<IDamageable>();
+                IDamageable damageable = hit.GetComponentInParent<IDamageable>();
                 if (damageable != null)
                     ApplyHit(damageable);
             }
         }
 
-        private void ApplyHit(IDamageable victim)
+        private static bool CanHit(IDamageable victim)
         {
             if (victim == null || victim.IsDead)
+                return false;
+
+            if (victim is Component component && (component == null || !component.gameObject.activeInHierarchy))
+                return false;
+
+            return !(victim is Destructible destructible) || destructible.IsMarked;
+        }
+
+        private void ApplyHit(IDamageable victim)
+        {
+            if (!CanHit(victim))
                 return;
 
-            if (victim is Destructible destructible && !destructible.IsMarked)
-                return;
-
-            float finalDamage = damage * data.damageMultiplier;
+            float finalDamage = data.ModifyDamage(damage);
             victim.TakeDamage(finalDamage);
 
-            if (data.slowDuration > 0f && data.slowFactor < 1f && victim is Enemy enemy)
+            if (data.slowDuration > 0f && data.slowFactor < 1f
+                && victim is Enemy enemy && !enemy.IsDead && enemy.isActiveAndEnabled)
                 enemy.ApplySlow(data.slowFactor, data.slowDuration);
         }
     }

@@ -55,6 +55,41 @@ namespace TD.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator FinalLife_GoalRelease_DoesNotDuplicatePooledEnemy()
+        {
+            GameState gameState = CreateComponent<GameState>("GameState");
+            gameState.DamageBase(gameState.StartingLives - 1);
+            GridManager gridManager = CreateTwoCellGrid();
+            EnemyData enemyData = CreateEnemyData(100f);
+            GameObject enemyPrefab = CreateEnemyPrefab();
+            EnemySpawner spawner = CreateSpawner(gameState, gridManager, enemyData, enemyPrefab);
+
+            spawner.gameObject.SetActive(true);
+            yield return null;
+            spawner.BeginSpawning();
+
+            float timeout = Time.realtimeSinceStartup + 2f;
+            while (gameState.State == MatchState.Playing && Time.realtimeSinceStartup < timeout)
+                yield return null;
+
+            Assert.That(gameState.State, Is.EqualTo(MatchState.Lost));
+
+            GameObject first = PrefabPool.Spawn(enemyPrefab, Vector3.zero, Quaternion.identity);
+            GameObject second = PrefabPool.Spawn(enemyPrefab, Vector3.right, Quaternion.identity);
+            try
+            {
+                Assert.That(second, Is.Not.SameAs(first),
+                    "One enemy instance was returned to the pool twice.");
+            }
+            finally
+            {
+                PrefabPool.Release(first);
+                if (second != first)
+                    PrefabPool.Release(second);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator FinalRound_WaitsForLastEnemy_ThenWinsOnceWithoutRoundSix()
         {
             GameState gameState = CreateComponent<GameState>("GameState");

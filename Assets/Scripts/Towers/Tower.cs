@@ -18,7 +18,16 @@ namespace TD.Towers
 
         public TowerData Data => data;
         public int CurrentUpgradeLevel => currentUpgradeLevel;
-        public float Damage => EffectiveDamage;
+        public float Damage
+        {
+            get
+            {
+                BulletData bulletData = EffectiveBulletData;
+                return bulletData != null
+                    ? bulletData.ModifyDamage(EffectiveDamage)
+                    : EffectiveDamage;
+            }
+        }
         public float AttackSpeed => EffectiveAttackSpeed;
         public float Range => EffectiveRange;
         public TargetingMode TargetingMode => targetingMode;
@@ -45,7 +54,10 @@ namespace TD.Towers
                 for (int index = 0; index < cap; index++)
                     if (upgradeData.levels[index] != null)
                         total += upgradeData.levels[index].attackSpeedBonus;
-                return Mathf.Max(0.01f, total);
+                BulletData bulletData = EffectiveBulletData;
+                return bulletData != null
+                    ? bulletData.ModifyAttackSpeed(total)
+                    : Mathf.Max(0.01f, total);
             }
         }
 
@@ -58,7 +70,10 @@ namespace TD.Towers
                 for (int index = 0; index < cap; index++)
                     if (upgradeData.levels[index] != null)
                         total += upgradeData.levels[index].rangeBonus;
-                return total;
+                BulletData bulletData = EffectiveBulletData;
+                return bulletData != null
+                    ? bulletData.ModifyRange(total)
+                    : Mathf.Max(0f, total);
             }
         }
 

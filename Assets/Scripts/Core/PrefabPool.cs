@@ -38,11 +38,18 @@ namespace TD.Core
             if (instance == null)
                 return;
 
-            if (instance.TryGetComponent(out PooledObject pooled) && pooled.SourcePrefab != null
-                && pools.TryGetValue(pooled.SourcePrefab, out ObjectPool<GameObject> pool))
+            if (instance.TryGetComponent(out PooledObject pooled))
             {
-                pool.Release(instance);
-                return;
+                if (pooled.IsInPool)
+                    return;
+
+                if (pooled.SourcePrefab != null
+                    && pools.TryGetValue(pooled.SourcePrefab, out ObjectPool<GameObject> pool))
+                {
+                    pooled.IsInPool = true;
+                    pool.Release(instance);
+                    return;
+                }
             }
 
             Object.Destroy(instance);
@@ -78,6 +85,7 @@ namespace TD.Core
                 },
                 actionOnGet: instance =>
                 {
+                    instance.GetComponent<PooledObject>().IsInPool = false;
                     instance.SetActive(true);
                 },
                 actionOnRelease: instance =>
@@ -111,5 +119,6 @@ namespace TD.Core
     public class PooledObject : MonoBehaviour
     {
         public GameObject SourcePrefab;
+        internal bool IsInPool { get; set; }
     }
 }

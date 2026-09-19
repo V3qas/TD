@@ -32,5 +32,23 @@ namespace TD.Towers
         [Header("Prefabs")]
         [Tooltip("Tower prefab. Must contain a Tower component.")]
         public GameObject towerPrefab;
+
+        public float DamagePerShot => bulletData != null
+            ? bulletData.ModifyDamage(damage)
+            : Mathf.Max(0f, damage);
+
+        public float AttacksPerSecond => bulletData != null
+            ? bulletData.ModifyAttackSpeed(attackSpeed)
+            : Mathf.Max(0.01f, attackSpeed);
+
+        public float TargetingRange => GetTargetingRange();
+
+        public float GetTargetingRange(float flatRangeBonus = 0f)
+        {
+            float baseRange = range + flatRangeBonus;
+            return bulletData != null
+                ? bulletData.ModifyRange(baseRange)
+                : Mathf.Max(0f, baseRange);
+        }
     }
 }

@@ -35,7 +35,6 @@
   <Project Path="Unity.PerformanceTesting.csproj" />
   <Project Path="TD.Runtime.csproj" />
   <Project Path="Unity.VisualScripting.State.csproj" />
-  <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Unity.2D.Tilemap.Extras.Editor.csproj" />
   <Project Path="Unity.2D.Animation.Runtime.csproj" />
   <Project Path="UnityEditor.UI.csproj" />
@@ -54,6 +53,7 @@
   <Project Path="Unity.InputSystem.DocCodeSamples.csproj" />
   <Project Path="Unity.2D.Common.Runtime.csproj" />
   <Project Path="Unity.Multiplayer.Center.Common.csproj" />
+  <Project Path="TD.Tests.PlayMode.csproj" />
   <Project Path="Unity.InputSystem.ForUI.csproj" />
   <Project Path="Unity.Collections.CodeGen.csproj" />
   <Project Path="Unity.Mathematics.Editor.csproj" />
@@ -67,5 +67,4 @@
   <Project Path="TD.Editor.csproj" />
   <Project Path="Unity.Collections.Editor.csproj" />
   <Project Path="Unity.2D.Triangulation.Runtime.csproj" />
-  <Project Path="TD.Tests.PlayMode.csproj" />
 </Solution>

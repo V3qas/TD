@@ -246,9 +246,8 @@ namespace TD.Core
             // Mirror the runtime range bonus that BuildAtCell applies after
             // placement, so the ghost preview and range indicator already show
             // the boosted range while the player hovers Elevated terrain.
-            float ghostRange = towerToBuild.range;
-            if (gridManager.GetGroundType(cellPosition) == GroundType.Elevated)
-                ghostRange += 1f;
+            float terrainRangeBonus = gridManager.GetGroundType(cellPosition) == GroundType.Elevated ? 1f : 0f;
+            float ghostRange = towerToBuild.GetTargetingRange(terrainRangeBonus);
 
             if (ghostObject != null)
             {
