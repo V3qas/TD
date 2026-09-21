@@ -28,7 +28,7 @@ Comments
 - Comments are allowed only to explain *why* something non-obvious exists, or to reference external constraints (APIs, engine bugs, platform quirks).
 - Prefer documented design notes in `docs/` over many inline comments.
 
-Documentation maintenance
+## Documentation maintenance
 - The single source of truth for the high-level architecture is [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - Any change that adds, removes, renames, or alters the contract of:
   - a public type, method, property, event, or static API,
@@ -92,12 +92,12 @@ Unity-specific conventions
   - `Boot.unity`: minimal entry point, bootstraps persistent services.
   - `Menu.unity`: `MainMenuController`, `TitleScreenController`, no gameplay state.
   - `Gameplay.unity`: `GridManager`, `LevelLoader`, `BuildManager`, `EnemySpawner`, `InGameHudController`, `RuntimeMapEditorController`.
-  - Cross-scene data: prefer ScriptableObject or a dedicated persistent singleton (e.g. `GameSession` with `DontDestroyOnLoad`) over `PlayerPrefs` for transient state.
+  - Cross-scene selection is stored by the static `GameSession`. `GameState` is a scene-local singleton and resets on Gameplay reload. Use `PlayerPrefs` only for persisted preferences, not transient session state.
 - Null-safety & validation:
   - Validate serialized references in `Awake()`/`Start()`; on failure, `Debug.LogError` with component name and return early.
   - Use null-conditional and null-coalescing operators where they improve clarity.
 - Performance:
-  - Use object pooling for frequently spawned/destroyed objects (bullets, enemies, preview cells).
+- Use object pooling for frequently spawned/destroyed gameplay objects such as bullets and enemies; prefer reuse or incremental updates for preview cells.
   - Avoid allocations in `Update()` (no `new List<>`, no LINQ, no string concatenation in hot paths).
   - Cache `transform`, components, and lookup results.
 - Platform handling:
@@ -111,5 +111,9 @@ Visual / preview separation
 - Runtime gameplay must not spawn debug/preview visuals. Visual previews (e.g. `GridManager.BuildGridPreview`) are reserved for editor/runtime-editor flows.
 - Allocated `Texture2D`/`Sprite`/`Material` instances must be destroyed in `OnDestroy()` or when replaced.
 
-Next steps
-- If you want, I can add this file to the repository, create a `.editorconfig`, and add a minimal StyleCop/format setup. Tell me which of these I should apply automatically.
+Lifecycle and gameplay operations
+- Gate combat with `GameplayLifecycle.CanRunCombat`; editor authoring and ended matches must not mutate combat state.
+- Route editor-test cleanup through `GameplayLifecycle.ReturnToEditor` and level-visual cleanup through `LevelLoader.OnLevelCleared`.
+- Keep purchase rules outside UI controllers. Tower upgrades use `TowerUpgradeService.TryPurchase`; placement uses `BuildManager.TryBuildAtCell`.
+- Enemy movement precedes tower and projectile queries. Invalidate `CombatPhysics` when damageable transforms or their active state change within a frame.
+- Report persistence errors to callers. Never silently replace damaged save data or report an unsuccessful write as saved.

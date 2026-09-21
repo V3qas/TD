@@ -21,31 +21,47 @@ Assets/
 |-- Scripts/                Runtime gameplay code (TD.Runtime asmdef)
 |-- Sprites/
 `-- Tests/
-    `-- EditMode/           NUnit EditMode tests (TD.Tests.EditMode asmdef)
+    |-- EditMode/           NUnit EditMode tests (TD.Tests.EditMode asmdef)
+    `-- PlayMode/           Gameplay integration tests (TD.Tests.PlayMode asmdef)
 docs/
 tools/
 ```
 
 ## Running The Game
 
-1. Open the project in Unity.
+1. Open the project in Unity **6000.4.2f1** (see `ProjectSettings/ProjectVersion.txt`).
 2. Open `Assets/Scenes/Boot.unity` and press Play.
 3. Boot -> Menu -> Gameplay (campaign level or runtime map editor).
 
-## Building From The Command Line
+## Compiling C# From The Command Line
+
+Open the project in Unity first and regenerate the IDE project files if needed.
+The solution references Unity-generated `.csproj` files and the installed editor.
 
 ```powershell
 dotnet build TD.slnx
 ```
 
-This compiles all generated `.csproj` files. Unity warnings from packages are expected.
+This compiles the C# solution; it does not create a playable game build. Unity
+package warnings are expected. Create a Windows player through Unity's Build
+Profiles window, with Boot, Menu and Gameplay included in that order.
 
 ## Tests
 
-EditMode unit tests cover the pure-data layers: `Pathfinder`, `LevelMapDefinition`,
-`LevelMapValidator`, `LevelMapSeedUtility`, `Difficulty`, and `MapCameraFrame`.
+EditMode tests cover map data, validation, migration/storage failures, pathfinding,
+frame-independent path traversal, targeting, upgrades, difficulty, and scene assets.
+PlayMode tests cover projectile hits, splash deduplication, goal damage, wave
+completion, campaign construction/upgrades/sales/reload, and repeated editor tests.
 
-Run them from Unity via **Window -> General -> Test Runner -> EditMode -> Run All**.
+Run both tabs from **Window -> General -> Test Runner -> Run All**. For a headless
+run, close the Unity editor for this project and use PowerShell:
+
+```powershell
+& "$env:ProgramFiles\Unity\Hub\Editor\6000.4.2f1\Editor\Unity.exe" -batchmode -nographics -projectPath "$PWD" -runTests -testPlatform EditMode -testResults "$PWD/Temp/editmode.xml" -logFile "$PWD/Temp/editmode.log"
+```
+
+Repeat with `PlayMode` and different result/log filenames. The test runner exits
+when finished; do not add `-quit` to the test command.
 
 ## Tools
 
@@ -55,5 +71,10 @@ Run them from Unity via **Window -> General -> Test Runner -> EditMode -> Run Al
 
 ## Persistence
 
-- **Custom maps** - JSON file at `Application.persistentDataPath/customMaps.json`, with one-time migration from the legacy `PlayerPrefs` entry.
-- **Cross-scene state** - `GameSession` (static) and `GameState` (singleton MonoBehaviour).
+- **Custom maps** - JSON file at `Application.persistentDataPath/customMaps.json`.
+  Saves use a temporary file and atomic replacement. Failed saves return an error;
+  damaged existing files are preserved. Legacy PlayerPrefs data is removed only
+  after successful migration to disk.
+- **Cross-scene selection** - `GameSession` (static): level, difficulty and editor flags.
+- **Scene-local match state** - `GameState` (singleton MonoBehaviour): reset when
+  Gameplay reloads; it is not a persistent `DontDestroyOnLoad` object.

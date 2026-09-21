@@ -22,7 +22,8 @@ TD/
 |   |-- Scripts/                # Runtime gameplay code (TD.Runtime asmdef)
 |   |-- Sprites/
 |   `-- Tests/
-|       `-- EditMode/           # NUnit EditMode tests (TD.Tests.EditMode asmdef)
+|       |-- EditMode/           # NUnit EditMode tests (TD.Tests.EditMode asmdef)
+|       `-- PlayMode/           # Gameplay integration tests (TD.Tests.PlayMode asmdef)
 |-- Packages/
 |-- ProjectSettings/
 |-- docs/
@@ -48,13 +49,13 @@ Runtime code is grouped by domain:
 
 | Subsystem   | Folder                        | Responsibilities |
 | ----------- | ----------------------------- | ---------------- |
-| Core        | `Assets/Scripts/Core/`        | Session state, game state, build placement, difficulty, pooling |
+| Core        | `Assets/Scripts/Core/`        | Session state, match lifecycle/cleanup, build placement, difficulty, pooling |
 | Grid        | `Assets/Scripts/Grid/`        | Grid cells, build/path occupancy, cached enemy paths; preview overlay rendering split into `GridPreviewRenderer` |
-| Pathfinding | `Assets/Scripts/Pathfinding/` | BFS pathfinding |
+| Pathfinding | `Assets/Scripts/Pathfinding/` | BFS over the read-only `IPathGrid` contract |
 | Enemy       | `Assets/Scripts/Enemy/`       | Enemy stats, runtime enemies, round spawning; round composition split into `WavePlanner` |
 | Towers      | `Assets/Scripts/Towers/`      | Towers, upgrades, selection, range indicators; per-instance targeting modes via `ITargetProvider` |
 | Bullets     | `Assets/Scripts/Bullets/`     | Projectile stats and straight predictive projectile flight |
-| Combat      | `Assets/Scripts/Combat/`      | Shared damage contract, rocks, destructible blockers |
+| Combat      | `Assets/Scripts/Combat/`      | Shared damage contract, physics synchronization, rocks, destructible blockers |
 | Level       | `Assets/Scripts/Level/`       | Level data, map seeds, loading, camera framing, map occupants |
 | UI          | `Assets/Scripts/UI/`          | HUD and runtime map editor |
 | Menu        | `Assets/Scripts/Menu/`        | Title screen and main menu |
@@ -105,13 +106,36 @@ Cross-scene state lives on `GameSession` (static): selected level, map seed,
 difficulty, editor flags. Runtime state lives on `GameState` (singleton
 MonoBehaviour): current round, money, base lives, configured maximum rounds, and
 the authoritative `Playing` / `Won` / `Lost` match state. MVP restarts reload the
-  `Gameplay` scene; `GameState.ResetState()` restores the complete starting state.
+`Gameplay` scene; `GameState.ResetState()` restores the complete starting state.
+`GameState` is scene-local and is destroyed on scene unload.
+Selecting a campaign level or custom map clears editor/test flags. Entering the map
+editor clears gameplay selection, so a previous session cannot leak into the next
+mode even when navigation did not follow the normal menu cleanup path.
 
 `InGameHudController` observes the match state. It displays lives and finite wave
 progress, blocks build/selection actions after the match, and presents the final
 result. Restart reloads `Gameplay`; returning to the menu clears transient session
 selection and editor/test flags. Editor test runs replace the menu action with a
 return to the runtime editor.
+
+`GameplayLifecycle.CanRunCombat` gates enemy movement, tower attacks, projectiles,
+and destructible interaction in editor authoring and after match end. On match
+end, `GameState` calls `GameplayLifecycle.StopCombat` to release active bullets and
+clear marked targets before notifying subscribers; `EnemySpawner` clears enemies
+and its spawn queue. The result overlay leaves the level and towers visible.
+
+Editor return goes through `GameplayLifecycle.ReturnToEditor`: end test mode, stop
+spawning, release projectiles, clear targets/towers/placement ghosts, and call
+`LevelLoader.ClearLoadedLevel`. Its `OnLevelCleared` event clears occupants, ground
+tiles and theme background. Objects are deactivated before deferred destruction.
+The HUD clears selection and range indicators. Both campaign and editor test runs
+render gameplay through `GroundOverlaySpawner`; only authoring uses preview tiles.
+
+Combat update order is enemy movement (-100), normal spawning (0), towers (100),
+then bullets (200). `CombatPhysics.Synchronize` reuses the frame's physics snapshot
+unless a damageable spawn, movement or disable invalidates it. External systems
+moving damageables during combat must call `Invalidate`. EditMode queries always
+synchronize, since the frame counter does not provide a simulation boundary there.
 
 ---
 
@@ -145,9 +169,16 @@ tiles: legacy `blockedCells` are migrated into `occupants` of type `Rock` during
 `Normalize()` and the field is then cleared. Maps may be at most
 `LevelMapDefinition.MaxSize` (70) cells per side.
 
-Custom maps created at runtime are persisted by `CustomMapStorage` as
-`Application.persistentDataPath/customMaps.json`, with one-time migration from the
-legacy PlayerPrefs entry.
+Map data, seed encoding, validation and persistence live in separate source files:
+`LevelMapDefinition`, `LevelMapSeedUtility`, `LevelMapValidator`, and `CustomMapStorage`.
+Custom maps are persisted to `Application.persistentDataPath/customMaps.json`.
+The internal `CustomMapStore` accepts a file path and legacy-data callbacks for
+isolated filesystem tests. Saves write a temporary file in the same directory and
+replace the existing file atomically (or rename on first save). Write failures are
+returned to the UI; no PlayerPrefs fallback can silently supersede a disk save.
+Unreadable/damaged files prevent writes and remain untouched. Legacy PlayerPrefs
+data is imported only when the file is absent, and deleted only after a successful
+write. `GetAll` logs load errors; restore a known-good file before saving again.
 
 ---
 
@@ -172,7 +203,10 @@ public method or property is added, removed, or renamed.
   `rewardMultiplier`, `amountMultiplier`, `amountScaleMultiplier`.
 - `BuildManager` - `IsPlacingTower`, `SelectedTowerToBuild`, `AvailableTowers`;
   event `OnBuildSelectionChanged`; methods `SelectTowerToBuild`,
-  `ClearSelectedTowerToBuild`, `CanAfford`, `SellTower`, `ClearAllPlacedTowers`.
+  `ClearSelectedTowerToBuild`, `CanAfford`, `TryBuildAtCell`, `SellTower`, `ClearAllPlacedTowers`.
+  Placement validates the cell and match, charges money, and refunds failed placement.
+- `GameplayLifecycle` (static) - `CanRunCombat`, `StopCombat`,
+  `ReturnToEditor(spawner, builder, loader)` coordinate combat and editor cleanup.
 - `Difficulty` - enum `DifficultyLevel { Easy, Normal, Hard, Nightmare }`,
   `DifficultySettings.ForLevel(level)`.
 - `PrefabPool` (static) - `Spawn(prefab, position, rotation)`, `Release(instance)`,
@@ -188,12 +222,15 @@ public method or property is added, removed, or renamed.
   `GetNeighbors`, `WorldToCell`, `CellToWorld`, `IsReservedPathCell`,
   `IsPathCell`, `CanEnemyWalkOn`, `CanBuildAt`, `GetGroundType`,
   `GetCachedEnemyPathWorld`, `TryOccupyCell`, `ClearOccupiedCell`,
-  `ClearBlockedCell`, `WouldOccupyingCellBlockPath`.
+  `ClearBlockedCell`, `WouldOccupyingCellBlockPath`, `UpdatePreviewCell`.
 - `GridPreviewRenderer` - owns the map-editor preview overlay; `Build`,
-  `Clear`, `DisposeSprite`. Used internally by `GridManager`.
+  `Clear`, `DisposeSprite`, `UpdateCell`. Used internally by `GridManager`.
 - `GridCell` - `X`, `Y`, `Position`, `IsBlocked`, `IsOccupied`, `IsPath`,
   `IsWalkable`, `SetBlocked`, `SetPath`, `SetOccupied`.
-- `Pathfinder` - `FindPath(start, goal)`, `HasPath(start, goal)`.
+- `IPathGrid` - `GetCell(position)`, `CanEnemyWalkOn(cell)`; implemented by
+  `GridManager` or a pure-data grid. `Pathfinder` has no MonoBehaviour dependency.
+- `Pathfinder` - constructor accepts `IPathGrid`; `FindPath(start, goal)`,
+  `HasPath(start, goal)`. Enumerates four directions without per-cell neighbor lists.
 
 ### Enemy & Combat
 
@@ -201,6 +238,11 @@ public method or property is added, removed, or renamed.
   `CurrentHealth`, `MaxHealth`, `CurrentSpeed`, `PathProgress`, `WorldPosition`;
   events `OnDied`, `OnReachedGoal`; methods `Initialize`, `SetWaypoints`,
   `PredictPosition`, `TakeDamage`, `ApplySlow`.
+- `EnemyPath` - immutable waypoint snapshot shared by all enemies on a route;
+  `Count`, indexer, `Advance(position, ref waypointIndex, distance)`, `GetProgress`.
+  Movement and prediction use the same distance-budget traversal. Cached suffix
+  lengths make path-progress queries O(1). List-based enemy initialization/path
+  replacement overloads remain available and create a snapshot.
 - `EnemyData` - public fields `enemyName`, `maxHealth`, `speed`, `shield`,
   `armor`, `goalDamage`, `reward`.
 - `EnemySpawnEntry` - enemy data/prefab plus round scaling fields
@@ -218,6 +260,7 @@ public method or property is added, removed, or renamed.
 - `ITargetProvider` - `FindTarget(origin, range, targetingMode)`; abstraction that decouples
   towers from the global enemy/destructible registries.
 - `Rock` - marker component for indestructible occupant objects.
+- `CombatPhysics` (static) - `Synchronize`, `Invalidate`; see combat update order above.
 
 ### Towers & Bullets
 
@@ -225,9 +268,14 @@ public method or property is added, removed, or renamed.
   `TargetingMode`, `Initialize`, `SetTerrainRangeBonus`, `SetTargetProvider`,
   `SetTargetingMode`, `CycleTargetingMode`, `CanUpgrade`, `GetNextUpgradeCost`,
   `TryUpgrade`, `GetSellValue`.
+- `TowerUpgradeService` - `TryPurchase(tower, gameState)` owns match/affordability
+  checks, payment and upgrade application/refund. The HUD delegates the purchase.
+  `Tower.TryUpgrade` remains the low-level stat mutation, without payment.
 - `DefaultTargetProvider` - `ITargetProvider` implementation (singleton
   `Instance`); marked destructibles first, then an enemy selected per tower by
   path progress, current health, or effective speed.
+  Each candidate's metric is evaluated once per search. Towers without a target
+  retry at 0.1-second intervals instead of every frame; firing cadence is unchanged.
 - `TowerData` - public fields `towerName`, `icon`, `cost`, `damage`,
   `attackSpeed`, `range`, `bulletData`, `towerPrefab`; derived combat values
   `DamagePerShot`, `AttacksPerSecond`, `TargetingRange`, and `GetTargetingRange`.
@@ -240,12 +288,15 @@ public method or property is added, removed, or renamed.
   `ModifyDamage`, `ModifyAttackSpeed`, and `ModifyRange` apply the multipliers.
 - `RangeIndicator` - `Show(center, radius, color)`, `Hide()`.
 - `TowerSelectionController` - `Configure`, `DeselectTower`, `RefreshTowerRange`.
-- `Bullet` - `Destination`, `Initialize(bulletData, damage, target)`; predicts an
+- `Bullet` - `Destination`, `Initialize(bulletData, damage, target)`, `ReleaseAll`; predicts an
   enemy position using its current effective speed at launch, then keeps a fixed
   straight trajectory. Projectiles sweep their collider along each movement step
   and damage only an enemy or marked destructible they actually intersect. A
   missed direct shot deals no damage; splash resolves at its impact or endpoint.
   Lasers damage only targets intersected by the configured beam.
+  Queries reuse per-instance result lists and a target set; splash and piercing
+  lasers damage each target once even with multiple colliders. The serialized
+  `hitLayers` mask defaults to all layers for existing prefab compatibility.
 
 ### Level
 
@@ -264,7 +315,10 @@ public method or property is added, removed, or renamed.
 - `OccupantType` - enum `None`, `Rock`, `Destructible`.
 - `GroundOverrideEntry` - fields `cell`, `type`.
 - `OccupantEntry` - fields `cell`, `type`, `maxHp`, `reward`.
-- `LevelMapSeedUtility` - `SeedPrefix`, `Encode`, `ToJson`, `TryDecode`.
+- `LevelMapSeedUtility` - `SeedPrefix`, `Encode`, `ToJson`, `TryDecode`, `TryDecodeRaw`.
+- `LevelMapAuthoringState` - `MapDefinition`, `HasExplicitPath`, `CreateNewMap`,
+  `LoadDefinition`, `BuildDefinition`, `PaintCell`, `GenerateRandomPath`,
+  `ScatterRandomBlocks`, `TryGetOccupant`, `TryGetGroundOverride`, `IsPathCell`.
 - `LevelMapValidator` - `Validate`.
 - `CustomMapEntry` - fields `label`, `seed`.
 - `CustomMapCollection` - field `maps`.
@@ -272,8 +326,8 @@ public method or property is added, removed, or renamed.
 - `MapGenerator` - `ScatterParams`, `GeneratePath`, `ScatterBlocks`,
   `GenerateFullMap`, `GenerateForkAndMerge`.
 - `LevelLoader` - `DefaultLevelData`, `HasLoadedLevel`, `LoadedMapDefinition`;
-  events `OnLevelLoaded`, `OnMapLoaded`; methods `LoadSelectedOrDefaultLevel`,
-  `LoadLevel`, `LoadMapSeed`, `LoadMap`.
+  events `OnLevelLoaded`, `OnMapLoaded`, `OnLevelCleared`; methods `LoadSelectedOrDefaultLevel`,
+  `LoadLevel`, `LoadMapSeed`, `LoadMap`, `ClearLoadedLevel`.
 - `GroundOverlaySpawner` - renders the complete gameplay grid on level/map load,
   including buildable ground, path, start/goal cells, and special terrain. Runtime
   map-editor authoring continues to use `GridPreviewRenderer` instead.
@@ -291,6 +345,10 @@ public method or property is added, removed, or renamed.
   `Show`, `Hide`, `ShowTower`, `ClearContext`.
 - `HealthBar` - `Bind`, `Unbind`, `AttachTo`.
 - `RuntimeMapEditorController` - `Open`, `CloseToMenu`.
+  Painting updates only changed cells (including previous start/goal cells).
+  Seed encoding and validation run after 0.15 seconds without another edit or
+  on mouse release; save/test buttons are disabled while validation is pending.
+  Loading/resizing/generating a map still performs a full preview rebuild.
 - `MainMenuController` - `ShowMainMenu`, `HideMenu`.
 - `TitleScreenController` - drives splash and transition to Menu.
 - `MainMenuConfig` - `title`, `mainButtons`, `campaignTitle`, `campaignLevels`.
@@ -334,8 +392,10 @@ public method or property is added, removed, or renamed.
 - **HUD/Menu UI source** - menus and HUD are constructed from code at runtime.
   Once the layout stabilizes, migrating to UXML or prefabs would make iteration and
   theming easier.
-- **Test coverage expansion** - `EnemySpawner` round scaling, `BuildManager`
-  placement rules, and runtime map editor flows need PlayMode coverage.
+- **Release validation** - automated tests cover campaign build/upgrade/sale/reload,
+  repeated editor tests, projectiles and match state. Manual input/layout checks,
+  a complete balanced playthrough, standalone-player validation and profiler
+  measurements at the intended enemy/tower/map scale remain required.
 - **Visual polish** - several runtime visuals are generated from tinted 1x1 sprites
   and should eventually move to authored assets.
 
@@ -376,3 +436,8 @@ Append a one-line entry whenever this document is updated.
 - 2026-09-19: Documented bullet-based tower modifiers and laser configuration;
   made pool releases idempotent and tied straight projectile and laser damage to
   physical path intersections, with slowed speed used for shot leading.
+- 2026-09-21: Added atomic custom-map persistence with error reporting; split map
+  model/codec/validator/storage; introduced shared EnemyPath traversal, cached
+  progress, IPathGrid, batched physics synchronization, reusable query results,
+  deduplicated splash, incremental previews, guarded GameSession transitions,
+  GameplayLifecycle cleanup and UI-independent tower transactions.
