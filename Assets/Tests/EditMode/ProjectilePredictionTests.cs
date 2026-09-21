@@ -4,6 +4,7 @@ using UnityEngine;
 using TD.Bullets;
 using TD.Core;
 using TD.Enemies;
+using TD.Towers;
 
 namespace TD.Tests.EditMode
 {
@@ -13,6 +14,7 @@ namespace TD.Tests.EditMode
         private GameObject bulletObject;
         private EnemyData enemyData;
         private BulletData bulletData;
+        private Enemy enemy;
 
         [SetUp]
         public void SetUp()
@@ -25,7 +27,7 @@ namespace TD.Tests.EditMode
 
             enemyObject = new GameObject("Runner");
             enemyObject.transform.position = new Vector3(5f, 0f, 0f);
-            Enemy enemy = enemyObject.AddComponent<Enemy>();
+            enemy = enemyObject.AddComponent<Enemy>();
             enemy.Initialize(enemyData, new List<Vector3>
             {
                 new Vector3(5f, 0f, 0f),
@@ -62,6 +64,30 @@ namespace TD.Tests.EditMode
             enemyObject.transform.position = new Vector3(8f, 4f, 0f);
 
             Assert.That(bullet.Destination, Is.EqualTo(launchDestination));
+        }
+
+        [Test]
+        public void TowerAim_UsesSamePredictedDestinationAsProjectile()
+        {
+            GameObject towerObject = new GameObject("Tower");
+            TowerData towerData = ScriptableObject.CreateInstance<TowerData>();
+            try
+            {
+                towerData.bulletData = bulletData;
+                Tower tower = towerObject.AddComponent<Tower>();
+                tower.Initialize(towerData);
+
+                Vector3 towerAimPosition = tower.GetAimPositionForTarget(enemy);
+                Vector3 projectileDestination = bulletObject.GetComponent<Bullet>().Destination;
+
+                Assert.That(towerAimPosition, Is.EqualTo(projectileDestination));
+                Assert.That(towerAimPosition.y, Is.GreaterThan(enemy.WorldPosition.y));
+            }
+            finally
+            {
+                Object.DestroyImmediate(towerObject);
+                Object.DestroyImmediate(towerData);
+            }
         }
     }
 }

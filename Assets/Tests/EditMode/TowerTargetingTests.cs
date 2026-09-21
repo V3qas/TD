@@ -81,5 +81,23 @@ namespace TD.Tests.EditMode
                 Object.DestroyImmediate(laserData);
             }
         }
+
+        [Test]
+        public void AimRotation_UsesPositiveXAxisAsForward()
+        {
+            bool hasDirection = Tower.TryGetAimRotation(Vector3.zero, Vector3.up, out Quaternion rotation);
+
+            Assert.That(hasDirection, Is.True);
+            Assert.That(Quaternion.Angle(rotation, Quaternion.Euler(0f, 0f, 90f)), Is.LessThan(0.001f));
+        }
+
+        [Test]
+        public void AimRotation_RejectsOverlappingTarget()
+        {
+            bool hasDirection = Tower.TryGetAimRotation(Vector3.one, Vector3.one, out Quaternion rotation);
+
+            Assert.That(hasDirection, Is.False);
+            Assert.That(rotation, Is.EqualTo(Quaternion.identity));
+        }
     }
 }

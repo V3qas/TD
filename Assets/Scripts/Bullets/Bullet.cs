@@ -82,7 +82,10 @@ namespace TD.Bullets
                 return;
             }
 
-            destination = CalculateDestination(target, bulletData != null ? bulletData.travelSpeed : 0f);
+            destination = PredictDestination(
+                transform.position,
+                target,
+                bulletData != null ? bulletData.travelSpeed : 0f);
         }
 
         private void OnDisable()
@@ -276,20 +279,23 @@ namespace TD.Bullets
                 ApplyHit(victim);
         }
 
-        private Vector3 CalculateDestination(IDamageable damageable, float projectileSpeed)
+        internal static Vector3 PredictDestination(
+            Vector3 origin,
+            IDamageable damageable,
+            float projectileSpeed)
         {
             if (damageable == null)
-                return transform.position;
+                return origin;
 
             Vector3 predictedPosition = damageable.WorldPosition;
             if (!(damageable is Enemy enemy) || projectileSpeed <= 0f)
                 return predictedPosition;
 
-            float travelTime = Vector3.Distance(transform.position, predictedPosition) / projectileSpeed;
+            float travelTime = Vector3.Distance(origin, predictedPosition) / projectileSpeed;
             for (int iteration = 0; iteration < 4; iteration++)
             {
                 predictedPosition = enemy.PredictPosition(travelTime);
-                travelTime = Vector3.Distance(transform.position, predictedPosition) / projectileSpeed;
+                travelTime = Vector3.Distance(origin, predictedPosition) / projectileSpeed;
             }
 
             return predictedPosition;

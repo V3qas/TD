@@ -9,6 +9,13 @@ namespace TD.Towers
     public class Tower : MonoBehaviour
     {
         private const float TargetSearchInterval = 0.1f;
+
+        [Header("Aiming")]
+        [SerializeField] private Transform turretPivot;
+        [SerializeField] private Transform firePoint;
+        [SerializeField, Min(0f)] private float rotationSpeed = 540f;
+        [SerializeField, Range(0f, 45f)] private float firingAngleTolerance = 5f;
+
         private TowerData data;
         private TowerUpgradeData upgradeData;
         private int currentUpgradeLevel;
@@ -18,6 +25,7 @@ namespace TD.Towers
         private float terrainRangeBonus;
         private ITargetProvider targetProvider;
         private TargetingMode targetingMode = TargetingMode.First;
+        private IDamageable currentTarget;
 
         public TowerData Data => data;
         public int CurrentUpgradeLevel => currentUpgradeLevel;
@@ -125,6 +133,7 @@ namespace TD.Towers
             targetSearchTimer = 0f;
             totalInvested = towerData != null ? towerData.cost : 0;
             targetingMode = TargetingMode.First;
+            currentTarget = null;
             if (targetProvider == null)
                 targetProvider = DefaultTargetProvider.Instance;
         }
@@ -141,12 +150,14 @@ namespace TD.Towers
         public void SetTargetingMode(TargetingMode mode)
         {
             targetingMode = mode;
+            currentTarget = null;
+            targetSearchTimer = 0f;
         }
 
         public TargetingMode CycleTargetingMode()
         {
             int modeCount = System.Enum.GetValues(typeof(TargetingMode)).Length;
-            targetingMode = (TargetingMode)(((int)targetingMode + 1) % modeCount);
+            SetTargetingMode((TargetingMode)(((int)targetingMode + 1) % modeCount));
             return targetingMode;
         }
 
@@ -187,24 +198,104 @@ namespace TD.Towers
         private void Update()
         {
             if (data == null || !GameplayLifecycle.CanRunCombat)
+            {
+                currentTarget = null;
                 return;
+            }
 
             attackTimer -= Time.deltaTime;
             targetSearchTimer -= Time.deltaTime;
 
-            if (attackTimer <= 0f && targetSearchTimer <= 0f)
+            if (!IsValidTarget(currentTarget))
+                currentTarget = null;
+
+            if (targetSearchTimer <= 0f && (currentTarget == null || attackTimer <= 0f))
             {
-                IDamageable target = FindNearestTarget();
-                if (target != null)
-                {
-                    Shoot(target);
-                    attackTimer = 1f / EffectiveAttackSpeed;
-                }
-                else
-                {
-                    targetSearchTimer = TargetSearchInterval;
-                }
+                currentTarget = FindNearestTarget();
+                targetSearchTimer = TargetSearchInterval;
             }
+
+            if (currentTarget == null)
+                return;
+
+            RotateTowardsTarget(currentTarget);
+
+            if (attackTimer <= 0f && IsAimedAt(currentTarget))
+            {
+                Shoot(currentTarget);
+                attackTimer = 1f / EffectiveAttackSpeed;
+            }
+        }
+
+        private bool IsValidTarget(IDamageable target)
+        {
+            if (target == null)
+                return false;
+
+            if (target is Component component && (component == null || !component.gameObject.activeInHierarchy))
+                return false;
+
+            if (target.IsDead)
+                return false;
+
+            float range = EffectiveRange;
+            return (target.WorldPosition - transform.position).sqrMagnitude <= range * range;
+        }
+
+        private void RotateTowardsTarget(IDamageable target)
+        {
+            if (turretPivot == null
+                || !TryGetTargetRotation(target, out Quaternion targetRotation))
+                return;
+
+            turretPivot.rotation = Quaternion.RotateTowards(
+                turretPivot.rotation,
+                targetRotation,
+                rotationSpeed * Time.deltaTime);
+        }
+
+        private bool IsAimedAt(IDamageable target)
+        {
+            if (turretPivot == null
+                || !TryGetTargetRotation(target, out Quaternion targetRotation))
+                return true;
+
+            return Quaternion.Angle(turretPivot.rotation, targetRotation) <= firingAngleTolerance;
+        }
+
+        private bool TryGetTargetRotation(IDamageable target, out Quaternion rotation)
+        {
+            Vector3 aimPosition = GetAimPositionForTarget(target);
+            return TryGetAimRotation(turretPivot.position, aimPosition, out rotation);
+        }
+
+        internal Vector3 GetAimPositionForTarget(IDamageable target)
+        {
+            Vector3 origin = firePoint != null
+                ? firePoint.position
+                : turretPivot != null
+                    ? turretPivot.position
+                    : transform.position;
+            BulletData bulletData = EffectiveBulletData;
+            float projectileSpeed = bulletData != null && bulletData.bulletType == BulletType.Projectile
+                ? bulletData.travelSpeed
+                : 0f;
+
+            return Bullet.PredictDestination(origin, target, projectileSpeed);
+        }
+
+        internal static bool TryGetAimRotation(Vector3 origin, Vector3 targetPosition, out Quaternion rotation)
+        {
+            Vector2 direction = targetPosition - origin;
+            if (direction.sqrMagnitude <= Mathf.Epsilon)
+            {
+                rotation = Quaternion.identity;
+                return false;
+            }
+
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            rotation = Quaternion.Euler(0f, 0f, angle);
+            return true;
         }
 
         /// <summary>
@@ -233,7 +324,9 @@ namespace TD.Towers
                 return;
             }
 
-            GameObject bulletObject = PrefabPool.Spawn(bulletData.bulletPrefab, transform.position, Quaternion.identity);
+            Vector3 spawnPosition = firePoint != null ? firePoint.position : transform.position;
+            Quaternion spawnRotation = firePoint != null ? firePoint.rotation : Quaternion.identity;
+            GameObject bulletObject = PrefabPool.Spawn(bulletData.bulletPrefab, spawnPosition, spawnRotation);
             Bullet bullet = bulletObject.GetComponent<Bullet>();
 
             if (bullet != null)
