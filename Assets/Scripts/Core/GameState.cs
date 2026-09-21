@@ -141,6 +141,7 @@ namespace TD.Core
                 return false;
 
             State = result;
+            GameplayLifecycle.StopCombat();
             OnMatchEnded?.Invoke(State);
             return true;
         }

@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 using TD.Core;
 using TD.Enemies;
 
@@ -168,6 +170,25 @@ namespace TD.Tests.EditMode
             WavePlanner.BuildRound(output, new List<EnemySpawnEntry>(), 1, normal, null);
 
             Assert.AreEqual(0, output.Count);
+        }
+
+        [Test]
+        public void SpawnEnemy_WithoutCachedPath_StopsCleanly()
+        {
+            EnemySpawner spawner = dummyPrefab.AddComponent<EnemySpawner>();
+            MethodInfo spawnEnemy = typeof(EnemySpawner).GetMethod(
+                "SpawnEnemy",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(spawnEnemy, Is.Not.Null);
+
+            var entry = new EnemySpawnEntry
+            {
+                enemyData = enemyData,
+                enemyPrefab = dummyPrefab
+            };
+
+            LogAssert.Expect(LogType.Error, "EnemySpawner: Cannot spawn an enemy without a valid path.");
+            Assert.DoesNotThrow(() => spawnEnemy.Invoke(spawner, new object[] { entry }));
         }
     }
 }

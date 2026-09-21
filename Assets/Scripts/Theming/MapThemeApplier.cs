@@ -40,6 +40,7 @@ namespace TD.Theming
             if (levelLoader == null) return;
             levelLoader.OnMapLoaded += HandleMapLoaded;
             levelLoader.OnLevelLoaded += HandleLevelLoaded;
+            levelLoader.OnLevelCleared += ClearBackground;
         }
 
         private void OnDisable()
@@ -48,6 +49,7 @@ namespace TD.Theming
             if (levelLoader == null) return;
             levelLoader.OnMapLoaded -= HandleMapLoaded;
             levelLoader.OnLevelLoaded -= HandleLevelLoaded;
+            levelLoader.OnLevelCleared -= ClearBackground;
         }
 
         public void SetTheme(MapThemeDefinition newTheme)
@@ -70,7 +72,7 @@ namespace TD.Theming
 
         private void RebuildBackground(LevelMapDefinition definition = null)
         {
-            if (spawnedBackground != null) Destroy(spawnedBackground);
+            ClearBackground();
             if (theme == null || gridManager == null) return;
 
             int width = definition != null ? definition.width : gridManager.Width;
@@ -102,6 +104,14 @@ namespace TD.Theming
             {
                 spawnedBackground.transform.localScale = new Vector3(worldWidth, worldHeight, 1f);
             }
+        }
+
+        private void ClearBackground()
+        {
+            if (spawnedBackground == null) return;
+            spawnedBackground.SetActive(false);
+            Destroy(spawnedBackground);
+            spawnedBackground = null;
         }
 
         private static Sprite cachedQuadSprite;

@@ -66,6 +66,7 @@ namespace TD.Combat
 
         public void Initialize(int initialMaxHp, int rewardOnDeath, SpriteRenderer renderer, GridManager owningGridManager = null, Vector2Int? cell = null, Action<Vector2Int, Vector3> destroyedCallback = null)
         {
+            CombatPhysics.Invalidate();
             maxHealth = Mathf.Max(1, initialMaxHp);
             currentHealth = maxHealth;
             reward = Mathf.Max(0, rewardOnDeath);
@@ -88,7 +89,7 @@ namespace TD.Combat
 
         public void TakeDamage(float damage)
         {
-            if (IsDead) return;
+            if (IsDead || !GameplayLifecycle.CanRunCombat) return;
             currentHealth -= damage;
             if (currentHealth <= 0f)
             {
@@ -122,7 +123,7 @@ namespace TD.Combat
 
         public void Mark()
         {
-            if (isMarked || IsDead) return;
+            if (isMarked || IsDead || !GameplayLifecycle.CanRunCombat) return;
             ClearMarkedTargets();
             isMarked = true;
             markedTargets.Add(this);
@@ -139,6 +140,7 @@ namespace TD.Combat
 
         private void OnDisable()
         {
+            CombatPhysics.Invalidate();
             // Defensive: if disabled before Die() (e.g. scene unload), drop registry entry.
             if (isMarked)
             {

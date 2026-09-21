@@ -12,6 +12,7 @@ namespace TD.Core
 
         public static void SelectLevel(LevelData levelData)
         {
+            ExitMapEditorContext();
             SelectedLevelData = levelData;
             SelectedMapDefinition = null;
             SelectedMapSeed = string.Empty;
@@ -29,6 +30,7 @@ namespace TD.Core
 
         public static void SelectMapDefinition(LevelMapDefinition definition, string mapSeed = null)
         {
+            ExitMapEditorContext();
             SelectedLevelData = null;
             SelectedMapDefinition = definition != null ? definition.CloneNormalized() : null;
             SelectedMapSeed = !string.IsNullOrWhiteSpace(mapSeed) && SelectedMapDefinition != null
@@ -66,12 +68,22 @@ namespace TD.Core
 
         public static void BeginMapEditorMode()
         {
+            ClearSelectedLevel();
+            IsEditorTestRun = false;
             IsMapEditorSession = true;
         }
 
         public static void EndMapEditorMode()
         {
             IsMapEditorSession = false;
+            IsEditorTestRun = false;
+            SelectedDifficulty = new DifficultySettings();
+        }
+
+        private static void ExitMapEditorContext()
+        {
+            IsMapEditorSession = false;
+            IsEditorTestRun = false;
         }
     }
 }

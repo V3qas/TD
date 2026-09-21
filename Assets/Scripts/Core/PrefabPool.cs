@@ -52,6 +52,7 @@ namespace TD.Core
                 }
             }
 
+            instance.SetActive(false);
             Object.Destroy(instance);
         }
 

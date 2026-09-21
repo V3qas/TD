@@ -40,7 +40,7 @@ namespace TD.Towers
 
         private void Update()
         {
-            if (gameState != null && !gameState.IsPlaying)
+            if (!GameplayLifecycle.CanRunCombat)
             {
                 HideRangeIndicator();
                 return;
@@ -91,6 +91,7 @@ namespace TD.Towers
                 return selectedTowerRangeIndicator;
 
             GameObject rangeObject = new GameObject("SelectedTowerRangeIndicator");
+            rangeObject.transform.SetParent(transform, false);
             selectedTowerRangeIndicator = rangeObject.AddComponent<RangeIndicator>();
             return selectedTowerRangeIndicator;
         }

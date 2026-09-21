@@ -7,6 +7,7 @@ using TD.Core;
 using TD.Enemies;
 using TD.Grid;
 using TD.Level;
+using TD.Towers;
 
 namespace TD.Tests.PlayMode
 {
@@ -79,6 +80,66 @@ namespace TD.Tests.PlayMode
 
             Assert.That(gameState.State, Is.EqualTo(MatchState.Lost));
             Assert.That(CountActiveEnemies(), Is.Zero, "Enemies were not cleared at match end.");
+        }
+
+        [UnityTest]
+        public IEnumerator Campaign_BuildUpgradeSellAndReload_RestoreStartingState()
+        {
+            for (int run = 0; run < 2; run++)
+            {
+                yield return SceneManager.LoadSceneAsync("Gameplay", LoadSceneMode.Additive);
+                gameplayScene = SceneManager.GetSceneByName("Gameplay");
+                SceneManager.SetActiveScene(gameplayScene);
+                yield return null;
+
+                GridManager grid = FindComponent<GridManager>(gameplayScene);
+                GameState state = FindComponent<GameState>(gameplayScene);
+                BuildManager builder = FindComponent<BuildManager>(gameplayScene);
+                Assert.That(state.Money, Is.EqualTo(100));
+                Assert.That(state.Lives, Is.EqualTo(state.StartingLives));
+                Assert.That(state.CurrentRound, Is.EqualTo(1));
+                Assert.That(state.IsPlaying, Is.True);
+                Assert.That(builder.GetComponentsInChildren<Tower>(), Is.Empty);
+
+                Vector2Int? buildCell = null;
+                for (int row = 0; row < grid.Height && !buildCell.HasValue; row++)
+                    for (int column = 0; column < grid.Width; column++)
+                        if (grid.CanBuildAt(new Vector2Int(column, row)))
+                        {
+                            buildCell = new Vector2Int(column, row);
+                            break;
+                        }
+                Assert.That(buildCell.HasValue, Is.True);
+
+                TowerData data = builder.AvailableTowers[0];
+                builder.SelectTowerToBuild(data);
+                Assert.That(builder.TryBuildAtCell(grid.StartCell), Is.False);
+                Assert.That(state.Money, Is.EqualTo(100));
+                Assert.That(builder.TryBuildAtCell(buildCell.Value), Is.True);
+                Assert.That(state.Money, Is.EqualTo(100 - data.cost));
+                Assert.That(builder.TryBuildAtCell(buildCell.Value), Is.False);
+                builder.ClearSelectedTowerToBuild();
+                yield return null;
+                Tower tower = builder.GetComponentInChildren<Tower>();
+                Assert.That(tower, Is.Not.Null);
+
+                int upgradeCost = tower.GetNextUpgradeCost();
+                state.AddMoney(upgradeCost);
+                int moneyBeforeUpgrade = state.Money;
+                Assert.That(TowerUpgradeService.TryPurchase(tower, state), Is.True);
+                Assert.That(state.Money, Is.EqualTo(moneyBeforeUpgrade - upgradeCost));
+                Assert.That(tower.CurrentUpgradeLevel, Is.EqualTo(1));
+                int sellValue = tower.GetSellValue();
+                int moneyBeforeSale = state.Money;
+                builder.SellTower(tower);
+                Assert.That(state.Money, Is.EqualTo(moneyBeforeSale + sellValue));
+                Assert.That(grid.GetCell(buildCell.Value).IsOccupied, Is.False);
+                state.Lose();
+                yield return SceneManager.UnloadSceneAsync(gameplayScene);
+                yield return null;
+                Assert.That(GameState.Instance, Is.Null);
+                Assert.That(Enemy.ActiveEnemies, Is.Empty);
+            }
         }
 
         private static T FindComponent<T>(Scene scene) where T : Component

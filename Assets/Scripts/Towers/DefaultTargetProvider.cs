@@ -12,7 +12,7 @@ namespace TD.Towers
     ///
     /// Priority:
     /// 1. Marked destructibles in range - the player explicitly targeted these.
-    /// 2. Nearest enemy in range.
+    /// 2. Enemy preferred by the tower's targeting mode.
     /// </summary>
     public sealed class DefaultTargetProvider : ITargetProvider
     {
@@ -45,6 +45,7 @@ namespace TD.Towers
             IReadOnlyList<Enemy> enemies = Enemy.ActiveEnemies;
             Enemy best = null;
             float bestSqrDistance = float.MaxValue;
+            float bestMetric = 0f;
             for (int index = 0; index < enemies.Count; index++)
             {
                 Enemy enemy = enemies[index];
@@ -55,10 +56,12 @@ namespace TD.Towers
                 if (sqrDist > rangeSqr)
                     continue;
 
-                if (best == null || IsPreferred(enemy, best, mode, sqrDist, bestSqrDistance))
+                float metric = GetMetric(enemy, mode);
+                if (best == null || IsPreferred(metric, bestMetric, mode, sqrDist, bestSqrDistance))
                 {
                     best = enemy;
                     bestSqrDistance = sqrDist;
+                    bestMetric = metric;
                 }
             }
 
@@ -66,15 +69,12 @@ namespace TD.Towers
         }
 
         private static bool IsPreferred(
-            Enemy candidate,
-            Enemy current,
+            float candidateMetric,
+            float currentMetric,
             TargetingMode mode,
             float candidateSqrDistance,
             float currentSqrDistance)
         {
-            float candidateMetric = GetMetric(candidate, mode);
-            float currentMetric = GetMetric(current, mode);
-
             if (!Mathf.Approximately(candidateMetric, currentMetric))
             {
                 bool preferHigher = mode != TargetingMode.Last && mode != TargetingMode.LowestHealth;

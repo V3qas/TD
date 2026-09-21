@@ -36,6 +36,7 @@ namespace TD.Level
             if (levelLoader == null) return;
             levelLoader.OnMapLoaded += HandleMapLoaded;
             levelLoader.OnLevelLoaded += HandleLevelLoaded;
+            levelLoader.OnLevelCleared += ClearSpawned;
         }
 
         private void OnDisable()
@@ -43,6 +44,7 @@ namespace TD.Level
             if (levelLoader == null) return;
             levelLoader.OnMapLoaded -= HandleMapLoaded;
             levelLoader.OnLevelLoaded -= HandleLevelLoaded;
+            levelLoader.OnLevelCleared -= ClearSpawned;
         }
 
         private void HandleLevelLoaded(LevelData level)
@@ -124,7 +126,11 @@ namespace TD.Level
         private void ClearSpawned()
         {
             for (int i = 0; i < spawned.Count; i++)
-                if (spawned[i] != null) Destroy(spawned[i]);
+                if (spawned[i] != null)
+                {
+                    spawned[i].SetActive(false);
+                    Destroy(spawned[i]);
+                }
             spawned.Clear();
         }
 

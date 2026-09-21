@@ -98,6 +98,38 @@ namespace TD.Tests.PlayMode
             yield return null;
         }
 
+        [UnityTest]
+        public IEnumerator Splash_DamagesMultiColliderEnemyOnlyOnce()
+        {
+            Enemy enemy = CreateEnemy(new Vector3(1003f, 1000f, 0f), 0f);
+            enemy.gameObject.AddComponent<BoxCollider2D>();
+            GameObject child = new GameObject("ExtraHitbox");
+            child.transform.SetParent(enemy.transform, false);
+            child.AddComponent<CircleCollider2D>().radius = 0.2f;
+            BulletData bulletData = CreateBulletData(40f);
+            bulletData.splashRadius = 2f;
+            Bullet bullet = CreateBullet(new Vector3(1000f, 1000f, 0f));
+            bullet.Initialize(bulletData, 10f, enemy);
+
+            yield return WaitUntilReleased(bullet);
+            Assert.That(enemy.CurrentHealth, Is.EqualTo(90f).Within(0.001f));
+        }
+
+        [UnityTest]
+        public IEnumerator MatchEnd_ClearsInFlightProjectileBeforeItCanHit()
+        {
+            GameState state = new GameObject("ProjectileMatchState").AddComponent<GameState>();
+            cleanup.Add(state.gameObject);
+            Enemy enemy = CreateEnemy(new Vector3(1003f, 1000f, 0f), 0f);
+            Bullet bullet = CreateBullet(new Vector3(1000f, 1000f, 0f));
+            bullet.Initialize(CreateBulletData(1f), 10f, enemy);
+            state.Lose();
+
+            Assert.That(bullet.gameObject.activeSelf, Is.False);
+            yield return null;
+            Assert.That(enemy.CurrentHealth, Is.EqualTo(100f));
+        }
+
         private Enemy CreateEnemy(Vector3 position, float speed)
         {
             EnemyData enemyData = ScriptableObject.CreateInstance<EnemyData>();

@@ -5,12 +5,15 @@ using TD.Core;
 
 namespace TD.Towers
 {
+    [DefaultExecutionOrder(100)]
     public class Tower : MonoBehaviour
     {
+        private const float TargetSearchInterval = 0.1f;
         private TowerData data;
         private TowerUpgradeData upgradeData;
         private int currentUpgradeLevel;
         private float attackTimer;
+        private float targetSearchTimer;
         private int totalInvested;
         private float terrainRangeBonus;
         private ITargetProvider targetProvider;
@@ -119,6 +122,7 @@ namespace TD.Towers
             upgradeData = towerUpgradeData;
             currentUpgradeLevel = 0;
             attackTimer = 0f;
+            targetSearchTimer = 0f;
             totalInvested = towerData != null ? towerData.cost : 0;
             targetingMode = TargetingMode.First;
             if (targetProvider == null)
@@ -182,18 +186,23 @@ namespace TD.Towers
 
         private void Update()
         {
-            if (data == null)
+            if (data == null || !GameplayLifecycle.CanRunCombat)
                 return;
 
             attackTimer -= Time.deltaTime;
+            targetSearchTimer -= Time.deltaTime;
 
-            if (attackTimer <= 0f)
+            if (attackTimer <= 0f && targetSearchTimer <= 0f)
             {
                 IDamageable target = FindNearestTarget();
                 if (target != null)
                 {
                     Shoot(target);
                     attackTimer = 1f / EffectiveAttackSpeed;
+                }
+                else
+                {
+                    targetSearchTimer = TargetSearchInterval;
                 }
             }
         }

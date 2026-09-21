@@ -114,6 +114,8 @@ namespace TD.UI
 
         public void Hide()
         {
+            towerSelectionController?.DeselectTower();
+            ClearContext();
             if (hudRoot != null)
                 hudRoot.SetActive(false);
 
@@ -176,6 +178,9 @@ namespace TD.UI
 
             if (targetingButton != null)
                 targetingButton.gameObject.SetActive(false);
+
+            if (contextTitleText == null || contextBodyText == null || towerIconImage == null)
+                return;
 
             contextTitleText.text = "Tower Selection";
             contextBodyText.text =
@@ -693,22 +698,8 @@ namespace TD.UI
             if ((gameState != null && !gameState.IsPlaying) || currentSelectedTower == null)
                 return;
 
-            int cost = currentSelectedTower.GetNextUpgradeCost();
-            if (cost < 0)
+            if (!TowerUpgradeService.TryPurchase(currentSelectedTower, gameState))
             {
-                RefreshUpgradeButton();
-                return;
-            }
-
-            if (gameState != null && !gameState.TrySpendMoney(cost))
-            {
-                RefreshUpgradeButton();
-                return;
-            }
-
-            if (!currentSelectedTower.TryUpgrade())
-            {
-                gameState?.AddMoney(cost);
                 RefreshUpgradeButton();
                 return;
             }

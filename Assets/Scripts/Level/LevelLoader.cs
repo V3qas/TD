@@ -25,6 +25,7 @@ namespace TD.Level
 
         public event Action<LevelData> OnLevelLoaded;
         public event Action<LevelMapDefinition> OnMapLoaded;
+        public event Action OnLevelCleared;
 
         public LevelData DefaultLevelData => levelData;
         public LevelMapDefinition LoadedMapDefinition => loadedMapDefinition != null ? loadedMapDefinition.CloneNormalized() : null;
@@ -142,13 +143,14 @@ namespace TD.Level
 
         private void BuildGridForCurrentSession(LevelMapDefinition definition)
         {
-            // Editor test runs render the authored map directly via the preview visuals,
-            // since gameplay does not yet spawn its own tile sprites. Campaign play keeps
-            // the headless build to honour the no-debug-visuals-in-gameplay rule.
-            if (GameSession.IsEditorTestRun)
-                gridManager.BuildGridPreview(definition);
-            else
-                gridManager.BuildGrid(definition);
+            gridManager.BuildGrid(definition);
+        }
+
+        public void ClearLoadedLevel()
+        {
+            HasLoadedLevel = false;
+            loadedMapDefinition = null;
+            OnLevelCleared?.Invoke();
         }
 
         private void FrameCameraOnMap(LevelMapDefinition definition)

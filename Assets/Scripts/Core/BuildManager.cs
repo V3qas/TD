@@ -36,6 +36,7 @@ namespace TD.Core
         private GameObject ghostObject;
         private TowerData ghostTowerData;
         private RangeIndicator ghostRangeIndicator;
+        private SpriteRenderer[] ghostRenderers = Array.Empty<SpriteRenderer>();
 
         public bool IsPlacingTower => towerToBuild != null;
         public TowerData SelectedTowerToBuild => towerToBuild;
@@ -75,7 +76,7 @@ namespace TD.Core
 
         private void Update()
         {
-            if (gameState != null && !gameState.IsPlaying)
+            if (!GameplayLifecycle.CanRunCombat)
             {
                 if (IsPlacingTower)
                     ClearSelectedTowerToBuild();
@@ -164,44 +165,42 @@ namespace TD.Core
                 return;
             }
 
-            if (towerToBuild == null)
-            {
-                return;
-            }
-
-            if (towerToBuild.towerPrefab == null)
-            {
-                Debug.LogError($"BuildManager: TowerData '{towerToBuild.towerName}' has no prefab.");
-                return;
-            }
-
             Vector2 mouseScreenPosition = Mouse.current.position.ReadValue();
             Vector3 worldPosition = mainCamera.ScreenToWorldPoint(mouseScreenPosition);
             worldPosition.z = 0f;
 
             Vector2Int cellPosition = gridManager.WorldToCell(worldPosition);
+            TryBuildAtCell(cellPosition);
+        }
+
+        public bool TryBuildAtCell(Vector2Int cellPosition)
+        {
+            if (!GameplayLifecycle.CanRunCombat || gridManager == null || gameState == null || !gameState.IsPlaying
+                || towerToBuild == null || towerToBuild.towerPrefab == null)
+                return false;
 
             if (!gridManager.CanBuildAt(cellPosition))
-                return;
+                return false;
 
             if (gameState != null && !gameState.TrySpendMoney(towerToBuild.cost))
             {
                 Debug.Log("BuildManager: Not enough money for this tower.");
-                return;
+                return false;
             }
 
             if (!gridManager.TryOccupyCell(cellPosition))
             {
                 gameState?.AddMoney(towerToBuild.cost);
-                return;
-
+                return false;
             }
 
             if (!PlaceTower(cellPosition))
             {
                 gridManager.ClearOccupiedCell(cellPosition);
                 gameState?.AddMoney(towerToBuild.cost);
+                return false;
             }
+            return true;
         }
 
         private bool PlaceTower(Vector2Int cellPosition)
@@ -213,7 +212,7 @@ namespace TD.Core
             }
 
             Vector3 worldPos = gridManager.CellToWorld(cellPosition);
-            GameObject towerObject = Instantiate(towerToBuild.towerPrefab, worldPos, Quaternion.identity);
+            GameObject towerObject = Instantiate(towerToBuild.towerPrefab, worldPos, Quaternion.identity, transform);
             EnsureTowerCanBeSelected(towerObject);
 
             Tower tower = towerObject.GetComponent<Tower>();
@@ -227,7 +226,9 @@ namespace TD.Core
             else
             {
                 Debug.LogWarning($"BuildManager: Tower prefab '{towerToBuild.towerPrefab.name}' has no Tower component.");
-                return true;
+                towerObject.SetActive(false);
+                Destroy(towerObject);
+                return false;
             }
         }
 
@@ -273,7 +274,7 @@ namespace TD.Core
             if (towerToBuild == null || towerToBuild.towerPrefab == null)
                 return;
 
-            ghostObject = Instantiate(towerToBuild.towerPrefab);
+            ghostObject = Instantiate(towerToBuild.towerPrefab, transform);
             ghostObject.name = $"Ghost_{towerToBuild.towerName}";
             ghostTowerData = towerToBuild;
 
@@ -286,6 +287,7 @@ namespace TD.Core
             foreach (Rigidbody2D body in ghostObject.GetComponentsInChildren<Rigidbody2D>())
                 body.simulated = false;
 
+            ghostRenderers = ghostObject.GetComponentsInChildren<SpriteRenderer>();
             ApplyGhostColor(validGhostColor);
         }
 
@@ -296,6 +298,7 @@ namespace TD.Core
 
             ghostObject = null;
             ghostTowerData = null;
+            ghostRenderers = Array.Empty<SpriteRenderer>();
         }
 
         private void ApplyGhostColor(Color color)
@@ -303,7 +306,7 @@ namespace TD.Core
             if (ghostObject == null)
                 return;
 
-            foreach (SpriteRenderer spriteRenderer in ghostObject.GetComponentsInChildren<SpriteRenderer>())
+            foreach (SpriteRenderer spriteRenderer in ghostRenderers)
                 spriteRenderer.color = color;
         }
 
@@ -313,6 +316,7 @@ namespace TD.Core
                 return ghostRangeIndicator;
 
             GameObject rangeObject = new GameObject("BuildGhostRangeIndicator");
+            rangeObject.transform.SetParent(transform, false);
             ghostRangeIndicator = rangeObject.AddComponent<RangeIndicator>();
             return ghostRangeIndicator;
         }
@@ -348,6 +352,7 @@ namespace TD.Core
                     if (gridManager != null)
                         gridManager.ClearOccupiedCell(cell);
 
+                    tower.gameObject.SetActive(false);
                     Destroy(tower.gameObject);
                 }
             }

@@ -47,6 +47,7 @@ namespace TD.Level
 
         private void Update()
         {
+            if (!GameplayLifecycle.CanRunCombat) return;
             if (Mouse.current == null) return;
             if (!Mouse.current.leftButton.wasPressedThisFrame) return;
             if (verboseClickLogging)
@@ -115,6 +116,7 @@ namespace TD.Level
             if (levelLoader == null) return;
             levelLoader.OnMapLoaded += HandleMapLoaded;
             levelLoader.OnLevelLoaded += HandleLevelLoaded;
+            levelLoader.OnLevelCleared += ClearSpawned;
 
             // If this component is enabled after LevelLoader has already fired its
             // load event, catch up from the loader's current map snapshot.
@@ -127,6 +129,7 @@ namespace TD.Level
             if (levelLoader == null) return;
             levelLoader.OnMapLoaded -= HandleMapLoaded;
             levelLoader.OnLevelLoaded -= HandleLevelLoaded;
+            levelLoader.OnLevelCleared -= ClearSpawned;
         }
 
         private void HandleLevelLoaded(LevelData level)
@@ -182,7 +185,10 @@ namespace TD.Level
             for (int i = 0; i < spawned.Count; i++)
             {
                 if (spawned[i] != null)
+                {
+                    spawned[i].SetActive(false);
                     Destroy(spawned[i]);
+                }
             }
             spawned.Clear();
         }

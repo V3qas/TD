@@ -46,7 +46,7 @@ namespace TD.Enemies
         [Header("Round Enemy Types")]
         [SerializeField] private List<EnemySpawnEntry> spawnEntries = new List<EnemySpawnEntry>();
 
-        private List<Vector3> cachedPath;
+        private EnemyPath cachedPath;
         private readonly Queue<EnemySpawnEntry> spawnQueue = new Queue<EnemySpawnEntry>();
         private readonly List<Enemy> spawnedEnemies = new List<Enemy>();
         private float spawnTimer;
@@ -124,8 +124,9 @@ namespace TD.Enemies
             if (gameState == null)
                 gameState = GameState.GetOrCreate();
 
-            gameState.ResetState();
+            GameplayLifecycle.StopCombat();
             StopSpawning(true);
+            gameState.ResetState();
             BeginSpawning();
         }
 
@@ -134,8 +135,9 @@ namespace TD.Enemies
             if (gameState == null)
                 gameState = GameState.GetOrCreate();
 
-            gameState.ResetState(round);
+            GameplayLifecycle.StopCombat();
             StopSpawning(true);
+            gameState.ResetState(round);
             BeginSpawning();
         }
 
@@ -220,16 +222,14 @@ namespace TD.Enemies
             if (gridManager == null)
             {
                 Debug.LogError("EnemySpawner: GridManager is missing.");
+                cachedPath = null;
                 return;
             }
 
             // Use the path cached by GridManager during grid build and occupancy changes.
-            cachedPath = gridManager.GetCachedEnemyPathWorld();
-
-            if (cachedPath == null || cachedPath.Count == 0)
+            if (!TryCreatePath(out cachedPath))
             {
                 Debug.LogError("EnemySpawner: No path from start to goal found.");
-                cachedPath = null;
                 return;
             }
 
@@ -245,9 +245,14 @@ namespace TD.Enemies
             if (gridManager == null)
                 return;
 
-            List<Vector3> newPath = gridManager.GetCachedEnemyPathWorld();
-            if (newPath == null || newPath.Count == 0)
+            if (!TryCreatePath(out EnemyPath newPath))
+            {
+                Debug.LogError("EnemySpawner: The updated grid has no valid enemy path. Spawning was stopped.");
+                cachedPath = null;
+                spawnQueue.Clear();
+                isSpawning = false;
                 return;
+            }
 
             cachedPath = newPath;
 
@@ -260,8 +265,19 @@ namespace TD.Enemies
                     spawnedEnemies.RemoveAt(i);
                     continue;
                 }
-                enemy.SetWaypoints(new List<Vector3>(newPath));
+                enemy.SetWaypoints(newPath);
             }
+        }
+
+        private bool TryCreatePath(out EnemyPath path)
+        {
+            path = null;
+            IReadOnlyList<Vector3> worldPath = gridManager?.GetCachedEnemyPathWorld();
+            if (worldPath == null || worldPath.Count == 0)
+                return false;
+
+            path = new EnemyPath(worldPath);
+            return true;
         }
 
         private void OnDestroy()
@@ -315,6 +331,14 @@ namespace TD.Enemies
 
         private void SpawnEnemy(EnemySpawnEntry spawnEntry)
         {
+            if (cachedPath == null || cachedPath.Count == 0)
+            {
+                Debug.LogError("EnemySpawner: Cannot spawn an enemy without a valid path.");
+                spawnQueue.Clear();
+                isSpawning = false;
+                return;
+            }
+
             if (!WavePlanner.IsValid(spawnEntry))
             {
                 Debug.LogError("EnemySpawner: Invalid spawn entry.");
@@ -331,7 +355,7 @@ namespace TD.Enemies
                 return;
             }
 
-            enemy.Initialize(spawnEntry.enemyData, new List<Vector3>(cachedPath));
+            enemy.Initialize(spawnEntry.enemyData, cachedPath);
             enemy.OnDied += HandleEnemyDied;
             enemy.OnReachedGoal += HandleEnemyReachedGoal;
             spawnedEnemies.Add(enemy);

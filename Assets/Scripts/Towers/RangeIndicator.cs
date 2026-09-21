@@ -8,6 +8,9 @@ namespace TD.Towers
         [SerializeField] private float lineWidth = 0.04f;
 
         private LineRenderer lineRenderer;
+        private Material lineMaterial;
+        private float displayedRadius = -1f;
+        private int displayedSegments = -1;
 
         private void Awake()
         {
@@ -26,11 +29,16 @@ namespace TD.Towers
             lineRenderer.startColor = color;
             lineRenderer.endColor = color;
 
-            for (int segmentIndex = 0; segmentIndex <= segments; segmentIndex++)
+            if (!Mathf.Approximately(displayedRadius, radius) || displayedSegments != segments)
             {
-                float angle = (segmentIndex / (float)segments) * Mathf.PI * 2f;
-                Vector3 point = new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0f);
-                lineRenderer.SetPosition(segmentIndex, point);
+                for (int segmentIndex = 0; segmentIndex <= segments; segmentIndex++)
+                {
+                    float angle = (segmentIndex / (float)segments) * Mathf.PI * 2f;
+                    Vector3 point = new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0f);
+                    lineRenderer.SetPosition(segmentIndex, point);
+                }
+                displayedRadius = radius;
+                displayedSegments = segments;
             }
 
             lineRenderer.enabled = true;
@@ -54,7 +62,17 @@ namespace TD.Towers
             lineRenderer.useWorldSpace = false;
             lineRenderer.loop = true;
             lineRenderer.sortingOrder = 50;
-            lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+            lineMaterial = new Material(Shader.Find("Sprites/Default"));
+            lineRenderer.sharedMaterial = lineMaterial;
+        }
+
+        private void OnDestroy()
+        {
+            if (lineMaterial == null) return;
+            if (Application.isPlaying)
+                Destroy(lineMaterial);
+            else
+                DestroyImmediate(lineMaterial);
         }
     }
 }

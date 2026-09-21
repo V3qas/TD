@@ -6,9 +6,14 @@ using TD.Enemies;
 
 namespace TD.Bullets
 {
+    [DefaultExecutionOrder(200)]
     public class Bullet : MonoBehaviour
     {
+        [SerializeField] private LayerMask hitLayers = ~0;
+        private static readonly List<Bullet> activeBullets = new List<Bullet>();
         private readonly List<RaycastHit2D> castHits = new List<RaycastHit2D>(16);
+        private readonly List<Collider2D> splashHits = new List<Collider2D>(16);
+        private readonly HashSet<IDamageable> hitTargets = new HashSet<IDamageable>();
         private BulletData data;
         private float damage;
         private IDamageable target;
@@ -22,6 +27,24 @@ namespace TD.Bullets
         private bool componentsCached;
 
         public Vector3 Destination => destination;
+
+        private void OnEnable()
+        {
+            activeBullets.Add(this);
+        }
+
+        public static void ReleaseAll()
+        {
+            for (int index = activeBullets.Count - 1; index >= 0; index--)
+            {
+                Bullet bullet = activeBullets[index];
+                if (bullet != null)
+                {
+                    bullet.hasHit = true;
+                    PrefabPool.Release(bullet.gameObject);
+                }
+            }
+        }
 
         private void Awake()
         {
@@ -41,6 +64,12 @@ namespace TD.Bullets
             if (!componentsCached)
                 CacheComponents();
 
+            if (!GameplayLifecycle.CanRunCombat)
+            {
+                PrefabPool.Release(gameObject);
+                return;
+            }
+
             this.data = bulletData;
             this.damage = damage;
             this.target = target;
@@ -58,6 +87,10 @@ namespace TD.Bullets
 
         private void OnDisable()
         {
+            activeBullets.Remove(this);
+            castHits.Clear();
+            splashHits.Clear();
+            hitTargets.Clear();
             // Reset pooled state so the next spawn behaves like a fresh instance.
             target = null;
             hasHit = false;
@@ -71,6 +104,11 @@ namespace TD.Bullets
 
         private void Update()
         {
+            if (!GameplayLifecycle.CanRunCombat)
+            {
+                PrefabPool.Release(gameObject);
+                return;
+            }
             if (isLaser)
             {
                 laserLifetime -= Time.deltaTime;
@@ -105,9 +143,8 @@ namespace TD.Bullets
             if (distance <= Mathf.Epsilon)
                 return false;
 
-            Physics2D.SyncTransforms();
-            ContactFilter2D filter = ContactFilter2D.noFilter;
-            filter.useTriggers = true;
+            CombatPhysics.Synchronize();
+            ContactFilter2D filter = CreateHitFilter();
             Vector2 direction = movement / distance;
             float hitRadius = 0.05f;
             if (projectileCollider is CircleCollider2D circleCollider)
@@ -176,6 +213,9 @@ namespace TD.Bullets
 
             HitLaserPath(origin, direction, beamLength, beamWidth);
 
+            if (!gameObject.activeInHierarchy)
+                return;
+
             float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
             transform.SetPositionAndRotation(
                 Vector3.Lerp(origin, destination, 0.5f),
@@ -188,19 +228,22 @@ namespace TD.Bullets
 
         private void HitLaserPath(Vector2 origin, Vector2 direction, float beamLength, float beamWidth)
         {
-            Physics2D.SyncTransforms();
-            RaycastHit2D[] hits = Physics2D.CircleCastAll(
+            CombatPhysics.Synchronize();
+            Physics2D.CircleCast(
                 origin,
                 beamWidth * 0.5f,
                 direction,
+                CreateHitFilter(),
+                castHits,
                 beamLength);
 
-            HashSet<IDamageable> hitTargets = data.isPiercing ? new HashSet<IDamageable>() : null;
+            hitTargets.Clear();
             IDamageable closestTarget = null;
             float closestDistance = float.PositiveInfinity;
 
-            foreach (RaycastHit2D hit in hits)
+            for (int index = 0; index < castHits.Count && data != null; index++)
             {
+                RaycastHit2D hit = castHits[index];
                 IDamageable damageable = hit.collider != null
                     ? hit.collider.GetComponentInParent<IDamageable>()
                     : null;
@@ -264,14 +307,22 @@ namespace TD.Bullets
 
         private void HitSplash()
         {
-            Physics2D.SyncTransforms();
-            Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, data.splashRadius);
-            foreach (Collider2D hit in hits)
+            CombatPhysics.Synchronize();
+            Physics2D.OverlapCircle(transform.position, data.splashRadius, CreateHitFilter(), splashHits);
+            hitTargets.Clear();
+            for (int index = 0; index < splashHits.Count && data != null; index++)
             {
+                Collider2D hit = splashHits[index];
                 IDamageable damageable = hit.GetComponentInParent<IDamageable>();
-                if (damageable != null)
-                    ApplyHit(damageable);
+                ApplyUniqueHit(damageable, hitTargets);
             }
+        }
+
+        private ContactFilter2D CreateHitFilter()
+        {
+            ContactFilter2D filter = new ContactFilter2D { useTriggers = true };
+            filter.SetLayerMask(hitLayers);
+            return filter;
         }
 
         private static bool CanHit(IDamageable victim)
@@ -287,15 +338,16 @@ namespace TD.Bullets
 
         private void ApplyHit(IDamageable victim)
         {
-            if (!CanHit(victim))
+            if (data == null || !GameplayLifecycle.CanRunCombat || !CanHit(victim))
                 return;
 
-            float finalDamage = data.ModifyDamage(damage);
+            BulletData hitData = data;
+            float finalDamage = hitData.ModifyDamage(damage);
             victim.TakeDamage(finalDamage);
 
-            if (data.slowDuration > 0f && data.slowFactor < 1f
+            if (GameplayLifecycle.CanRunCombat && hitData.slowDuration > 0f && hitData.slowFactor < 1f
                 && victim is Enemy enemy && !enemy.IsDead && enemy.isActiveAndEnabled)
-                enemy.ApplySlow(data.slowFactor, data.slowDuration);
+                enemy.ApplySlow(hitData.slowFactor, hitData.slowDuration);
         }
     }
 }

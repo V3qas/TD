@@ -8,6 +8,7 @@ using TD.UI;
 
 namespace TD.Enemies
 {
+    [DefaultExecutionOrder(-100)]
     public class Enemy : MonoBehaviour, IDamageable
     {
         /// <summary>Raised when this enemy dies.</summary>
@@ -24,12 +25,11 @@ namespace TD.Enemies
         private float currentShield;
         private float scaledSpeed;
         private int scaledReward;
-        private List<Vector3> waypoints;
+        private EnemyPath waypoints;
         private int waypointIndex;
         private HealthBar healthBar;
         private float slowFactor = 1f;
         private Coroutine slowCoroutine;
-        private float totalPathLength;
 
         public bool IsDead => currentHealth <= 0f;
         public EnemyData Data => data;
@@ -38,7 +38,7 @@ namespace TD.Enemies
         public float CurrentHealth => currentHealth;
         public float MaxHealth => maxHealth;
         public float CurrentSpeed => Mathf.Max(0f, scaledSpeed * slowFactor);
-        public float PathProgress => CalculatePathProgress();
+        public float PathProgress => waypoints != null ? waypoints.GetProgress(transform.position, waypointIndex) : 0f;
         public Vector3 WorldPosition => transform.position;
 
         private void OnEnable()
@@ -49,12 +49,27 @@ namespace TD.Enemies
         private void OnDisable()
         {
             activeEnemies.Remove(this);
+            CombatPhysics.Invalidate();
+            OnDied = null;
+            OnReachedGoal = null;
+            waypoints = null;
+            if (slowCoroutine != null)
+                StopCoroutine(slowCoroutine);
+            slowCoroutine = null;
+            slowFactor = 1f;
+            if (healthBar != null)
+                healthBar.Unbind();
         }
 
         /// <summary>
         /// Initializes this enemy with static data and world-space waypoints.
         /// </summary>
         public void Initialize(EnemyData enemyData, List<Vector3> path)
+        {
+            Initialize(enemyData, new EnemyPath(path));
+        }
+
+        public void Initialize(EnemyData enemyData, EnemyPath path)
         {
             RegisterActiveEnemy();
             data = enemyData;
@@ -67,7 +82,7 @@ namespace TD.Enemies
             waypoints = path;
             waypointIndex = 0;
             slowFactor = 1f;
-            RecalculatePathLength();
+            CombatPhysics.Invalidate();
 
             if (slowCoroutine != null)
             {
@@ -97,6 +112,11 @@ namespace TD.Enemies
         /// </summary>
         public void SetWaypoints(List<Vector3> newWaypoints)
         {
+            SetWaypoints(new EnemyPath(newWaypoints));
+        }
+
+        public void SetWaypoints(EnemyPath newWaypoints)
+        {
             if (newWaypoints == null || newWaypoints.Count == 0)
                 return;
 
@@ -116,7 +136,6 @@ namespace TD.Enemies
 
             waypoints = newWaypoints;
             waypointIndex = Mathf.Min(nearestIndex + 1, newWaypoints.Count - 1);
-            RecalculatePathLength();
         }
 
         public Vector3 PredictPosition(float seconds)
@@ -124,62 +143,13 @@ namespace TD.Enemies
             if (waypoints == null || waypoints.Count == 0 || seconds <= 0f || CurrentSpeed <= 0f)
                 return transform.position;
 
-            float remainingTravel = CurrentSpeed * seconds;
-            Vector3 predictedPosition = transform.position;
-            int targetIndex = Mathf.Clamp(waypointIndex, 0, waypoints.Count - 1);
-
-            for (int index = targetIndex; index < waypoints.Count; index++)
-            {
-                Vector3 waypoint = waypoints[index];
-                float segmentLength = Vector3.Distance(predictedPosition, waypoint);
-
-                if (segmentLength <= Mathf.Epsilon)
-                {
-                    predictedPosition = waypoint;
-                    continue;
-                }
-
-                if (remainingTravel <= segmentLength)
-                    return Vector3.MoveTowards(predictedPosition, waypoint, remainingTravel);
-
-                remainingTravel -= segmentLength;
-                predictedPosition = waypoint;
-            }
-
-            return predictedPosition;
-        }
-
-        private float CalculatePathProgress()
-        {
-            if (waypoints == null || waypoints.Count < 2 || totalPathLength <= Mathf.Epsilon)
-                return 0f;
-
-            float remainingDistance = 0f;
-            Vector3 position = transform.position;
-            int targetIndex = Mathf.Clamp(waypointIndex, 0, waypoints.Count - 1);
-
-            for (int index = targetIndex; index < waypoints.Count; index++)
-            {
-                remainingDistance += Vector3.Distance(position, waypoints[index]);
-                position = waypoints[index];
-            }
-
-            return 1f - Mathf.Clamp01(remainingDistance / totalPathLength);
-        }
-
-        private void RecalculatePathLength()
-        {
-            totalPathLength = 0f;
-            if (waypoints == null)
-                return;
-
-            for (int index = 1; index < waypoints.Count; index++)
-                totalPathLength += Vector3.Distance(waypoints[index - 1], waypoints[index]);
+            int targetIndex = waypointIndex;
+            return waypoints.Advance(transform.position, ref targetIndex, CurrentSpeed * seconds);
         }
 
         private void Update()
         {
-            if (IsDead || waypoints == null || waypointIndex >= waypoints.Count)
+            if (!GameplayLifecycle.CanRunCombat || IsDead || waypoints == null || waypointIndex >= waypoints.Count)
                 return;
 
             MoveAlongPath();
@@ -187,23 +157,10 @@ namespace TD.Enemies
 
         private void MoveAlongPath()
         {
-            Vector3 target = waypoints[waypointIndex];
-            Vector3 direction = target - transform.position;
-            float effectiveSpeed = scaledSpeed * slowFactor;
-            float step = effectiveSpeed * Time.deltaTime;
-
-            if (direction.magnitude <= step)
-            {
-                transform.position = target;
-                waypointIndex++;
-
-                if (waypointIndex >= waypoints.Count)
-                    ReachGoal();
-            }
-            else
-            {
-                transform.position += direction.normalized * step;
-            }
+            transform.position = waypoints.Advance(transform.position, ref waypointIndex, CurrentSpeed * Time.deltaTime);
+            CombatPhysics.Invalidate();
+            if (waypointIndex >= waypoints.Count)
+                ReachGoal();
         }
 
         /// <summary>
