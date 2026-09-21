@@ -13,6 +13,7 @@ namespace TD.Grid
     public sealed class GridPreviewRenderer
     {
         private readonly List<GameObject> previewCells = new List<GameObject>();
+        private readonly Dictionary<Vector2Int, SpriteRenderer> cellRenderers = new Dictionary<Vector2Int, SpriteRenderer>();
         private readonly Dictionary<Vector2Int, OccupantType> previewOccupants = new Dictionary<Vector2Int, OccupantType>();
         private readonly Dictionary<Vector2Int, GroundType> previewGroundOverrides = new Dictionary<Vector2Int, GroundType>();
         private Sprite previewSprite;
@@ -32,6 +33,22 @@ namespace TD.Grid
                     DestroyUnityObject(previewCells[i]);
             }
             previewCells.Clear();
+            cellRenderers.Clear();
+        }
+
+        public void UpdateCell(GridManager grid, LevelMapAuthoringState state, Vector2Int position)
+        {
+            if (state.TryGetOccupant(position, out OccupantEntry occupant))
+                previewOccupants[position] = occupant.type;
+            else
+                previewOccupants.Remove(position);
+            if (state.TryGetGroundOverride(position, out GroundType ground))
+                previewGroundOverrides[position] = ground;
+            else
+                previewGroundOverrides.Remove(position);
+
+            if (cellRenderers.TryGetValue(position, out SpriteRenderer renderer) && renderer != null)
+                renderer.color = GetPreviewCellColor(grid, position);
         }
 
         public void DisposeSprite()
@@ -106,6 +123,7 @@ namespace TD.Grid
                     SpriteRenderer renderer = cellObj.GetComponent<SpriteRenderer>();
                     if (renderer != null)
                     {
+                        cellRenderers[pos] = renderer;
                         renderer.color = GetPreviewCellColor(grid, pos);
                         if (renderer.sortingOrder == 0)
                             renderer.sortingOrder = -1;

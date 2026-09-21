@@ -6,22 +6,26 @@ namespace TD.Pathfinding
 {
     public class Pathfinder
     {
-        private readonly GridManager gridManager;
-
-        public Pathfinder(GridManager gridManager)
+        private static readonly Vector2Int[] Directions =
         {
-            this.gridManager = gridManager;
+            Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down
+        };
+        private readonly IPathGrid grid;
+
+        public Pathfinder(IPathGrid grid)
+        {
+            this.grid = grid;
         }
 
         public List<GridCell> FindPath(Vector2Int start, Vector2Int goal)
         {
-            GridCell startCell = gridManager.GetCell(start);
-            GridCell goalCell = gridManager.GetCell(goal);
+            GridCell startCell = grid.GetCell(start);
+            GridCell goalCell = grid.GetCell(goal);
 
             if (startCell == null || goalCell == null)
                 return null;
 
-            if (!gridManager.CanEnemyWalkOn(startCell) || !gridManager.CanEnemyWalkOn(goalCell))
+            if (!grid.CanEnemyWalkOn(startCell) || !grid.CanEnemyWalkOn(goalCell))
                 return null;
 
             Queue<GridCell> frontier = new Queue<GridCell>();
@@ -39,13 +43,11 @@ namespace TD.Pathfinding
                     return ReconstructPath(cameFrom, goalCell);
                 }
 
-                List<GridCell> neighbors = gridManager.GetNeighbors(current);
-
-                for (int i = 0; i < neighbors.Count; i++)
+                foreach (Vector2Int direction in Directions)
                 {
-                    GridCell neighbor = neighbors[i];
+                    GridCell neighbor = grid.GetCell(current.Position + direction);
 
-                    if (!gridManager.CanEnemyWalkOn(neighbor))
+                    if (neighbor == null || !grid.CanEnemyWalkOn(neighbor))
                         continue;
 
                     if (cameFrom.ContainsKey(neighbor))

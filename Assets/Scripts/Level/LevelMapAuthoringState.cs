@@ -12,6 +12,7 @@ namespace TD.Level
         private List<PathSequence> loadedPathSequences = new List<PathSequence>();
 
         public LevelMapDefinition MapDefinition => mapDefinition;
+        public bool HasExplicitPath => pathCells.Count > 0;
 
         public void CreateNewMap(int width, int height, bool includeStraightPath)
         {

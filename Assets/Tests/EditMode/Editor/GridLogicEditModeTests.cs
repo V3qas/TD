@@ -83,6 +83,41 @@ namespace TD.Tests.EditMode
             Assert.AreEqual(0, gridObject.transform.childCount);
         }
 
+        [Test]
+        public void PaintingPreview_ReusesObjectsAndUpdatesCellState()
+        {
+            LevelMapAuthoringState state = new LevelMapAuthoringState();
+            state.CreateNewMap(5, 3, true);
+            gridManager.BuildGridPreview(state.BuildDefinition());
+            Transform existingCell = gridObject.transform.GetChild(2);
+            Vector2Int cell = new Vector2Int(2, 0);
+
+            state.PaintCell(cell, LevelMapPaintTool.Water, 100, 15);
+            gridManager.UpdatePreviewCell(state, cell);
+            Assert.That(gridObject.transform.childCount, Is.EqualTo(15));
+            Assert.That(gridObject.transform.GetChild(2), Is.SameAs(existingCell));
+            Assert.That(gridManager.GetGroundType(cell), Is.EqualTo(GroundType.Water));
+            Assert.That(gridManager.CanBuildAt(cell), Is.False);
+            Assert.That(existingCell.GetComponent<SpriteRenderer>().color, Is.EqualTo(new Color(0.25f, 0.55f, 0.85f)));
+        }
+
+        [Test]
+        public void MovingStart_UpdatesOldAndNewPreviewCells()
+        {
+            LevelMapAuthoringState state = new LevelMapAuthoringState();
+            state.CreateNewMap(5, 3, true);
+            gridManager.BuildGridPreview(state.BuildDefinition());
+            Vector2Int oldStart = state.MapDefinition.startCell;
+            Vector2Int newStart = new Vector2Int(1, 1);
+            state.PaintCell(newStart, LevelMapPaintTool.Start, 100, 15);
+            gridManager.UpdatePreviewCell(state, newStart);
+            gridManager.UpdatePreviewCell(state, oldStart);
+            Assert.That(gridManager.StartCell, Is.EqualTo(newStart));
+            Assert.That(gridManager.IsPathCell(oldStart), Is.False);
+            Assert.That(gridObject.transform.GetChild(5).GetComponent<SpriteRenderer>().color, Is.EqualTo(Color.white));
+            Assert.That(gridObject.transform.GetChild(6).GetComponent<SpriteRenderer>().color, Is.EqualTo(Color.green));
+        }
+
         private static LevelMapDefinition CreateOpenMap(int width, int height, Vector2Int startCell, Vector2Int goalCell)
         {
             return new LevelMapDefinition

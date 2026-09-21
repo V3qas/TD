@@ -67,6 +67,9 @@ namespace TD.UI
         private float lastFramedCanvasScale = -1f;
         private bool isOpen;
         private bool isValid;
+        private bool validationPending;
+        private float validationTime;
+        private const float ValidationDelay = 0.15f;
 
         private Font RuntimeFont
         {
@@ -93,6 +96,12 @@ namespace TD.UI
             if (!isOpen || Mouse.current == null)
                 return;
 
+            if (validationPending && (!Mouse.current.leftButton.isPressed || Time.unscaledTime >= validationTime))
+            {
+                RefreshSeedText();
+                RefreshValidation();
+            }
+
             if (!Mouse.current.leftButton.isPressed)
             {
                 lastPaintedCell = new Vector2Int(int.MinValue, int.MinValue);
@@ -108,8 +117,9 @@ namespace TD.UI
             if (PaintCell(cell))
             {
                 lastPaintedCell = cell;
-                RebuildPreview();
-                RefreshValidation();
+                validationPending = true;
+                validationTime = Time.unscaledTime + ValidationDelay;
+                SetValidation(false, "Checking map...");
             }
         }
 
@@ -120,8 +130,7 @@ namespace TD.UI
             EnsureEventSystem();
             EnsureEditorUi();
 
-            enemySpawner?.StopSpawning(true);
-            buildManager?.ClearSelectedTowerToBuild();
+            GameplayLifecycle.ReturnToEditor(enemySpawner, buildManager, levelLoader);
             hudController?.Hide();
 
             if (mapDefinition == null)
@@ -138,7 +147,9 @@ namespace TD.UI
 
         public void CloseToMenu()
         {
+            GameSession.EndTestRun();
             GameSession.EndMapEditorMode();
+            GameSession.ClearSelectedLevel();
             CloseEditor();
             SceneManager.LoadScene(menuSceneName);
         }
@@ -198,14 +209,16 @@ namespace TD.UI
             if (hudController != null)
                 hudController.OnBackToEditorRequested -= ReturnFromTest;
 
-            GameSession.EndTestRun();
-            enemySpawner?.StopSpawning(true);
-            buildManager?.ClearAllPlacedTowers();
-
             if (pendingTestDefinition != null)
                 LoadDefinition(pendingTestDefinition);
 
             Open();
+        }
+
+        private void OnDestroy()
+        {
+            if (hudController != null)
+                hudController.OnBackToEditorRequested -= ReturnFromTest;
         }
 
         private void ResolveReferences()
@@ -531,12 +544,20 @@ namespace TD.UI
 
         private bool PaintCell(Vector2Int cell)
         {
+            Vector2Int previousStart = mapDefinition.startCell;
+            Vector2Int previousGoal = mapDefinition.goalCell;
             int hp = ParsePositiveInput(destructibleHpInput, DefaultDestructibleHp);
             int reward = ParseNonNegativeInput(destructibleRewardInput, DefaultDestructibleReward);
             bool changed = mapState.PaintCell(cell, selectedTool, hp, reward);
 
             if (changed)
-                RefreshSeedText();
+            {
+                gridManager.UpdatePreviewCell(mapState, cell);
+                if (previousStart != mapDefinition.startCell)
+                    gridManager.UpdatePreviewCell(mapState, previousStart);
+                if (previousGoal != mapDefinition.goalCell)
+                    gridManager.UpdatePreviewCell(mapState, previousGoal);
+            }
 
             return changed;
         }
@@ -593,6 +614,7 @@ namespace TD.UI
 
         private void RefreshValidation()
         {
+            validationPending = false;
             bool valid = LevelMapValidator.Validate(BuildDefinition(), true, out string message);
             SetValidation(valid, message);
         }

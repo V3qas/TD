@@ -8,7 +8,7 @@ using TD.Pathfinding;
 
 namespace TD.Grid
 {
-    public class GridManager : MonoBehaviour
+    public class GridManager : MonoBehaviour, IPathGrid
     {
         [SerializeField] private float cellSize = 1f;
 
@@ -78,6 +78,33 @@ namespace TD.Grid
         public void ClearPreviewVisuals()
         {
             previewRenderer.Clear();
+        }
+
+        public void UpdatePreviewCell(LevelMapAuthoringState authoringState, Vector2Int position)
+        {
+            GridCell cell = GetCell(position);
+            if (cell == null || authoringState?.MapDefinition == null)
+                return;
+
+            StartCell = authoringState.MapDefinition.startCell;
+            GoalCell = authoringState.MapDefinition.goalCell;
+            usesExplicitPath = authoringState.HasExplicitPath;
+            cell.SetPath(authoringState.IsPathCell(position));
+            cell.SetBlocked(authoringState.TryGetOccupant(position, out OccupantEntry occupant)
+                && occupant.type != OccupantType.None);
+            cell.SetOccupied(false);
+            if (authoringState.TryGetGroundOverride(position, out GroundType ground))
+                runtimeGroundOverrides[position] = ground;
+            else
+                runtimeGroundOverrides.Remove(position);
+
+            if (cell.IsPath)
+                reservedPathCells.Add(position);
+            else
+                reservedPathCells.Remove(position);
+            cachedEnemyPath = null;
+            cachedEnemyPathLookup.Clear();
+            previewRenderer.UpdateCell(this, authoringState, position);
         }
 
         private void BuildGridInternal(LevelMapDefinition definition, bool validateMap)
