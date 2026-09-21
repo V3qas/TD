@@ -19,7 +19,7 @@ MonoBehaviour:
   beamWidth: 0.12
   beamDuration: 0.1
   damageMultiplier: 1.5
-  attackSpeedMultiplier: 0.75
+  attackSpeedMultiplier: 0.7
   rangeMultiplier: 1.5
   splashRadius: 0
   isPiercing: 1

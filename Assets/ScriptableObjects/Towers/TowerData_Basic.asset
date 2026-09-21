@@ -19,4 +19,5 @@ MonoBehaviour:
   attackSpeed: 1
   range: 3
   bulletData: {fileID: 11400000, guid: cbfb686c96d32094b9b8dd37d6a97af4, type: 2}
+  upgradeData: {fileID: 11400000, guid: a24e51f657fa4cb9a4fed2d0e7a1c829, type: 2}
   towerPrefab: {fileID: 8874913657545601733, guid: fcff17b4e40c29a448b051381b178b3e, type: 3}

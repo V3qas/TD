@@ -145,7 +145,7 @@ Gameplay data is authored as ScriptableObjects under `Assets/ScriptableObjects/`
 
 | Asset type | Defines |
 | ---------- | ------- |
-| `TowerData` | Tower name, icon, placement cost, damage, attack speed, range, default `BulletData`, tower prefab |
+| `TowerData` | Tower name, icon, placement cost, damage, attack speed, range, default `BulletData`, tower-specific upgrade path, tower prefab |
 | `TowerUpgradeData` | Per-tower upgrade ladder: upgrade name, cost, damage/speed/range bonuses, optional bullet override |
 | `EnemyData` | Enemy name, health, speed, shield, armor, kill reward |
 | `BulletData` | Projectile name, travel speed, damage multiplier, splash, piercing, slow, prefab, hit animator |
@@ -204,7 +204,8 @@ public method or property is added, removed, or renamed.
 - `BuildManager` - `IsPlacingTower`, `SelectedTowerToBuild`, `AvailableTowers`;
   event `OnBuildSelectionChanged`; methods `SelectTowerToBuild`,
   `ClearSelectedTowerToBuild`, `CanAfford`, `TryBuildAtCell`, `SellTower`, `ClearAllPlacedTowers`.
-  Placement validates the cell and match, charges money, and refunds failed placement.
+  Placement validates the cell and match, charges money, refunds failed placement,
+  and initializes the tower with its own upgrade path or the serialized fallback.
 - `GameplayLifecycle` (static) - `CanRunCombat`, `StopCombat`,
   `ReturnToEditor(spawner, builder, loader)` coordinate combat and editor cleanup.
 - `Difficulty` - enum `DifficultyLevel { Easy, Normal, Hard, Nightmare }`,
@@ -267,7 +268,13 @@ public method or property is added, removed, or renamed.
 - `Tower` - `Data`, `CurrentUpgradeLevel`, `Damage`, `AttackSpeed`, `Range`,
   `TargetingMode`, `Initialize`, `SetTerrainRangeBonus`, `SetTargetProvider`,
   `SetTargetingMode`, `CycleTargetingMode`, `CanUpgrade`, `GetNextUpgradeCost`,
-  `TryUpgrade`, `GetSellValue`.
+  `TryUpgrade`, `GetSellValue`. Tower prefabs keep the base visual and gameplay
+  components on a fixed root. A child `TurretPivot` tracks the current target,
+  contains the rotating `Head`, and owns the `FirePoint` used to spawn shots.
+  Towers retain a valid target between attacks and fire once the pivot is within
+  its configured angular tolerance. Projectile turrets and projectile flight use
+  the same predicted intercept point, while instant laser shots track the target's
+  current position.
 - `TowerUpgradeService` - `TryPurchase(tower, gameState)` owns match/affordability
   checks, payment and upgrade application/refund. The HUD delegates the purchase.
   `Tower.TryUpgrade` remains the low-level stat mutation, without payment.
@@ -277,7 +284,7 @@ public method or property is added, removed, or renamed.
   Each candidate's metric is evaluated once per search. Towers without a target
   retry at 0.1-second intervals instead of every frame; firing cadence is unchanged.
 - `TowerData` - public fields `towerName`, `icon`, `cost`, `damage`,
-  `attackSpeed`, `range`, `bulletData`, `towerPrefab`; derived combat values
+  `attackSpeed`, `range`, `bulletData`, `upgradeData`, `towerPrefab`; derived combat values
   `DamagePerShot`, `AttacksPerSecond`, `TargetingRange`, and `GetTargetingRange`.
 - `TowerUpgradeData` - nested `UpgradeLevel` with `upgradeName`, `cost`,
   `damageBonus`, `attackSpeedBonus`, `rangeBonus`, `overrideBulletData`; field
@@ -441,3 +448,9 @@ Append a one-line entry whenever this document is updated.
   progress, IPathGrid, batched physics synchronization, reusable query results,
   deduplicated splash, incremental previews, guarded GameSession transitions,
   GameplayLifecycle cleanup and UI-independent tower transactions.
+- 2026-09-21: Split tower visuals into a fixed base plus a target-tracking turret
+  pivot and moved projectile spawning to per-prefab fire points.
+- 2026-09-21: Added per-tower upgrade paths, reduced laser upgrade range growth,
+  adjusted laser cadence, and introduced a lower-DPS Long Range Tower using normal bullets.
+- 2026-09-21: Unified turret aiming and projectile lead prediction so moving-target
+  shots leave the barrel along the direction the turret actually tracks.

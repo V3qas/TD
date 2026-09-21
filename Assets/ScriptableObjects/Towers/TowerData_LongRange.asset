@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0e77110153240fb4f968fcc5b37964c7, type: 3}
-  m_Name: TowerData_Laser
+  m_Name: TowerData_LongRange
   m_EditorClassIdentifier: TD.Runtime::TD.Towers.TowerData
-  towerName: Laser Tower
+  towerName: Long Range Tower
   icon: {fileID: 0}
-  cost: 50
-  damage: 20
-  attackSpeed: 1
-  range: 3
-  bulletData: {fileID: 11400000, guid: 6a20b3d9c7e54f91b842afc4d510e622, type: 2}
-  upgradeData: {fileID: 11400000, guid: 9f3b7d1e5a6c4820b4d8e2f7a1c59360, type: 2}
-  towerPrefab: {fileID: 620000000000000001, guid: 7b31c4ead8f650a2c953b0d5e621f733, type: 3}
+  cost: 60
+  damage: 14
+  attackSpeed: 0.8
+  range: 5
+  bulletData: {fileID: 11400000, guid: cbfb686c96d32094b9b8dd37d6a97af4, type: 2}
+  upgradeData: {fileID: 11400000, guid: 4a8d2f6c1b3e4957a0c9d5e7f2b68134, type: 2}
+  towerPrefab: {fileID: 630000000000000001, guid: 2c7f8e4a5b6d4f0193a2c8e7d1f4b609, type: 3}

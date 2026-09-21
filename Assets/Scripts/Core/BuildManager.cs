@@ -21,7 +21,7 @@ namespace TD.Core
         [Tooltip("Towers shown as build options in the in-game menu.")]
         [SerializeField] private List<TowerData> availableTowers = new List<TowerData>();
 
-        [Tooltip("Optional upgrade path assigned to placed towers.")]
+        [Tooltip("Fallback upgrade path used when a TowerData asset has no dedicated upgrade path.")]
         [SerializeField] private TowerUpgradeData towerUpgradeData;
 
         [Header("Ghost Preview")]
@@ -218,7 +218,10 @@ namespace TD.Core
             Tower tower = towerObject.GetComponent<Tower>();
             if (tower != null)
             {
-                tower.Initialize(towerToBuild, towerUpgradeData);
+                TowerUpgradeData selectedUpgradeData = towerToBuild.upgradeData != null
+                    ? towerToBuild.upgradeData
+                    : towerUpgradeData;
+                tower.Initialize(towerToBuild, selectedUpgradeData);
                 if (gridManager.GetGroundType(cellPosition) == GroundType.Elevated)
                     tower.SetTerrainRangeBonus(1f);
                 return true;

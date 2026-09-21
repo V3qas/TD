@@ -29,6 +29,10 @@ namespace TD.Towers
         [Tooltip("Default bullet type fired by this tower.")]
         public BulletData bulletData;
 
+        [Header("Upgrades")]
+        [Tooltip("Upgrade path used by this tower. Leave empty to use the BuildManager fallback.")]
+        public TowerUpgradeData upgradeData;
+
         [Header("Prefabs")]
         [Tooltip("Tower prefab. Must contain a Tower component.")]
         public GameObject towerPrefab;
