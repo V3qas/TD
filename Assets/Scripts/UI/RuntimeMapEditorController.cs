@@ -351,7 +351,7 @@ namespace TD.UI
             CreateToolButton(parent, LevelMapPaintTool.Rock, "Rock");
             CreateToolButton(parent, LevelMapPaintTool.Destructible, "Destructible");
             CreateToolButton(parent, LevelMapPaintTool.Elevated, "Elevated");
-            CreateToolButton(parent, LevelMapPaintTool.Water, "Wasser");
+            CreateToolButton(parent, LevelMapPaintTool.Water, "Water");
             CreateToolButton(parent, LevelMapPaintTool.Lava, "Lava");
             CreateToolButton(parent, LevelMapPaintTool.Start, "Start");
             CreateToolButton(parent, LevelMapPaintTool.Goal, "Stop");

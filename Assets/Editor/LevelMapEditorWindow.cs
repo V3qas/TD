@@ -8,12 +8,12 @@ namespace TD.Editor
     {
         private static readonly string[] ToolLabels =
         {
-            "Pfad",
-            "Loeschen",
-            "Stein",
-            "Zerst.-Block",
-            "Erhöhung",
-            "Wasser",
+            "Path",
+            "Erase",
+            "Rock",
+            "Destructible",
+            "Elevated",
+            "Water",
             "Lava",
             "Start",
             "Stop"
@@ -76,13 +76,13 @@ namespace TD.Editor
             {
                 using (new EditorGUI.DisabledScope(targetLevel == null))
                 {
-                    if (GUILayout.Button("Aus Level laden"))
+                    if (GUILayout.Button("Load from Level"))
                         LoadFromLevel();
 
                     ValidateIfNeeded();
                     using (new EditorGUI.DisabledScope(!isValid))
                     {
-                        if (GUILayout.Button("In Level speichern"))
+                        if (GUILayout.Button("Save to Level"))
                             SaveToLevel();
                     }
                 }
@@ -95,10 +95,10 @@ namespace TD.Editor
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                newWidth = Mathf.Clamp(EditorGUILayout.IntField("Breite", newWidth), 1, LevelMapDefinition.MaxSize);
-                newHeight = Mathf.Clamp(EditorGUILayout.IntField("Hoehe", newHeight), 1, LevelMapDefinition.MaxSize);
+                newWidth = Mathf.Clamp(EditorGUILayout.IntField("Width", newWidth), 1, LevelMapDefinition.MaxSize);
+                newHeight = Mathf.Clamp(EditorGUILayout.IntField("Height", newHeight), 1, LevelMapDefinition.MaxSize);
 
-                if (GUILayout.Button("Neue Map", GUILayout.Width(120f)))
+                if (GUILayout.Button("New Map", GUILayout.Width(120f)))
                     CreateNewMap(newWidth, newHeight);
             }
 
@@ -107,8 +107,8 @@ namespace TD.Editor
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                destructibleHp = Mathf.Max(1, EditorGUILayout.IntField("Zerst. HP", destructibleHp));
-                destructibleReward = Mathf.Max(0, EditorGUILayout.IntField("Belohnung", destructibleReward));
+                destructibleHp = Mathf.Max(1, EditorGUILayout.IntField("Destructible HP", destructibleHp));
+                destructibleReward = Mathf.Max(0, EditorGUILayout.IntField("Reward", destructibleReward));
             }
         }
 
@@ -119,32 +119,32 @@ namespace TD.Editor
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("Seed laden"))
+                if (GUILayout.Button("Load Seed"))
                     LoadSeed();
 
                 ValidateIfNeeded();
                 using (new EditorGUI.DisabledScope(!isValid))
                 {
-                    if (GUILayout.Button("Seed generieren"))
+                    if (GUILayout.Button("Generate Seed"))
                         seedInput = LevelMapSeedUtility.Encode(BuildDefinition());
 
-                    if (GUILayout.Button("JSON generieren"))
+                    if (GUILayout.Button("Generate JSON"))
                         seedInput = LevelMapSeedUtility.ToJson(BuildDefinition(), true);
 
-                    if (GUILayout.Button("Kopieren", GUILayout.Width(90f)))
+                    if (GUILayout.Button("Copy", GUILayout.Width(90f)))
                         EditorGUIUtility.systemCopyBuffer = LevelMapSeedUtility.Encode(BuildDefinition());
                 }
             }
 
             EditorGUILayout.Space(4f);
-            EditorGUILayout.LabelField("Zufallsgenerator", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Random Generator", EditorStyles.boldLabel);
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("Pfad generieren"))
+                if (GUILayout.Button("Generate Path"))
                     GenerateRandomPath();
-                if (GUILayout.Button("Blöcke streuen"))
+                if (GUILayout.Button("Scatter Blocks"))
                     ScatterRandomBlocks();
-                if (GUILayout.Button("Komplette Map"))
+                if (GUILayout.Button("Full Map"))
                     GenerateFullRandomMap();
             }
         }
@@ -161,7 +161,7 @@ namespace TD.Editor
             if (mapDefinition == null) return;
             if (!mapState.GenerateRandomPath(ResolveIntegerSeed()))
             {
-                EditorUtility.DisplayDialog("Pfadgenerator", "Kein Pfad gefunden. Anderen Seed versuchen.", "OK");
+                EditorUtility.DisplayDialog("Path Generator", "No path found. Try another seed.", "OK");
                 return;
             }
 
@@ -345,7 +345,7 @@ namespace TD.Editor
             ValidateIfNeeded();
             if (!isValid)
             {
-                EditorUtility.DisplayDialog("Map ungueltig", validationMessage, "OK");
+                EditorUtility.DisplayDialog("Invalid Map", validationMessage, "OK");
                 return;
             }
 
@@ -361,7 +361,7 @@ namespace TD.Editor
         {
             if (!LevelMapSeedUtility.TryDecode(seedInput, out LevelMapDefinition definition, out string error))
             {
-                EditorUtility.DisplayDialog("Seed ungueltig", error, "OK");
+                EditorUtility.DisplayDialog("Invalid Seed", error, "OK");
                 return;
             }
 

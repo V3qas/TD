@@ -23,7 +23,7 @@ MonoBehaviour:
   - label: Challenge
     action: 2
     isEnabled: 1
-  - label: Tower Upgrade
+  - label: Towers
     action: 3
     isEnabled: 1
   - label: Map Editor

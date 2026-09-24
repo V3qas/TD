@@ -70,7 +70,7 @@ namespace TD.Editor
                 ExportSummary(summaryPath);
 
                 AssetDatabase.Refresh();
-                Debug.Log($"Assets-Export erstellt: {exportRoot}");
+                Debug.Log($"Assets export created: {exportRoot}");
             }
             finally
             {
@@ -463,13 +463,13 @@ namespace TD.Editor
             sb.AppendLine("- PrefabSummaries/*");
             sb.AppendLine();
 
-            sb.AppendLine("Hinweis:");
-            sb.AppendLine("- Exportiert werden nur ausgewählte relevante Ordner unter Assets/");
-            sb.AppendLine("- .meta-Dateien werden ignoriert");
-            sb.AppendLine("- Szenen werden nur temporär zum Lesen geöffnet");
-            sb.AppendLine("- Die vorherige Szenenkonfiguration wird am Ende wiederhergestellt");
-            sb.AppendLine("- Roh-Dateiinhalte (.cs/.unity/.asset/.prefab) werden NICHT mehr exportiert,");
-            sb.AppendLine("  da sie 1:1 im Repo liegen. Stattdessen Summaries fuer Szenen/SOs/Prefabs.");
+            sb.AppendLine("Notes:");
+            sb.AppendLine("- Only selected relevant folders under Assets/ are exported");
+            sb.AppendLine("- .meta files are ignored");
+            sb.AppendLine("- Scenes are opened temporarily for reading only");
+            sb.AppendLine("- The previous scene configuration is restored at the end");
+            sb.AppendLine("- Raw file contents (.cs/.unity/.asset/.prefab) are no longer exported");
+            sb.AppendLine("  because identical copies already exist in the repository. Summary files are generated for scenes, ScriptableObjects, and prefabs instead.");
 
             File.WriteAllText(outputPath, sb.ToString(), Encoding.UTF8);
         }

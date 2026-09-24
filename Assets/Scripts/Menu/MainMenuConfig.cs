@@ -17,7 +17,7 @@ namespace TD.Menu
             new MainMenuButtonConfig("Single Campaign", MainMenuAction.SingleCampaign),
             new MainMenuButtonConfig("Infinite", MainMenuAction.Infinite),
             new MainMenuButtonConfig("Challenge", MainMenuAction.Challenge),
-            new MainMenuButtonConfig("Tower Upgrade", MainMenuAction.TowerUpgrade),
+            new MainMenuButtonConfig("Towers", MainMenuAction.TowerUpgrade),
             new MainMenuButtonConfig("Map Editor", MainMenuAction.MapEditor),
             new MainMenuButtonConfig("Custom Maps", MainMenuAction.CustomMaps),
             new MainMenuButtonConfig("Options", MainMenuAction.Options),
