@@ -177,6 +177,8 @@ namespace TD.Tests.EditMode
             EventSystem eventSystem = Object.FindAnyObjectByType<EventSystem>();
             Assert.That(eventSystem, Is.Not.Null);
             eventSystem.SetSelectedGameObject(optionsButton.gameObject);
+            bool activeFullscreen = DisplaySettings.IsFullscreenMode(Screen.fullScreenMode);
+            controller.FullscreenToggle.SetIsOnWithoutNotify(!activeFullscreen);
             optionsButton.onClick.Invoke();
 
             Assert.That(controller.OptionsOverlay.activeSelf, Is.True);
@@ -191,18 +193,21 @@ namespace TD.Tests.EditMode
             Assert.That(controller.LanguageDropdown.template, Is.Not.Null);
             Assert.That(controller.LanguageDropdown.itemText.transform.parent.GetComponent<Toggle>(), Is.Not.Null);
             Assert.That(controller.FullscreenToggle, Is.Not.Null);
+            Assert.That(controller.FullscreenToggle.isOn, Is.EqualTo(activeFullscreen));
             Assert.That(controller.FullscreenToggle.GetComponentInChildren<Text>().text, Is.EqualTo("X"));
             Assert.That(controller.FullscreenToggle.transform.Find("Label").GetComponent<Text>().text, Is.EqualTo("Fullscreen"));
             Assert.That(controller.ResolutionDropdown, Is.Not.Null);
             Assert.That(controller.ResolutionDropdown.options.Count, Is.EqualTo(controller.AvailableResolutions.Count));
             Assert.That(controller.AvailableResolutions.Count, Is.GreaterThan(0));
 
-            Vector2Int correctedStoredResolution = new Vector2Int(
-                PlayerPrefs.GetInt(ResolutionWidthPlayerPrefsKey),
-                PlayerPrefs.GetInt(ResolutionHeightPlayerPrefsKey));
-            Assert.That(correctedStoredResolution.x, Is.LessThan(int.MaxValue));
-            Assert.That(correctedStoredResolution.y, Is.LessThan(int.MaxValue));
-            Assert.That(controller.AvailableResolutions, Does.Contain(correctedStoredResolution));
+            Assert.That(PlayerPrefs.GetInt(ResolutionWidthPlayerPrefsKey), Is.EqualTo(int.MaxValue));
+            Assert.That(PlayerPrefs.GetInt(ResolutionHeightPlayerPrefsKey), Is.EqualTo(int.MaxValue));
+            Vector2Int selectedResolution = controller.AvailableResolutions[controller.ResolutionDropdown.value];
+            Assert.That(selectedResolution.x, Is.LessThan(int.MaxValue));
+            Assert.That(selectedResolution.y, Is.LessThan(int.MaxValue));
+            Vector2Int activeResolution = new Vector2Int(Screen.width, Screen.height);
+            if (activeResolution.x > 0 && activeResolution.y > 0)
+                Assert.That(selectedResolution, Is.EqualTo(activeResolution));
 
             for (int i = 1; i < controller.AvailableResolutions.Count; i++)
             {

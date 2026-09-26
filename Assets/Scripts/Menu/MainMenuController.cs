@@ -14,9 +14,6 @@ namespace TD.Menu
     public class MainMenuController : MonoBehaviour
     {
         private const string LanguagePlayerPrefsKey = "TD.UiLanguage";
-        private const string FullscreenPlayerPrefsKey = "TD.Fullscreen";
-        private const string ResolutionWidthPlayerPrefsKey = "TD.ResolutionWidth";
-        private const string ResolutionHeightPlayerPrefsKey = "TD.ResolutionHeight";
         private static readonly Vector2 MenuReferenceResolution = new Vector2(1920f, 1080f);
 
         private static readonly Vector2Int[] CommonResolutions =
@@ -101,7 +98,6 @@ namespace TD.Menu
         private void Start()
         {
             currentLanguage = (MenuLanguage)Mathf.Clamp(PlayerPrefs.GetInt(LanguagePlayerPrefsKey, 0), 0, 1);
-            ApplyStoredDisplaySettings();
             EnsureCanvas();
             EnsureEventSystem();
             BuildMenu();
@@ -665,6 +661,16 @@ namespace TD.Menu
         {
             BuildAvailableResolutions();
 
+            return CreateDropdown(
+                parent,
+                "ResolutionDropdown",
+                BuildResolutionOptions(),
+                GetActiveResolutionIndex(),
+                HandleResolutionChanged);
+        }
+
+        private List<Dropdown.OptionData> BuildResolutionOptions()
+        {
             List<Dropdown.OptionData> options = new List<Dropdown.OptionData>();
             for (int i = 0; i < availableResolutions.Count; i++)
             {
@@ -672,19 +678,16 @@ namespace TD.Menu
                 options.Add(new Dropdown.OptionData(resolution.x + " x " + resolution.y));
             }
 
-            Vector2Int storedResolution = GetStoredResolution();
+            return options;
+        }
+
+        private int GetActiveResolutionIndex()
+        {
+            Vector2Int activeResolution = GetActiveResolution(GetDisplayBounds());
             int selectedIndex = availableResolutions.FindIndex(
-                resolution => resolution.x == storedResolution.x && resolution.y == storedResolution.y);
+                resolution => resolution.x == activeResolution.x && resolution.y == activeResolution.y);
 
-            if (selectedIndex < 0)
-                selectedIndex = availableResolutions.Count - 1;
-
-            return CreateDropdown(
-                parent,
-                "ResolutionDropdown",
-                options,
-                Mathf.Max(0, selectedIndex),
-                HandleResolutionChanged);
+            return Mathf.Max(0, selectedIndex >= 0 ? selectedIndex : availableResolutions.Count - 1);
         }
 
         private Dropdown CreateDropdown(
@@ -860,7 +863,7 @@ namespace TD.Menu
             Toggle toggle = toggleObject.GetComponent<Toggle>();
             toggle.targetGraphic = boxImage;
             toggle.graphic = checkmark;
-            toggle.SetIsOnWithoutNotify(GetStoredFullscreen());
+            toggle.SetIsOnWithoutNotify(DisplaySettings.IsFullscreenMode(Screen.fullScreenMode));
             toggle.onValueChanged.AddListener(HandleFullscreenChanged);
             return toggle;
         }
@@ -939,66 +942,9 @@ namespace TD.Menu
                 availableResolutions.Add(resolution);
         }
 
-        private Vector2Int GetStoredResolution()
-        {
-            if (availableResolutions.Count == 0)
-                BuildAvailableResolutions();
-
-            Vector2Int fallbackResolution = GetFallbackResolution();
-            Vector2Int storedResolution = new Vector2Int(
-                PlayerPrefs.GetInt(ResolutionWidthPlayerPrefsKey, fallbackResolution.x),
-                PlayerPrefs.GetInt(ResolutionHeightPlayerPrefsKey, fallbackResolution.y));
-
-            if (availableResolutions.Contains(storedResolution))
-                return storedResolution;
-
-            PlayerPrefs.SetInt(ResolutionWidthPlayerPrefsKey, fallbackResolution.x);
-            PlayerPrefs.SetInt(ResolutionHeightPlayerPrefsKey, fallbackResolution.y);
-            PlayerPrefs.Save();
-            return fallbackResolution;
-        }
-
-        private Vector2Int GetFallbackResolution()
-        {
-            Vector2Int activeResolution = GetActiveResolution(GetDisplayBounds());
-            if (availableResolutions.Contains(activeResolution))
-                return activeResolution;
-
-            if (availableResolutions.Count == 0)
-                return activeResolution;
-
-            Vector2Int largestResolution = availableResolutions[0];
-            long largestPixelCount = (long)largestResolution.x * largestResolution.y;
-            for (int i = 1; i < availableResolutions.Count; i++)
-            {
-                Vector2Int candidate = availableResolutions[i];
-                long candidatePixelCount = (long)candidate.x * candidate.y;
-                if (candidatePixelCount > largestPixelCount)
-                {
-                    largestResolution = candidate;
-                    largestPixelCount = candidatePixelCount;
-                }
-            }
-
-            return largestResolution;
-        }
-
-        private bool GetStoredFullscreen()
-        {
-            return PlayerPrefs.GetInt(FullscreenPlayerPrefsKey, Screen.fullScreen ? 1 : 0) != 0;
-        }
-
-        private void ApplyStoredDisplaySettings()
-        {
-            BuildAvailableResolutions();
-            ApplyDisplaySettings(GetStoredResolution(), GetStoredFullscreen());
-        }
-
         private void HandleFullscreenChanged(bool fullscreen)
         {
-            PlayerPrefs.SetInt(FullscreenPlayerPrefsKey, fullscreen ? 1 : 0);
-            PlayerPrefs.Save();
-            ApplyDisplaySettings(GetSelectedResolution(), fullscreen);
+            DisplaySettings.Apply(GetSelectedResolution(), fullscreen);
         }
 
         private void HandleResolutionChanged(int resolutionIndex)
@@ -1007,10 +953,10 @@ namespace TD.Menu
                 return;
 
             Vector2Int resolution = availableResolutions[resolutionIndex];
-            PlayerPrefs.SetInt(ResolutionWidthPlayerPrefsKey, resolution.x);
-            PlayerPrefs.SetInt(ResolutionHeightPlayerPrefsKey, resolution.y);
-            PlayerPrefs.Save();
-            ApplyDisplaySettings(resolution, fullscreenToggle != null ? fullscreenToggle.isOn : GetStoredFullscreen());
+            bool fullscreen = fullscreenToggle != null
+                ? fullscreenToggle.isOn
+                : DisplaySettings.IsFullscreenMode(Screen.fullScreenMode);
+            DisplaySettings.Apply(resolution, fullscreen);
         }
 
         private Vector2Int GetSelectedResolution()
@@ -1022,24 +968,15 @@ namespace TD.Menu
                 return availableResolutions[resolutionDropdown.value];
             }
 
-            return GetStoredResolution();
-        }
-
-        private static void ApplyDisplaySettings(Vector2Int resolution, bool fullscreen)
-        {
-            if (!Application.isPlaying)
-                return;
-
-#if !UNITY_WEBGL
-            FullScreenMode mode = fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
-            Screen.SetResolution(resolution.x, resolution.y, mode);
-#endif
+            return GetActiveResolution(GetDisplayBounds());
         }
 
         private void ShowOptionsWindow()
         {
             if (optionsOverlay == null)
                 return;
+
+            RefreshDisplayControls();
 
             if (!optionsOverlay.activeSelf)
             {
@@ -1064,6 +1001,20 @@ namespace TD.Menu
                 optionsEventSystem.SetSelectedGameObject(null);
                 optionsEventSystem.SetSelectedGameObject(languageDropdown.gameObject);
             }
+        }
+
+        private void RefreshDisplayControls()
+        {
+            if (fullscreenToggle != null)
+                fullscreenToggle.SetIsOnWithoutNotify(DisplaySettings.IsFullscreenMode(Screen.fullScreenMode));
+
+            if (resolutionDropdown == null)
+                return;
+
+            BuildAvailableResolutions();
+            resolutionDropdown.options = BuildResolutionOptions();
+            resolutionDropdown.SetValueWithoutNotify(GetActiveResolutionIndex());
+            resolutionDropdown.RefreshShownValue();
         }
 
         private void CloseOptionsWindow()

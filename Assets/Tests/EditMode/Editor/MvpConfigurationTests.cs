@@ -1,3 +1,4 @@
+using System.IO;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -13,6 +14,7 @@ namespace TD.Tests.EditMode
     {
         private const string MenuScenePath = "Assets/Scenes/Menu.unity";
         private const string GameplayScenePath = "Assets/Scenes/Gameplay.unity";
+        private const string ProjectSettingsPath = "ProjectSettings/ProjectSettings.asset";
         private const string MenuConfigPath = "Assets/ScriptableObjects/MainMenuConfig_Main.asset";
         private const string RunnerDataPath = "Assets/ScriptableObjects/Enemies/EnemyData_Runner.asset";
         private const string UpgradeDataPath = "Assets/ScriptableObjects/Towers/TowerUpgradeData_Basic.asset";
@@ -71,6 +73,19 @@ namespace TD.Tests.EditMode
                 Assert.That(upgrade.objectReferenceValue, Is.Not.Null, "Basic tower upgrade is missing.");
                 Assert.That(AssetDatabase.GetAssetPath(upgrade.objectReferenceValue), Is.EqualTo(UpgradeDataPath));
             });
+        }
+
+        [Test]
+        public void DesktopPlayer_UsesSinglePlayerWindowAndFocusPolicy()
+        {
+            string projectSettings = File.ReadAllText(Path.GetFullPath(ProjectSettingsPath));
+
+            Assert.That(projectSettings, Does.Contain("  fullscreenMode: 3"),
+                "The desktop player should start windowed; Unity restores later user changes itself.");
+            Assert.That(projectSettings, Does.Contain("  resizableWindow: 1"),
+                "The desktop window should remain user-resizable.");
+            Assert.That(projectSettings, Does.Contain("  runInBackground: 0"),
+                "Unfocused single-player gameplay must pause instead of progressing unseen.");
         }
 
         private static void WithScene(string path, System.Action<Scene> assertion)

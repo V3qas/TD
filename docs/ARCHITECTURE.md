@@ -365,6 +365,21 @@ public method or property is added, removed, or renamed.
 - `CampaignLevelConfig` - fields `label`, `levelData`, `mapSeed`, `isUnlocked`;
   constructors.
 
+#### Desktop display and focus policy
+
+- On first launch, the Windows player defaults to a resizable 1920 x 1080
+  window. The options UI reads the active `Screen` state and applies changes
+  with `Screen.SetResolution`.
+- Unity is the only owner of display persistence. [Unity 6 stores resolution,
+  full-screen mode, and window position after `Screen` changes and restores
+  them before user code runs](https://docs.unity3d.com/6000.0/Documentation/ScriptReference/Screen.html).
+  Do not mirror them in project-specific `PlayerPrefs` or reapply them from a
+  runtime initialization callback.
+- `runInBackground` is intentionally disabled. This is a real-time
+  single-player game without a separate focus-loss pause flow, so waves and
+  enemies must not continue while the player is using another application.
+  Revisit this only together with an explicit pause/lifecycle design.
+
 ### Theming
 
 - `MapThemeDefinition` - fields `themeId`, `displayName`, `backgroundSprite`,
