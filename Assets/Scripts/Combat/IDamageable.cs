@@ -1,7 +1,4 @@
 using UnityEngine;
-using TD.Bullets;
-using TD.Towers;
-using TD.UI;
 
 /// <summary>
 /// Anything that can take damage from a tower's bullet (enemies, destructible blocks).

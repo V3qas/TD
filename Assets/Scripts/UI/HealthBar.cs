@@ -1,5 +1,6 @@
 using UnityEngine;
 using TD.Combat;
+using TD.Core;
 
 /// <summary>
 /// Floating health bar that follows an IDamageable target. Renders two sprite
@@ -26,8 +27,6 @@ namespace TD.UI
         private SpriteRenderer backgroundRenderer;
         private SpriteRenderer fillRenderer;
         private Transform fillTransform;
-
-        private static Sprite cachedWhiteSprite;
 
         /// <summary>
         /// Attaches this bar to a target. Call once after spawning the bar.
@@ -72,7 +71,7 @@ namespace TD.UI
             if (backgroundRenderer != null && fillRenderer != null)
                 return;
 
-            Sprite sprite = GetOrCreateWhiteSprite();
+            Sprite sprite = RuntimeSpriteResources.WhiteSprite;
 
             GameObject backgroundObject = new GameObject("Background");
             backgroundObject.transform.SetParent(transform, false);
@@ -121,28 +120,6 @@ namespace TD.UI
                 return Color.Lerp(Color.yellow, Color.green, (ratio - 0.5f) * 2f);
 
             return Color.Lerp(Color.red, Color.yellow, ratio * 2f);
-        }
-
-        private static Sprite GetOrCreateWhiteSprite()
-        {
-            if (cachedWhiteSprite != null)
-                return cachedWhiteSprite;
-
-            Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Point
-            };
-            texture.SetPixel(0, 0, Color.white);
-            texture.Apply();
-
-            cachedWhiteSprite = Sprite.Create(
-                texture,
-                new Rect(0f, 0f, 1f, 1f),
-                new Vector2(0.5f, 0.5f),
-                pixelsPerUnit: 1f);
-
-            return cachedWhiteSprite;
         }
 
         /// <summary>

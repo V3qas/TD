@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.Events;
-using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TD.Core;
@@ -56,17 +54,7 @@ namespace TD.UI
 
         public event System.Action OnBackToEditorRequested;
 
-        private Font RuntimeFont
-        {
-            get
-            {
-                if (font != null)
-                    return font;
-
-                Font legacyFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                return legacyFont != null ? legacyFont : Resources.GetBuiltinResource<Font>("Arial.ttf");
-            }
-        }
+        private Font RuntimeFont => RuntimeUiFactory.ResolveFont(font);
 
         private void Start()
         {
@@ -243,31 +231,18 @@ namespace TD.UI
 
         private void EnsureCanvas()
         {
-            if (targetCanvas != null)
-                return;
-
-            targetCanvas = FindAnyObjectByType<Canvas>();
-
-            if (targetCanvas != null)
-                return;
-
-            GameObject canvasObject = new GameObject("InGameHudCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            targetCanvas = canvasObject.GetComponent<Canvas>();
-            targetCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-            CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.matchWidthOrHeight = 0.5f;
+            targetCanvas = RuntimeUiFactory.EnsureCanvas(
+                targetCanvas,
+                "InGameHudCanvas",
+                new Vector2(1920f, 1080f),
+                false,
+                CanvasScaler.ScreenMatchMode.MatchWidthOrHeight,
+                0.5f);
         }
 
         private void EnsureEventSystem()
         {
-            if (FindAnyObjectByType<EventSystem>() != null)
-                return;
-
-            GameObject eventSystemObject = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
-            eventSystemObject.transform.SetParent(transform, false);
+            RuntimeUiFactory.EnsureEventSystem(transform);
         }
 
         private void EnsureTowerSelectionController()
@@ -451,52 +426,12 @@ namespace TD.UI
 
         private Text CreateText(string objectName, Transform parent, string text, int fontSize, TextAnchor alignment, Color color)
         {
-            GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(Text));
-            textObject.transform.SetParent(parent, false);
-
-            Text textComponent = textObject.GetComponent<Text>();
-            textComponent.text = text;
-            textComponent.font = RuntimeFont;
-            textComponent.fontSize = fontSize;
-            textComponent.alignment = alignment;
-            textComponent.color = color;
-            textComponent.horizontalOverflow = HorizontalWrapMode.Wrap;
-            textComponent.verticalOverflow = VerticalWrapMode.Overflow;
-
-            return textComponent;
+            return RuntimeUiFactory.CreateText(objectName, parent, text, fontSize, alignment, color, RuntimeFont);
         }
 
         private Button CreateButton(Transform parent, string label, UnityAction onClick, bool interactable)
         {
-            GameObject buttonObject = new GameObject(label + "Button", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
-            buttonObject.transform.SetParent(parent, false);
-
-            LayoutElement layoutElement = buttonObject.GetComponent<LayoutElement>();
-            layoutElement.preferredHeight = 48f;
-
-            Image image = buttonObject.GetComponent<Image>();
-            image.color = interactable ? new Color(0.18f, 0.32f, 0.52f, 1f) : new Color(0.18f, 0.18f, 0.2f, 1f);
-
-            Button button = buttonObject.GetComponent<Button>();
-            button.interactable = interactable;
-            button.targetGraphic = image;
-            button.onClick.AddListener(onClick);
-
-            ColorBlock colors = button.colors;
-            colors.normalColor = image.color;
-            colors.highlightedColor = new Color(0.24f, 0.44f, 0.68f, 1f);
-            colors.pressedColor = new Color(0.12f, 0.24f, 0.38f, 1f);
-            colors.disabledColor = new Color(0.12f, 0.12f, 0.14f, 1f);
-            button.colors = colors;
-
-            Text labelText = CreateText("Label", buttonObject.transform, label, 16, TextAnchor.MiddleCenter, Color.white);
-            RectTransform labelRect = labelText.GetComponent<RectTransform>();
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = new Vector2(8f, 0f);
-            labelRect.offsetMax = new Vector2(-8f, 0f);
-
-            return button;
+            return RuntimeUiFactory.CreatePanelButton(parent, label, onClick, interactable, RuntimeFont, 48f, 8f);
         }
 
         private void SelectTowerForBuilding(TowerData towerData)
@@ -595,10 +530,7 @@ namespace TD.UI
 
         private void CreateDivider(Transform parent)
         {
-            GameObject divider = new GameObject("Divider", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
-            divider.transform.SetParent(parent, false);
-            divider.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0.16f);
-            divider.GetComponent<LayoutElement>().preferredHeight = 1f;
+            RuntimeUiFactory.CreateDivider(parent, new Color(1f, 1f, 1f, 0.16f));
         }
 
         private void RefreshTopButtons()

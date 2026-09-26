@@ -22,7 +22,6 @@ namespace TD.Level
         [SerializeField] private LevelLoader levelLoader;
         [SerializeField] private GridManager gridManager;
 
-        private static Sprite cachedQuadSprite;
         private readonly List<GameObject> spawned = new List<GameObject>();
 
         private void Awake()
@@ -92,12 +91,12 @@ namespace TD.Level
 
             if (isStart)
             {
-                renderer.sprite = GetOrCreateQuadSprite();
+                renderer.sprite = RuntimeSpriteResources.WhiteSprite;
                 renderer.color = new Color(0.2f, 0.72f, 0.34f);
             }
             else if (isGoal)
             {
-                renderer.sprite = GetOrCreateQuadSprite();
+                renderer.sprite = RuntimeSpriteResources.WhiteSprite;
                 renderer.color = new Color(0.82f, 0.22f, 0.2f);
             }
             else
@@ -114,12 +113,12 @@ namespace TD.Level
             MapThemeDefinition theme = MapThemeApplier.Active != null ? MapThemeApplier.Active.ActiveTheme : null;
             if (theme != null && theme.TryGetGroundVisual(type, out MapThemeDefinition.GroundVisual visual))
             {
-                renderer.sprite = visual.sprite != null ? visual.sprite : GetOrCreateQuadSprite();
+                renderer.sprite = visual.sprite != null ? visual.sprite : RuntimeSpriteResources.WhiteSprite;
                 renderer.color = visual.tint.a > 0f ? visual.tint : ColorFor(type);
                 return;
             }
 
-            renderer.sprite = GetOrCreateQuadSprite();
+            renderer.sprite = RuntimeSpriteResources.WhiteSprite;
             renderer.color = ColorFor(type);
         }
 
@@ -147,18 +146,5 @@ namespace TD.Level
             }
         }
 
-        private static Sprite GetOrCreateQuadSprite()
-        {
-            if (cachedQuadSprite != null) return cachedQuadSprite;
-            Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Point
-            };
-            texture.SetPixel(0, 0, Color.white);
-            texture.Apply();
-            cachedQuadSprite = Sprite.Create(texture, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
-            return cachedQuadSprite;
-        }
     }
 }

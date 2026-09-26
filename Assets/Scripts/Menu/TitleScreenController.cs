@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using TD.UI;
 
 /// <summary>
 /// Shows the title screen and fades to the menu after keyboard or mouse input.
@@ -58,16 +59,13 @@ namespace TD.Menu
 
         private void BuildUi()
         {
-            GameObject canvasObject = new GameObject("TitleCanvas",
-                typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas = RuntimeUiFactory.CreateCanvas(
+                "TitleCanvas",
+                new Vector2(1920f, 1080f),
+                CanvasScaler.ScreenMatchMode.MatchWidthOrHeight,
+                0.5f);
             canvas.sortingOrder = 10;
-
-            CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.matchWidthOrHeight = 0.5f;
+            GameObject canvasObject = canvas.gameObject;
 
             GameObject bgObject = new GameObject("Background",
                 typeof(RectTransform), typeof(Image));
@@ -90,23 +88,21 @@ namespace TD.Menu
                 CreateFallbackTitle(canvasObject.transform);
             }
 
-            GameObject pressObject = new GameObject("PressAnyKey",
-                typeof(RectTransform), typeof(Text));
-            pressObject.transform.SetParent(canvasObject.transform, false);
+            pressText = RuntimeUiFactory.CreateText(
+                "PressAnyKey",
+                canvasObject.transform,
+                pressAnyKeyText,
+                36,
+                TextAnchor.MiddleCenter,
+                new Color(0.92f, 0.92f, 1f),
+                null);
 
-            RectTransform pressRect = pressObject.GetComponent<RectTransform>();
+            RectTransform pressRect = pressText.GetComponent<RectTransform>();
             pressRect.anchorMin = new Vector2(0f, 0f);
             pressRect.anchorMax = new Vector2(1f, 0f);
             pressRect.pivot = new Vector2(0.5f, 0f);
             pressRect.sizeDelta = new Vector2(0f, 80f);
             pressRect.anchoredPosition = new Vector2(0f, 60f);
-
-            pressText = pressObject.GetComponent<Text>();
-            pressText.text = pressAnyKeyText;
-            pressText.font = GetFont();
-            pressText.fontSize = 36;
-            pressText.alignment = TextAnchor.MiddleCenter;
-            pressText.color = new Color(0.92f, 0.92f, 1f);
 
             GameObject fadeObject = new GameObject("FadeOverlay",
                 typeof(RectTransform), typeof(Image));
@@ -119,22 +115,20 @@ namespace TD.Menu
 
         private void CreateFallbackTitle(Transform parent)
         {
-            GameObject titleObject = new GameObject("FallbackTitle",
-                typeof(RectTransform), typeof(Text));
-            titleObject.transform.SetParent(parent, false);
+            Text titleText = RuntimeUiFactory.CreateText(
+                "FallbackTitle",
+                parent,
+                "V3Q\nDEFENSE",
+                96,
+                TextAnchor.MiddleCenter,
+                new Color(0.5f, 0.85f, 1f),
+                null);
 
-            RectTransform titleRect = titleObject.GetComponent<RectTransform>();
+            RectTransform titleRect = titleText.GetComponent<RectTransform>();
             titleRect.anchorMin = new Vector2(0.1f, 0.35f);
             titleRect.anchorMax = new Vector2(0.9f, 0.7f);
             titleRect.offsetMin = Vector2.zero;
             titleRect.offsetMax = Vector2.zero;
-
-            Text titleText = titleObject.GetComponent<Text>();
-            titleText.text = "V3Q\nDEFENSE";
-            titleText.font = GetFont();
-            titleText.fontSize = 96;
-            titleText.alignment = TextAnchor.MiddleCenter;
-            titleText.color = new Color(0.5f, 0.85f, 1f);
         }
 
         private IEnumerator BlinkPressText()
@@ -181,10 +175,5 @@ namespace TD.Menu
             rect.offsetMax = Vector2.zero;
         }
 
-        private static Font GetFont()
-        {
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            return font != null ? font : Resources.GetBuiltinResource<Font>("Arial.ttf");
-        }
     }
 }

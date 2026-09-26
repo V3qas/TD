@@ -1,18 +1,19 @@
-# Unity generated files
-[Ll]ibrary/
-[Tt]emp/
-[Oo]bj/
-[Bb]uild/
-[Bb]uilds/
-[Ll]ogs/
-UserSettings/
-MemoryCaptures/
+# Unity-generated files
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/UserSettings/
+/MemoryCaptures/
 
-# Auto-generated VS / Rider / VSCode files
+# Auto-generated IDE files
 .vscode/
 .vs/
 .idea/
 *.sln
+*.slnx
 *.csproj
 *.unityproj
 *.suo
@@ -39,23 +40,10 @@ Assets/AssetStoreTools*
 .DS_Store
 Thumbs.db
 
-# Ignore these Unity folders (large or ephemeral)
-/[Ll]ibrary/
-/[Tt]emp/
-/[Bb]uild/
-/[Bb]uilds/
-/[Ll]ogs/
-
-# Local build output (ignore heavy generated binaries)
-buildOutput/
-[Bb]uildOutput/
-
-# Uncomment if you use JetBrains Rider
-# .idea/
-
-# End of file
-UnityTestRun.log
+# Local generated output
+/[Bb]uild[Oo]utput/
+/UnityTestRun.log
 
 # Regenerable export from Tools > Export > Export Assets Folder To TXT
-AssetsExport/
+/AssetsExport/
 

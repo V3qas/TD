@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0e77110153240fb4f968fcc5b37964c7, type: 3}
   m_Name: TowerData_Basic
-  m_EditorClassIdentifier: Assembly-CSharp::TowerData
+  m_EditorClassIdentifier: TD.Runtime::TD.Towers.TowerData
   towerName: Basic Tower
   icon: {fileID: 0}
   cost: 50

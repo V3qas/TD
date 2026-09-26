@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
-using TD.Combat;
 using TD.Level;
 
 namespace TD.Tests.EditMode
@@ -177,6 +176,34 @@ namespace TD.Tests.EditMode
 
             Assert.IsFalse(valid, "Validator must reject path/occupant overlap rather than dropping the occupant.");
             Assert.IsNotEmpty(message);
+        }
+
+        [Test]
+        public void Validate_RejectsAuthoredPathCellThroughOccupantWhenSequencesExist()
+        {
+            List<Vector2Int> path = new List<Vector2Int>
+            {
+                new Vector2Int(0, 0), new Vector2Int(1, 0), new Vector2Int(2, 0), new Vector2Int(3, 0)
+            };
+            Vector2Int branchCell = new Vector2Int(1, 1);
+            LevelMapDefinition definition = new LevelMapDefinition
+            {
+                width = 4,
+                height = 2,
+                startCell = new Vector2Int(0, 0),
+                goalCell = new Vector2Int(3, 0),
+                pathCells = new List<Vector2Int> { branchCell },
+                pathSequences = new List<PathSequence> { new PathSequence(path) },
+                occupants = new List<OccupantEntry>
+                {
+                    new OccupantEntry { cell = branchCell, type = OccupantType.Rock }
+                }
+            };
+
+            bool valid = LevelMapValidator.Validate(definition, true, out string message);
+
+            Assert.IsFalse(valid, "All authored pathCells must be checked even when pathSequences exist.");
+            Assert.IsTrue(message.Contains("overlaps"), message);
         }
 
         [Test]

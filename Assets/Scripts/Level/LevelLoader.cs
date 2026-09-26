@@ -109,7 +109,7 @@ namespace TD.Level
 
         public bool LoadMapSeed(string mapSeed)
         {
-            if (!LevelMapSeedUtility.TryDecode(mapSeed, out LevelMapDefinition definition, out string error))
+            if (!LevelMapSeedUtility.TryDecodeValidated(mapSeed, true, out LevelMapDefinition definition, out string error))
             {
                 Debug.LogError($"LevelLoader: Map seed is invalid ({error}).");
                 return false;

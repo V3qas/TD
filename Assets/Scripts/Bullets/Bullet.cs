@@ -223,7 +223,16 @@ namespace TD.Bullets
             transform.SetPositionAndRotation(
                 Vector3.Lerp(origin, destination, 0.5f),
                 Quaternion.Euler(0f, 0f, angle));
-            transform.localScale = new Vector3(beamLength, beamWidth, defaultLocalScale.z);
+            Vector3 beamScale = new Vector3(beamLength, beamWidth, defaultLocalScale.z);
+            if (spriteRenderer != null && spriteRenderer.sprite != null)
+            {
+                Vector2 spriteSize = spriteRenderer.sprite.bounds.size;
+                if (spriteSize.x > Mathf.Epsilon)
+                    beamScale.x /= spriteSize.x;
+                if (spriteSize.y > Mathf.Epsilon)
+                    beamScale.y /= spriteSize.y;
+            }
+            transform.localScale = beamScale;
 
             if (spriteRenderer == null)
                 Debug.LogWarning($"Laser bullet '{name}' has no SpriteRenderer for its beam visual.");
@@ -253,7 +262,7 @@ namespace TD.Bullets
                 if (!CanHit(damageable))
                     continue;
 
-                if (!data.isPiercing)
+                if (!data.laserPiercing)
                 {
                     if (hit.distance < closestDistance)
                     {

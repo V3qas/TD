@@ -11,16 +11,15 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b6a709dfbef267847b8943421c88e96b, type: 3}
   m_Name: BulletData_Basic
-  m_EditorClassIdentifier: Assembly-CSharp::BulletData
+  m_EditorClassIdentifier: TD.Runtime::TD.Bullets.BulletData
   bulletName: Basic Bullet
   travelSpeed: 16
   damageMultiplier: 1
   attackSpeedMultiplier: 1
   rangeMultiplier: 1
   splashRadius: 0
-  isPiercing: 0
+  laserPiercing: 0
   slowFactor: 1
   slowDuration: 0
   towerAccentColor: {r: 1, g: 1, b: 1, a: 1}
   bulletPrefab: {fileID: 7930647487827108239, guid: 7f1781fba95dcd644a6b549f1379c70d, type: 3}
-  hitAnimator: {fileID: 0}

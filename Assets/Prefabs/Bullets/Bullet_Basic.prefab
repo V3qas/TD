@@ -104,7 +104,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: af6b4a91ff95c704cba5f3e4c18a8cbe, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Bullet
+  m_EditorClassIdentifier: TD.Runtime::TD.Bullets.Bullet
 --- !u!58 &117985328166114203
 CircleCollider2D:
   m_ObjectHideFlags: 0

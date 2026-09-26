@@ -21,7 +21,7 @@ namespace TD.Core
 
         public static bool SelectMapSeed(string mapSeed, out string error)
         {
-            if (!LevelMapSeedUtility.TryDecode(mapSeed, out LevelMapDefinition definition, out error))
+            if (!LevelMapSeedUtility.TryDecodeValidated(mapSeed, true, out LevelMapDefinition definition, out error))
                 return false;
 
             SelectMapDefinition(definition, LevelMapSeedUtility.Encode(definition));

@@ -1,4 +1,5 @@
 using UnityEngine;
+using TD.Core;
 using TD.Grid;
 using TD.Level;
 
@@ -52,12 +53,6 @@ namespace TD.Theming
             levelLoader.OnLevelCleared -= ClearBackground;
         }
 
-        public void SetTheme(MapThemeDefinition newTheme)
-        {
-            theme = newTheme;
-            RebuildBackground();
-        }
-
         private void HandleLevelLoaded(LevelData level)
         {
             if (level == null) return;
@@ -83,7 +78,7 @@ namespace TD.Theming
             spawnedBackground.transform.SetParent(transform, false);
 
             SpriteRenderer renderer = spawnedBackground.GetComponent<SpriteRenderer>();
-            renderer.sprite = theme.backgroundSprite != null ? theme.backgroundSprite : GetOrCreateQuadSprite();
+            renderer.sprite = theme.backgroundSprite != null ? theme.backgroundSprite : RuntimeSpriteResources.WhiteSprite;
             renderer.color = theme.backgroundColor;
             renderer.sortingOrder = backgroundSortingOrder;
 
@@ -114,19 +109,5 @@ namespace TD.Theming
             spawnedBackground = null;
         }
 
-        private static Sprite cachedQuadSprite;
-        private static Sprite GetOrCreateQuadSprite()
-        {
-            if (cachedQuadSprite != null) return cachedQuadSprite;
-            Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Point
-            };
-            texture.SetPixel(0, 0, Color.white);
-            texture.Apply();
-            cachedQuadSprite = Sprite.Create(texture, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
-            return cachedQuadSprite;
-        }
     }
 }

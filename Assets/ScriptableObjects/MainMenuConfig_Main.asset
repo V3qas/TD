@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 470056dc897b7974ca3973d8a8f116ed, type: 3}
   m_Name: MainMenuConfig_Main
-  m_EditorClassIdentifier: Assembly-CSharp::MainMenuConfig
+  m_EditorClassIdentifier: TD.Runtime::TD.Menu.MainMenuConfig
   title: Tower Defense
   mainButtons:
   - label: Single Campaign

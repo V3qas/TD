@@ -152,7 +152,7 @@ und die Abnahme eines aktuellen Standalone-Builds bleiben offen.
 - [ ] Kauf, Upgrade und Verkauf eines Towers bestaetigen.
 - [ ] Start- und Zielzelle sowie die Laufrichtung der Gegner eindeutig kennzeichnen.
 - [ ] Platzhaltergrafiken identifizieren und nur die fuer den MVP stoerenden ersetzen.
-- [ ] `isPiercing` fuer fliegende Projektile und `hitAnimator` entweder aus MVP-Inhalten entfernen oder umsetzen; Laser-Piercing ist bereits implementiert und getestet.
+- [x] Unbenutztes `hitAnimator` entfernen und Piercing als getestete, explizit laser-spezifische `laserPiercing`-Option ausweisen.
 
 ## 5. Menue und MVP-Umfang bereinigen (P0)
 
@@ -182,10 +182,10 @@ und die Abnahme eines aktuellen Standalone-Builds bleiben offen.
 
 - [x] Den frueheren offenen Stand von `Bullet_Basic.prefab` abgleichen; beim Review am 2026-09-21 lag keine lokale Prefab-Aenderung vor.
 - [x] Nicht benoetigte TextMesh-Pro-Beispiele entfernen (Commit `f17ced5`).
-- [ ] Sicherstellen, dass keine generierten Build-Dateien eingecheckt werden.
+- [x] Sicherstellen, dass keine generierten Build- oder IDE-Dateien eingecheckt werden; Unity-generierte `.slnx`, `.sln` und `.csproj` sind ignoriert.
 - [x] Architektur-Dokumentation fuer Match-State, Editor-Cleanup, Persistenz und optimierte Laufzeitpfade aktualisieren.
 - [x] Den veralteten `ResetMoney`-Eintrag entfernen; die aktuelle API heisst `ResetState`.
-- [x] Die README-Buildanweisung verifizieren; `dotnet build TD.slnx` funktioniert nach Generierung der IDE-Projektdateien und dem normalen Restore. Das ist ein C#-Build, kein Standalone-Player.
+- [x] Die README-Buildanweisung verifizieren; `dotnet build TD.slnx -m:1` funktioniert nach Generierung der ignorierten IDE-Projektdateien. Das ist ein C#-Build, kein Standalone-Player.
 - [ ] Den Standalone-Build und seine manuelle Abnahme dokumentieren; automatisierte Test-/C#-Buildnachweise stehen unten.
 - [ ] Den fertigen Stand von `test` nach erfolgreicher Abnahme in `main` uebernehmen.
 - [ ] Einen MVP-Tag im Git-Repository anlegen.

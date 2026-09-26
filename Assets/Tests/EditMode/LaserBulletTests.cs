@@ -25,7 +25,7 @@ namespace TD.Tests.EditMode
             bulletData = ScriptableObject.CreateInstance<BulletData>();
             bulletData.bulletType = BulletType.Laser;
             bulletData.damageMultiplier = 0.5f;
-            bulletData.isPiercing = true;
+            bulletData.laserPiercing = true;
             bulletData.maxTravelDistance = 20f;
             bulletData.beamWidth = 0.12f;
             bulletData.beamDuration = 0.1f;
@@ -66,12 +66,31 @@ namespace TD.Tests.EditMode
         {
             Enemy target = CreateEnemy("Target", new Vector3(3f, 0f, 0f));
             Bullet bullet = CreateBullet(Vector3.zero);
+            Texture2D texture = new Texture2D(214, 141);
+            Sprite sprite = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, texture.width, texture.height),
+                new Vector2(0.5f, 0.5f),
+                100f,
+                0,
+                SpriteMeshType.FullRect);
 
-            bullet.Initialize(bulletData, 20f, target);
+            try
+            {
+                SpriteRenderer renderer = bullet.GetComponent<SpriteRenderer>();
+                renderer.sprite = sprite;
+                bullet.Initialize(bulletData, 20f, target);
 
-            Assert.That(bullet.transform.position, Is.EqualTo(new Vector3(10f, 0f, 0f)));
-            Assert.That(bullet.transform.localScale.x, Is.EqualTo(20f).Within(0.001f));
-            Assert.That(bullet.transform.localScale.y, Is.EqualTo(0.12f).Within(0.001f));
+                Vector2 spriteSize = renderer.sprite.bounds.size;
+                Assert.That(bullet.transform.position, Is.EqualTo(new Vector3(10f, 0f, 0f)));
+                Assert.That(spriteSize.x * bullet.transform.localScale.x, Is.EqualTo(20f).Within(0.001f));
+                Assert.That(spriteSize.y * bullet.transform.localScale.y, Is.EqualTo(0.12f).Within(0.001f));
+            }
+            finally
+            {
+                Object.DestroyImmediate(sprite);
+                Object.DestroyImmediate(texture);
+            }
         }
 
         [Test]
@@ -91,7 +110,7 @@ namespace TD.Tests.EditMode
         {
             Enemy first = CreateEnemy("First", new Vector3(3f, 0f, 0f));
             Enemy second = CreateEnemy("Second", new Vector3(8f, 0f, 0f));
-            bulletData.isPiercing = false;
+            bulletData.laserPiercing = false;
             Bullet bullet = CreateBullet(Vector3.zero);
 
             bullet.Initialize(bulletData, 20f, second);

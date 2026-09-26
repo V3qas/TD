@@ -359,7 +359,7 @@ namespace TD.Editor
 
         private void LoadSeed()
         {
-            if (!LevelMapSeedUtility.TryDecode(seedInput, out LevelMapDefinition definition, out string error))
+            if (!LevelMapSeedUtility.TryDecodeValidated(seedInput, true, out LevelMapDefinition definition, out string error))
             {
                 EditorUtility.DisplayDialog("Invalid Seed", error, "OK");
                 return;

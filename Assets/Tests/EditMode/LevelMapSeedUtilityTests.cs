@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
-using TD.Combat;
 using TD.Level;
 
 namespace TD.Tests.EditMode
@@ -72,11 +71,10 @@ namespace TD.Tests.EditMode
         }
 
         [Test]
-        public void TryDecodeRaw_PreservesOccupantsThatNormalizeWouldDrop()
+        public void TryDecode_RejectsOccupantConflictBeforeNormalize()
         {
-            // Build a malformed JSON: an occupant sits on a path cell. The normalizing path
-            // (TryDecode) silently removes it; the raw path must keep it so the validator can
-            // report the conflict to the caller.
+            // Build malformed JSON: an occupant sits on a path cell. Raw decoding must preserve
+            // it, and the normal decoding path must reject it before Normalize can remove it.
             LevelMapDefinition definition = new LevelMapDefinition
             {
                 width = 4,
@@ -99,16 +97,40 @@ namespace TD.Tests.EditMode
             string json = JsonUtility.ToJson(definition);
 
             bool rawDecoded = LevelMapSeedUtility.TryDecodeRaw(json, out LevelMapDefinition raw, out string rawError);
-            bool normalizedDecoded = LevelMapSeedUtility.TryDecode(json, out LevelMapDefinition normalized, out string normalizedError);
+            bool validatedDecoded = LevelMapSeedUtility.TryDecode(json, out LevelMapDefinition validated, out string validationError);
 
             Assert.IsTrue(rawDecoded, rawError);
-            Assert.IsTrue(normalizedDecoded, normalizedError);
             Assert.AreEqual(1, raw.occupants.Count, "Raw decode must preserve the conflicting occupant.");
-            Assert.AreEqual(0, normalized.occupants.Count, "Normalize is expected to drop the path-occupant overlap.");
-
-            bool valid = LevelMapValidator.Validate(raw, true, out string validationError);
-            Assert.IsFalse(valid, "Validator must reject the raw definition with the path/occupant overlap.");
+            Assert.IsFalse(validatedDecoded, "TryDecode must validate before normalization can hide the conflict.");
+            Assert.IsNull(validated);
             Assert.IsNotEmpty(validationError);
+
+            bool valid = LevelMapValidator.Validate(raw, true, out string rawValidationError);
+            Assert.IsFalse(valid, "Validator must reject the raw definition with the path/occupant overlap.");
+            Assert.IsNotEmpty(rawValidationError);
+        }
+
+        [Test]
+        public void TryDecodeValidated_RequiresExplicitPathWhenRequested()
+        {
+            LevelMapDefinition definition = new LevelMapDefinition
+            {
+                width = 2,
+                height = 1,
+                startCell = new Vector2Int(0, 0),
+                goalCell = new Vector2Int(1, 0)
+            };
+            string json = JsonUtility.ToJson(definition);
+
+            bool decoded = LevelMapSeedUtility.TryDecodeValidated(
+                json,
+                true,
+                out LevelMapDefinition restored,
+                out string error);
+
+            Assert.IsFalse(decoded);
+            Assert.IsNull(restored);
+            Assert.IsNotEmpty(error);
         }
 
         private static LevelMapDefinition BuildSimpleDefinition()

@@ -5,7 +5,6 @@ using UnityEngine.InputSystem;
 using TD.Combat;
 using TD.Core;
 using TD.Grid;
-using TD.Theming;
 using TD.Towers;
 
 /// <summary>
@@ -13,7 +12,7 @@ using TD.Towers;
 /// occupants list. Subscribes to <see cref="LevelLoader"/> events so it works
 /// for both campaign loads and editor test runs.
 ///
-/// Also routes left-clicks to Destructible.ToggleMarked using the new Input
+/// Also routes left-clicks to Destructible.Mark using the new Input
 /// System (Unity's built-in OnMouseDown is unreliable when the new Input
 /// System is the active backend, so we do the raycast ourselves).
 ///
@@ -32,7 +31,6 @@ namespace TD.Level
         [SerializeField] private BuildManager buildManager;
         [SerializeField] private bool verboseClickLogging = false;
 
-        private static Sprite cachedQuadSprite;
         private readonly List<GameObject> spawned = new List<GameObject>();
 
         private void Awake()
@@ -202,7 +200,7 @@ namespace TD.Level
             rockObject.transform.localScale = new Vector3(gridManager.CellSize * 0.85f, gridManager.CellSize * 0.85f, 1f);
 
             SpriteRenderer renderer = rockObject.GetComponent<SpriteRenderer>();
-            renderer.sprite = GetOrCreateQuadSprite();
+            renderer.sprite = RuntimeSpriteResources.WhiteSprite;
             renderer.color = new Color(0.32f, 0.32f, 0.34f);
             renderer.sortingOrder = 5;
 
@@ -218,58 +216,14 @@ namespace TD.Level
             blockObject.transform.localScale = new Vector3(gridManager.CellSize * 0.85f, gridManager.CellSize * 0.85f, 1f);
 
             SpriteRenderer renderer = blockObject.GetComponent<SpriteRenderer>();
-            renderer.sprite = GetOrCreateQuadSprite();
+            renderer.sprite = RuntimeSpriteResources.WhiteSprite;
             renderer.sortingOrder = 5;
 
             Destructible destructible = blockObject.GetComponent<Destructible>();
-            destructible.Initialize(entry.maxHp, entry.reward, renderer, gridManager, entry.cell, SpawnDefaultGround);
+            destructible.Initialize(entry.maxHp, entry.reward, renderer, gridManager, entry.cell);
 
             spawned.Add(blockObject);
         }
 
-        private void SpawnDefaultGround(Vector2Int cell, Vector3 worldPosition)
-        {
-            GameObject groundObject = new GameObject($"Ground_Default_{cell.x}_{cell.y}", typeof(SpriteRenderer));
-            groundObject.transform.SetParent(transform, false);
-            groundObject.transform.position = worldPosition;
-            groundObject.transform.localScale = new Vector3(gridManager != null ? gridManager.CellSize : 1f, gridManager != null ? gridManager.CellSize : 1f, 1f);
-
-            SpriteRenderer renderer = groundObject.GetComponent<SpriteRenderer>();
-            ApplyGroundVisual(renderer, GroundType.Ground);
-            renderer.sortingOrder = -10;
-
-            spawned.Add(groundObject);
-        }
-
-        private static void ApplyGroundVisual(SpriteRenderer renderer, GroundType type)
-        {
-            if (renderer == null)
-                return;
-
-            MapThemeDefinition theme = MapThemeApplier.Active != null ? MapThemeApplier.Active.ActiveTheme : null;
-            if (theme != null && theme.TryGetGroundVisual(type, out MapThemeDefinition.GroundVisual visual))
-            {
-                renderer.sprite = visual.sprite != null ? visual.sprite : GetOrCreateQuadSprite();
-                renderer.color = visual.tint.a > 0f ? visual.tint : Color.white;
-                return;
-            }
-
-            renderer.sprite = GetOrCreateQuadSprite();
-            renderer.color = Color.white;
-        }
-
-        private static Sprite GetOrCreateQuadSprite()
-        {
-            if (cachedQuadSprite != null) return cachedQuadSprite;
-            Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Point
-            };
-            texture.SetPixel(0, 0, Color.white);
-            texture.Apply();
-            cachedQuadSprite = Sprite.Create(texture, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
-            return cachedQuadSprite;
-        }
     }
 }

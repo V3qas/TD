@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System;
 using UnityEngine;
 using TD.Core;
 using TD.Grid;
@@ -33,7 +32,6 @@ namespace TD.Combat
         private GridManager gridManager;
         private Vector2Int cellPosition;
         private bool hasCellPosition;
-        private Action<Vector2Int, Vector3> onDestroyed;
 
         public bool IsMarked => isMarked;
 
@@ -64,7 +62,7 @@ namespace TD.Combat
         public bool IsDead => currentHealth <= 0f;
         public Vector3 WorldPosition => transform.position;
 
-        public void Initialize(int initialMaxHp, int rewardOnDeath, SpriteRenderer renderer, GridManager owningGridManager = null, Vector2Int? cell = null, Action<Vector2Int, Vector3> destroyedCallback = null)
+        public void Initialize(int initialMaxHp, int rewardOnDeath, SpriteRenderer renderer, GridManager owningGridManager = null, Vector2Int? cell = null)
         {
             CombatPhysics.Invalidate();
             maxHealth = Mathf.Max(1, initialMaxHp);
@@ -76,7 +74,6 @@ namespace TD.Combat
             hasCellPosition = cell.HasValue;
             if (cell.HasValue)
                 cellPosition = cell.Value;
-            onDestroyed = destroyedCallback;
             UpdateMarkedVisual();
 
             if (!activeTargets.Contains(this))
@@ -107,18 +104,8 @@ namespace TD.Combat
             }
             Unmark();
             if (hasCellPosition)
-            {
                 gridManager?.ClearBlockedCell(cellPosition);
-                onDestroyed?.Invoke(cellPosition, transform.position);
-            }
             Destroy(gameObject);
-        }
-
-        public void ToggleMarked()
-        {
-            if (IsDead) return;
-            if (isMarked) Unmark();
-            else Mark();
         }
 
         public void Mark()

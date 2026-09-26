@@ -112,7 +112,11 @@ namespace TD.Level
             }
 
             if (hasPathSequences)
+            {
+                if (!ValidatePathCellsRaw(definition, blockerCells, out message))
+                    return false;
                 return ValidatePathSequencesRaw(definition, blockerCells, out message);
+            }
 
             if (hasLegacyPathCells)
                 return ValidateLegacyPathCells(definition, blockerCells, out message);
@@ -177,21 +181,12 @@ namespace TD.Level
 
         private static bool ValidateLegacyPathCells(LevelMapDefinition definition, HashSet<Vector2Int> blockerCells, out string message)
         {
+            if (!ValidatePathCellsRaw(definition, blockerCells, out message))
+                return false;
+
             HashSet<Vector2Int> pathSet = new HashSet<Vector2Int>();
             foreach (Vector2Int cell in definition.pathCells)
-            {
-                if (!IsInBounds(cell, definition.width, definition.height))
-                {
-                    message = $"Path tile {cell} is outside the map.";
-                    return false;
-                }
-                if (blockerCells.Contains(cell))
-                {
-                    message = $"Path tile {cell} overlaps a blocked cell.";
-                    return false;
-                }
                 pathSet.Add(cell);
-            }
             pathSet.Add(definition.startCell);
             pathSet.Add(definition.goalCell);
 
@@ -218,6 +213,29 @@ namespace TD.Level
 
             message = "Path cells do not form a continuous route from start to goal.";
             return false;
+        }
+
+        private static bool ValidatePathCellsRaw(LevelMapDefinition definition, HashSet<Vector2Int> blockerCells, out string message)
+        {
+            message = string.Empty;
+            if (definition.pathCells == null)
+                return true;
+
+            foreach (Vector2Int cell in definition.pathCells)
+            {
+                if (!IsInBounds(cell, definition.width, definition.height))
+                {
+                    message = $"Path tile {cell} is outside the map.";
+                    return false;
+                }
+                if (blockerCells.Contains(cell))
+                {
+                    message = $"Path tile {cell} overlaps a blocked cell.";
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static bool ValidateOpenGridPathRaw(LevelMapDefinition definition, HashSet<Vector2Int> blockerCells, out string message)

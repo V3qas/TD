@@ -239,7 +239,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 43674591231ee504ea1c7c99e22d77d4, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TitleScreenController
+  m_EditorClassIdentifier: TD.Runtime::TD.Menu.TitleScreenController
   splashSprite: {fileID: 7064631625748757826, guid: 9ba83f17faf192246bb11677b32c1013, type: 3}
   menuSceneName: Menu
   fadeDuration: 0.8

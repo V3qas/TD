@@ -18,10 +18,15 @@ namespace TD.Tests.EditMode
         private const string BasicTowerPrefabPath = "Assets/Prefabs/Towers/Tower_Basic.prefab";
         private const string LaserTowerPrefabPath = "Assets/Prefabs/Towers/Tower_Laser.prefab";
         private const string LongRangeTowerPrefabPath = "Assets/Prefabs/Towers/Tower_LongRange.prefab";
+        private const string LaserBulletSpritePath = "Assets/Art/Bullets/Bullet_Laser.png";
         private const string SharedTowerBaseSpritePath = "Assets/Art/Towers/Tower_Base.png";
         private const string SharedTowerBaseAccentSpritePath = "Assets/Art/Towers/Tower_BaseAccent.png";
         private const string BasicTowerHeadSpritePath = "Assets/Art/Towers/Basic/Tower_BasicHead.png";
         private const string BasicTowerHeadAccentSpritePath = "Assets/Art/Towers/Basic/Tower_BasicHeadAccent.png";
+        private const string LaserTowerHeadSpritePath = "Assets/Art/Towers/Laser/Tower_LaserHead.png";
+        private const string LaserTowerHeadAccentSpritePath = "Assets/Art/Towers/Laser/Tower_LaserHeadAccent.png";
+        private const string LongRangeTowerHeadSpritePath = "Assets/Art/Towers/Long/Tower_LongHead.png";
+        private const string LongRangeTowerHeadAccentSpritePath = "Assets/Art/Towers/Long/Tower_LongHeadAccent.png";
 
         [Test]
         public void LaserTower_UsesRequestedCombatProfile()
@@ -57,9 +62,21 @@ namespace TD.Tests.EditMode
                 laser.GetTargetingRange(laser.upgradeData.levels[0].rangeBonus) - laser.TargetingRange,
                 Is.EqualTo(0.15f).Within(0.001f),
                 "The laser range upgrade should only add a small effective range increase.");
-            Assert.That(laser.bulletData.isPiercing, Is.True);
+            Assert.That(laser.bulletData.laserPiercing, Is.True);
             Assert.That(laser.bulletData.maxTravelDistance, Is.GreaterThanOrEqualTo(100f));
             Assert.That(laser.bulletData.bulletPrefab, Is.Not.Null);
+            SpriteRenderer laserRenderer = laser.bulletData.bulletPrefab.GetComponent<SpriteRenderer>();
+            Assert.That(laserRenderer, Is.Not.Null);
+            Assert.That(laserRenderer.sprite, Is.Not.Null);
+            Assert.That(AssetDatabase.GetAssetPath(laserRenderer.sprite), Is.EqualTo(LaserBulletSpritePath));
+            Assert.That(laserRenderer.color, Is.EqualTo(Color.white));
+            TextureImporter laserImporter = AssetImporter.GetAtPath(LaserBulletSpritePath) as TextureImporter;
+            Assert.That(laserImporter, Is.Not.Null);
+            Assert.That(laserImporter.spriteImportMode, Is.EqualTo(SpriteImportMode.Single));
+            TextureImporterSettings laserImporterSettings = new TextureImporterSettings();
+            laserImporter.ReadTextureSettings(laserImporterSettings);
+            Assert.That(laserImporterSettings.spriteMeshType, Is.EqualTo(SpriteMeshType.FullRect));
+            Assert.That(laserImporter.textureCompression, Is.EqualTo(TextureImporterCompression.Uncompressed));
             Assert.That(laser.towerPrefab, Is.Not.Null);
         }
 
@@ -150,21 +167,33 @@ namespace TD.Tests.EditMode
             Assert.That(head, Is.Not.Null, "The turret head visual is missing.");
             SpriteRenderer headRenderer = head.GetComponent<SpriteRenderer>();
             Assert.That(headRenderer, Is.Not.Null, "The turret head needs a sprite renderer.");
+            Assert.That(headRenderer.sprite, Is.Not.Null, "The turret head sprite is missing.");
+            Assert.That(headRenderer.sprite.pixelsPerUnit, Is.EqualTo(440f).Within(0.001f));
+            Assert.That(
+                headRenderer.sprite.rect.height * head.localScale.y,
+                Is.EqualTo(277f).Within(0.01f),
+                "Every tower head should render at the same normalized height.");
             Assert.That(headRenderer.sortingOrder, Is.GreaterThan(accentRenderer.sortingOrder));
             Assert.That(firePoint, Is.Not.Null, "The projectile spawn point is missing.");
 
             SpriteRenderer headAccentRenderer = null;
             int expectedAccentRendererCount = 1;
-            if (prefabPath == BasicTowerPrefabPath)
+            if (prefabPath == BasicTowerPrefabPath || prefabPath == LongRangeTowerPrefabPath)
             {
+                string expectedHeadSpritePath = prefabPath == BasicTowerPrefabPath
+                    ? BasicTowerHeadSpritePath
+                    : LongRangeTowerHeadSpritePath;
+                string expectedHeadAccentSpritePath = prefabPath == BasicTowerPrefabPath
+                    ? BasicTowerHeadAccentSpritePath
+                    : LongRangeTowerHeadAccentSpritePath;
                 Transform headAccent = head.Find("HeadAccent");
-                Assert.That(headAccent, Is.Not.Null, "The Basic Tower head accent is missing.");
+                Assert.That(headAccent, Is.Not.Null, "The authored tower head accent is missing.");
                 headAccentRenderer = headAccent.GetComponent<SpriteRenderer>();
-                Assert.That(headAccentRenderer, Is.Not.Null, "The Basic Tower head accent needs a sprite renderer.");
-                Assert.That(headRenderer.sprite, Is.Not.Null, "The authored Basic Tower head sprite is missing.");
-                Assert.That(headAccentRenderer.sprite, Is.Not.Null, "The authored Basic Tower head accent sprite is missing.");
-                Assert.That(AssetDatabase.GetAssetPath(headRenderer.sprite), Is.EqualTo(BasicTowerHeadSpritePath));
-                Assert.That(AssetDatabase.GetAssetPath(headAccentRenderer.sprite), Is.EqualTo(BasicTowerHeadAccentSpritePath));
+                Assert.That(headAccentRenderer, Is.Not.Null, "The authored tower head accent needs a sprite renderer.");
+                Assert.That(headRenderer.sprite, Is.Not.Null, "The authored tower head sprite is missing.");
+                Assert.That(headAccentRenderer.sprite, Is.Not.Null, "The authored tower head accent sprite is missing.");
+                Assert.That(AssetDatabase.GetAssetPath(headRenderer.sprite), Is.EqualTo(expectedHeadSpritePath));
+                Assert.That(AssetDatabase.GetAssetPath(headAccentRenderer.sprite), Is.EqualTo(expectedHeadAccentSpritePath));
                 Assert.That(headRenderer.sprite.pixelsPerUnit, Is.EqualTo(440f).Within(0.001f));
                 Assert.That(headAccentRenderer.sprite.pixelsPerUnit, Is.EqualTo(440f).Within(0.001f));
                 Assert.That(headRenderer.sprite.rect, Is.EqualTo(headAccentRenderer.sprite.rect));
@@ -175,8 +204,43 @@ namespace TD.Tests.EditMode
                 Assert.That(headAccentRenderer.sortingOrder, Is.GreaterThan(headRenderer.sortingOrder));
                 Assert.That(firePoint.localPosition.x, Is.EqualTo(0.72f).Within(0.001f));
 
-                TextureImporter headImporter = AssetImporter.GetAtPath(BasicTowerHeadSpritePath) as TextureImporter;
-                TextureImporter headAccentImporter = AssetImporter.GetAtPath(BasicTowerHeadAccentSpritePath) as TextureImporter;
+                TextureImporter headImporter = AssetImporter.GetAtPath(expectedHeadSpritePath) as TextureImporter;
+                TextureImporter headAccentImporter = AssetImporter.GetAtPath(expectedHeadAccentSpritePath) as TextureImporter;
+                Assert.That(headImporter, Is.Not.Null);
+                Assert.That(headAccentImporter, Is.Not.Null);
+                Assert.That(headImporter.spriteImportMode, Is.EqualTo(SpriteImportMode.Single));
+                Assert.That(headAccentImporter.spriteImportMode, Is.EqualTo(SpriteImportMode.Single));
+                TextureImporterSettings headImporterSettings = new TextureImporterSettings();
+                TextureImporterSettings headAccentImporterSettings = new TextureImporterSettings();
+                headImporter.ReadTextureSettings(headImporterSettings);
+                headAccentImporter.ReadTextureSettings(headAccentImporterSettings);
+                Assert.That(headImporterSettings.spriteMeshType, Is.EqualTo(SpriteMeshType.FullRect));
+                Assert.That(headAccentImporterSettings.spriteMeshType, Is.EqualTo(SpriteMeshType.FullRect));
+                Assert.That(headImporter.textureCompression, Is.EqualTo(TextureImporterCompression.Uncompressed));
+                Assert.That(headAccentImporter.textureCompression, Is.EqualTo(TextureImporterCompression.Uncompressed));
+                expectedAccentRendererCount = 2;
+            }
+            else if (prefabPath == LaserTowerPrefabPath)
+            {
+                const float expectedScale = 277f / 335f;
+                Transform headAccent = head.Find("HeadAccent");
+                Assert.That(headAccent, Is.Not.Null, "The Laser Tower head accent is missing.");
+                headAccentRenderer = headAccent.GetComponent<SpriteRenderer>();
+                Assert.That(headAccentRenderer, Is.Not.Null, "The Laser Tower head accent needs a sprite renderer.");
+                Assert.That(headAccentRenderer.sprite, Is.Not.Null, "The Laser Tower head accent sprite is missing.");
+                Assert.That(AssetDatabase.GetAssetPath(headRenderer.sprite), Is.EqualTo(LaserTowerHeadSpritePath));
+                Assert.That(AssetDatabase.GetAssetPath(headAccentRenderer.sprite), Is.EqualTo(LaserTowerHeadAccentSpritePath));
+                Assert.That(headRenderer.sprite.rect, Is.EqualTo(headAccentRenderer.sprite.rect));
+                Assert.That(head.localPosition, Is.EqualTo(new Vector3(0.18f, 0f, 0f)));
+                Assert.That(head.localScale.x, Is.EqualTo(expectedScale).Within(0.0001f));
+                Assert.That(head.localScale.y, Is.EqualTo(expectedScale).Within(0.0001f));
+                Assert.That(headAccent.localPosition, Is.EqualTo(Vector3.zero));
+                Assert.That(headAccent.localScale, Is.EqualTo(Vector3.one));
+                Assert.That(headAccentRenderer.sortingOrder, Is.GreaterThan(headRenderer.sortingOrder));
+                Assert.That(firePoint.localPosition.x, Is.EqualTo(0.64f).Within(0.001f));
+
+                TextureImporter headImporter = AssetImporter.GetAtPath(LaserTowerHeadSpritePath) as TextureImporter;
+                TextureImporter headAccentImporter = AssetImporter.GetAtPath(LaserTowerHeadAccentSpritePath) as TextureImporter;
                 Assert.That(headImporter, Is.Not.Null);
                 Assert.That(headAccentImporter, Is.Not.Null);
                 Assert.That(headImporter.spriteImportMode, Is.EqualTo(SpriteImportMode.Single));

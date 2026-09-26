@@ -1,8 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using TD.Combat;
-using TD.Enemies;
-using TD.Pathfinding;
 
 /// <summary>
 /// Deterministic procedural generators for paths and obstacles.

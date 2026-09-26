@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
-using TD.Combat;
 using TD.Level;
 
 namespace TD.Tests.EditMode

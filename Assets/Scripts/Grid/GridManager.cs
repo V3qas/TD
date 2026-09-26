@@ -187,21 +187,6 @@ namespace TD.Grid
             return GetCell(position.x, position.y);
         }
 
-        public List<GridCell> GetNeighbors(GridCell cell)
-        {
-            List<GridCell> neighbors = new List<GridCell>(4);
-
-            if (cell == null)
-                return neighbors;
-
-            TryAddNeighbor(neighbors, cell.X + 1, cell.Y);
-            TryAddNeighbor(neighbors, cell.X - 1, cell.Y);
-            TryAddNeighbor(neighbors, cell.X, cell.Y + 1);
-            TryAddNeighbor(neighbors, cell.X, cell.Y - 1);
-
-            return neighbors;
-        }
-
         public Vector2Int WorldToCell(Vector3 worldPosition)
         {
             int x = Mathf.FloorToInt(worldPosition.x / cellSize);
@@ -338,15 +323,6 @@ namespace TD.Grid
             return !hasPath;
         }
 
-        private void TryAddNeighbor(List<GridCell> neighbors, int x, int y)
-        {
-            GridCell neighbor = GetCell(x, y);
-            if (neighbor != null)
-            {
-                neighbors.Add(neighbor);
-            }
-        }
-
         private void BuildReservedPathCells(bool warnIfNoPath)
         {
             reservedPathCells.Clear();
@@ -441,9 +417,5 @@ namespace TD.Grid
             grid = null;
         }
 
-        private void OnDestroy()
-        {
-            previewRenderer.DisposeSprite();
-        }
     }
 }

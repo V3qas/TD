@@ -78,14 +78,32 @@ namespace TD.Level
         }
 
         /// <summary>
-        /// Convenience wrapper around <see cref="TryDecodeRaw"/> that additionally normalizes
-        /// the decoded definition. Suitable for runtime callers that just want a ready-to-use
-        /// map and do not run the validator themselves.
+        /// Decodes, validates, and then normalizes a map. Implicit open-grid paths are allowed.
         /// </summary>
         public static bool TryDecode(string seedOrJson, out LevelMapDefinition definition, out string error)
         {
+            return TryDecodeValidated(seedOrJson, false, out definition, out error);
+        }
+
+        /// <summary>
+        /// Decodes and validates the authored data before normalization can clamp coordinates or
+        /// remove conflicting entries. Use <paramref name="requireExplicitPath"/> for imported
+        /// editor/custom maps that must contain an authored route.
+        /// </summary>
+        public static bool TryDecodeValidated(
+            string seedOrJson,
+            bool requireExplicitPath,
+            out LevelMapDefinition definition,
+            out string error)
+        {
             if (!TryDecodeRaw(seedOrJson, out definition, out error))
                 return false;
+
+            if (!LevelMapValidator.Validate(definition, requireExplicitPath, out error))
+            {
+                definition = null;
+                return false;
+            }
 
             definition.Normalize();
             return true;

@@ -119,17 +119,6 @@ namespace TD.Enemies
             startRoutine = StartCoroutine(StartSpawningWhenGridIsReady());
         }
 
-        public void RestartSpawning()
-        {
-            if (gameState == null)
-                gameState = GameState.GetOrCreate();
-
-            GameplayLifecycle.StopCombat();
-            StopSpawning(true);
-            gameState.ResetState();
-            BeginSpawning();
-        }
-
         public void RestartSpawningFromRound(int round)
         {
             if (gameState == null)

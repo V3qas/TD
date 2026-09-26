@@ -29,9 +29,12 @@ TD/
 |-- docs/
 |-- tools/
 |-- CODING_GUIDELINES.md
-|-- README.md
-`-- TD.slnx
+`-- README.md
 ```
+
+Unity-generated IDE files (`.slnx`, `.sln`, and `.csproj`) are intentionally ignored.
+Open the project in Unity to regenerate them for the locally installed editor and
+package set.
 
 `Assets/Scripts/` is grouped by subsystem; one folder per subsystem, each under a
 `TD.<Subsystem>` namespace (`TD.Core`, `TD.Grid`, `TD.Pathfinding`, `TD.Enemies`,
@@ -49,7 +52,7 @@ Runtime code is grouped by domain:
 
 | Subsystem   | Folder                        | Responsibilities |
 | ----------- | ----------------------------- | ---------------- |
-| Core        | `Assets/Scripts/Core/`        | Session state, match lifecycle/cleanup, build placement, difficulty, pooling |
+| Core        | `Assets/Scripts/Core/`        | Session state, match lifecycle/cleanup, build placement, difficulty, pooling, shared runtime sprite resources |
 | Grid        | `Assets/Scripts/Grid/`        | Grid cells, build/path occupancy, cached enemy paths; preview overlay rendering split into `GridPreviewRenderer` |
 | Pathfinding | `Assets/Scripts/Pathfinding/` | BFS over the read-only `IPathGrid` contract |
 | Enemy       | `Assets/Scripts/Enemy/`       | Enemy stats, runtime enemies, round spawning; round composition split into `WavePlanner` |
@@ -57,7 +60,7 @@ Runtime code is grouped by domain:
 | Bullets     | `Assets/Scripts/Bullets/`     | Projectile stats and straight predictive projectile flight |
 | Combat      | `Assets/Scripts/Combat/`      | Shared damage contract, physics synchronization, rocks, destructible blockers |
 | Level       | `Assets/Scripts/Level/`       | Level data, map seeds, loading, camera framing, map occupants |
-| UI          | `Assets/Scripts/UI/`          | HUD and runtime map editor |
+| UI          | `Assets/Scripts/UI/`          | HUD and runtime map editor; shared runtime uGUI construction via `RuntimeUiFactory` |
 | Menu        | `Assets/Scripts/Menu/`        | Title screen and main menu |
 | Theming     | `Assets/Scripts/Theming/`     | Map theme definitions and theme application |
 | Editor      | `Assets/Editor/`              | Editor-only map and export tooling |
@@ -148,7 +151,7 @@ Gameplay data is authored as ScriptableObjects under `Assets/ScriptableObjects/`
 | `TowerData` | Tower name, icon, placement cost, damage, attack speed, range, default `BulletData`, tower-specific upgrade path, tower prefab |
 | `TowerUpgradeData` | Per-tower upgrade ladder: upgrade name, cost, damage/speed/range bonuses, optional bullet override |
 | `EnemyData` | Enemy name, health, speed, shield, armor, kill reward |
-| `BulletData` | Projectile name, travel speed, damage multiplier, splash, piercing, slow, prefab, hit animator |
+| `BulletData` | Projectile name, travel speed, damage multiplier, splash, laser piercing, slow, prefab |
 | `LevelData` | Grid size, map seed, start/goal, path sequences, path cells, ground overrides, occupants (legacy `blockedCells` migrated on load) |
 | `MainMenuConfig` | Menu title, main button actions, campaign title, campaign levels and seeds |
 | `MapThemeDefinition` | Ground visuals and map theme colours |
@@ -220,14 +223,14 @@ public method or property is added, removed, or renamed.
 - `GridManager` - `StartCell`, `GoalCell`, `CellSize`, `HasGrid`,
   `UsesExplicitPath`, `Width`, `Height`; event `OnPathChanged`; methods
   `BuildGrid`, `BuildGridPreview`, `ClearPreviewVisuals`, `GetCell`,
-  `GetNeighbors`, `WorldToCell`, `CellToWorld`, `IsReservedPathCell`,
+  `WorldToCell`, `CellToWorld`, `IsReservedPathCell`,
   `IsPathCell`, `CanEnemyWalkOn`, `CanBuildAt`, `GetGroundType`,
   `GetCachedEnemyPathWorld`, `TryOccupyCell`, `ClearOccupiedCell`,
   `ClearBlockedCell`, `WouldOccupyingCellBlockPath`, `UpdatePreviewCell`.
-- `GridPreviewRenderer` - owns the map-editor preview overlay; `Build`,
-  `Clear`, `DisposeSprite`, `UpdateCell`. Used internally by `GridManager`.
+- `GridPreviewRenderer` - owns the map-editor preview overlay; `Build`, `Clear`,
+  `UpdateCell`. Used internally by `GridManager`.
 - `GridCell` - `X`, `Y`, `Position`, `IsBlocked`, `IsOccupied`, `IsPath`,
-  `IsWalkable`, `SetBlocked`, `SetPath`, `SetOccupied`.
+  `SetBlocked`, `SetPath`, `SetOccupied`.
 - `IPathGrid` - `GetCell(position)`, `CanEnemyWalkOn(cell)`; implemented by
   `GridManager` or a pure-data grid. `Pathfinder` has no MonoBehaviour dependency.
 - `Pathfinder` - constructor accepts `IPathGrid`; `FindPath(start, goal)`,
@@ -248,7 +251,7 @@ public method or property is added, removed, or renamed.
   `armor`, `goalDamage`, `reward`.
 - `EnemySpawnEntry` - enemy data/prefab plus round scaling fields
   `firstRound`, `baseAmount`, `amountPerRound`, `spawnInterval`.
-- `EnemySpawner` - `BeginSpawning`, `RestartSpawning`, `RestartSpawningFromRound`,
+- `EnemySpawner` - `BeginSpawning`, `RestartSpawningFromRound`,
   `StopSpawning(clearEnemies)`.
 - `WavePlanner` (static) - `BuildRound(output, spawnEntries, round, difficulty,
   fallback)`, `IsValid(entry)`. Pure round-composition logic extracted from
@@ -256,7 +259,7 @@ public method or property is added, removed, or renamed.
 - `IDamageable` - `CurrentHealth`, `MaxHealth`, `IsDead`, `WorldPosition`,
   `TakeDamage`.
 - `Destructible` - `MarkedTargets`, `ActiveTargets`, `IsMarked`,
-  `ClearMarkedTargets`, `Initialize`, `TakeDamage`, `ToggleMarked`, `Mark`,
+  `ClearMarkedTargets`, `Initialize`, `TakeDamage`, `Mark`,
   `Unmark`.
 - `ITargetProvider` - `FindTarget(origin, range, targetingMode)`; abstraction that decouples
   towers from the global enemy/destructible registries.
@@ -291,7 +294,7 @@ public method or property is added, removed, or renamed.
   `levels`.
 - `BulletData` - `BulletType` selects a travelling projectile or instant laser;
   fields configure travel speed, laser length/width/duration, damage, attack
-  speed and range multipliers, splash, piercing, slow, prefab, and hit animator.
+  speed and range multipliers, splash, laser piercing, slow, and the projectile prefab.
   `ModifyDamage`, `ModifyAttackSpeed`, and `ModifyRange` apply the multipliers.
 - `RangeIndicator` - `Show(center, radius, color)`, `Hide()`.
 - `TowerSelectionController` - `Configure`, `DeselectTower`, `RefreshTowerRange`.
@@ -322,7 +325,9 @@ public method or property is added, removed, or renamed.
 - `OccupantType` - enum `None`, `Rock`, `Destructible`.
 - `GroundOverrideEntry` - fields `cell`, `type`.
 - `OccupantEntry` - fields `cell`, `type`, `maxHp`, `reward`.
-- `LevelMapSeedUtility` - `SeedPrefix`, `Encode`, `ToJson`, `TryDecode`, `TryDecodeRaw`.
+- `LevelMapSeedUtility` - `SeedPrefix`, `Encode`, `ToJson`, `TryDecode`,
+  `TryDecodeValidated`, `TryDecodeRaw`. Normal decoding validates authored data before
+  normalization; editor/custom-map imports additionally require an explicit path.
 - `LevelMapAuthoringState` - `MapDefinition`, `HasExplicitPath`, `CreateNewMap`,
   `LoadDefinition`, `BuildDefinition`, `PaintCell`, `GenerateRandomPath`,
   `ScatterRandomBlocks`, `TryGetOccupant`, `TryGetGroundOverride`, `IsPathCell`.
@@ -385,14 +390,14 @@ public method or property is added, removed, or renamed.
 - `MapThemeDefinition` - fields `themeId`, `displayName`, `backgroundSprite`,
   `backgroundColor`, `groundVisuals`; `TryGetGroundVisual`.
 - `MapThemeDefinition.GroundVisual` - fields `type`, `sprite`, `tint`.
-- `MapThemeApplier` - static `Active`; property `ActiveTheme`; method
-  `SetTheme`.
+- `MapThemeApplier` - static `Active`; property `ActiveTheme`.
 
 ### Editor
 
 - `LevelMapEditorWindow` - menu `Tools/Tower Defense/Map Editor`, `OpenWindow()`.
 - `AssetsStructureExporter` - menu `Tools/Export/Export Assets Folder To TXT`,
-  `ExportAssetsFolderToTxt()`.
+  `ExportAssetsFolderToTxt()`. The export first prompts to save modified scenes before
+  opening project scenes for summaries and restores the previous scene setup afterward.
 
 ---
 
@@ -412,14 +417,16 @@ public method or property is added, removed, or renamed.
 ## 7. Known Gaps & Suggested Next Steps
 
 - **HUD/Menu UI source** - menus and HUD are constructed from code at runtime.
-  Once the layout stabilizes, migrating to UXML or prefabs would make iteration and
-  theming easier.
+  Their common Canvas, EventSystem, text, button, and divider construction is
+  centralized in `RuntimeUiFactory`. Once the layout stabilizes, migrating the
+  controller-owned layouts to UXML or prefabs would make iteration and theming easier.
 - **Release validation** - automated tests cover campaign build/upgrade/sale/reload,
   repeated editor tests, projectiles and match state. Manual input/layout checks,
   a complete balanced playthrough, standalone-player validation and profiler
   measurements at the intended enemy/tower/map scale remain required.
-- **Visual polish** - several runtime visuals are generated from tinted 1x1 sprites
-  and should eventually move to authored assets.
+- **Visual polish** - several runtime visuals use the single shared white sprite from
+  `RuntimeSpriteResources` with component-specific tints. They should eventually move
+  to authored assets.
 
 ---
 
@@ -469,3 +476,10 @@ Append a one-line entry whenever this document is updated.
   adjusted laser cadence, and introduced a lower-DPS Long Range Tower using normal bullets.
 - 2026-09-21: Unified turret aiming and projectile lead prediction so moving-target
   shots leave the barrel along the direction the turret actually tracks.
+- 2026-09-26: Validated raw map seeds before normalization, covered all authored path
+  cells during validation, removed duplicate ground spawning, ignored generated IDE
+  solutions, and guarded scene export against unsaved changes.
+- 2026-09-26: Removed unused MVP APIs and impact-animation data, scoped piercing to
+  lasers explicitly, and cleaned stale imports, comments, and the empty Utilities folder.
+- 2026-09-26: Centralized runtime uGUI element construction and replaced per-component
+  generated white textures/sprites with one lifecycle-managed shared sprite.

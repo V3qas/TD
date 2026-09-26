@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4d742720d532bf4aa53733dab503804, type: 3}
   m_Name: LevelData_1_1
-  m_EditorClassIdentifier: Assembly-CSharp::LevelData
+  m_EditorClassIdentifier: TD.Runtime::TD.Level.LevelData
   width: 10
   height: 6
   mapSeed: '{"version":1,"width":10,"height":6,"startCell":{"x":0,"y":2},"goalCell":{"x":9,"y":2},"blockedCells":[],"pathCells":[{"x":0,"y":2},{"x":1,"y":2},{"x":2,"y":2},{"x":3,"y":2},{"x":4,"y":2},{"x":5,"y":2},{"x":6,"y":2},{"x":7,"y":2},{"x":8,"y":2},{"x":9,"y":2}]}'

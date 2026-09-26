@@ -37,6 +37,12 @@ namespace TD.Editor
         [MenuItem("Tools/Export/Export Assets Folder To TXT")]
         public static void ExportAssetsFolderToTxt()
         {
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            {
+                Debug.Log("Assets export cancelled because modified scenes were not saved.");
+                return;
+            }
+
             string projectRoot = Directory.GetParent(Application.dataPath)!.FullName;
             string exportRoot = Path.Combine(projectRoot, ExportFolderName);
 

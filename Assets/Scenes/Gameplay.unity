@@ -147,7 +147,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 100d2865cd1d8d2448e19a927b959328, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: TD.Runtime::OccupantSpawner
+  m_EditorClassIdentifier: TD.Runtime::TD.Level.OccupantSpawner
   levelLoader: {fileID: 1780857830}
   gridManager: {fileID: 943782627}
   clickCamera: {fileID: 0}
@@ -196,7 +196,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 679f54248cac4474db09e36985182758, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: TD.Runtime::GroundOverlaySpawner
+  m_EditorClassIdentifier: TD.Runtime::TD.Level.GroundOverlaySpawner
   levelLoader: {fileID: 1780857830}
   gridManager: {fileID: 943782627}
 --- !u!4 &614062543
@@ -242,7 +242,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe24baf94a245224db0cf79d71a2e80c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GameState
+  m_EditorClassIdentifier: TD.Runtime::TD.Core.GameState
   startingRound: 1
   startingMoney: 100
   startingLives: 10
@@ -290,7 +290,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1d6b837309e69b243abd2aa1c1550702, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GridManager
+  m_EditorClassIdentifier: TD.Runtime::TD.Grid.GridManager
   cellSize: 1
   previewCellPrefab: {fileID: 0}
 --- !u!4 &943782628
@@ -336,7 +336,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ebdd5698a5c8356478f25482cf2924f7, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::BuildManager
+  m_EditorClassIdentifier: TD.Runtime::TD.Core.BuildManager
   mainCamera: {fileID: 1828375111}
   gridManager: {fileID: 943782627}
   gameState: {fileID: 812569989}
@@ -393,7 +393,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 389f08792350b2347894f7836348c4eb, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
+  m_EditorClassIdentifier: TD.Runtime::TD.Enemies.EnemySpawner
   gridManager: {fileID: 943782627}
   gameState: {fileID: 812569989}
   enemyData: {fileID: 11400000, guid: 3c563f58225829d43a480e6afecf7a1f, type: 2}
@@ -474,7 +474,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7db4c4787e8d45b4bbbdfe6fbe2208a2, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::RuntimeMapEditorController
+  m_EditorClassIdentifier: TD.Runtime::TD.UI.RuntimeMapEditorController
   levelLoader: {fileID: 1780857830}
   menuConfig: {fileID: 0}
   enemySpawner: {fileID: 1438913528}
@@ -514,7 +514,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 28612266d4626da409050cfece7a0f28, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::InGameHudController
+  m_EditorClassIdentifier: TD.Runtime::TD.UI.InGameHudController
   gameState: {fileID: 812569989}
   buildManager: {fileID: 0}
   targetCanvas: {fileID: 0}
@@ -564,7 +564,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 02a235f4bbc726049bac5c773b962dda, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::LevelLoader
+  m_EditorClassIdentifier: TD.Runtime::TD.Level.LevelLoader
   levelData: {fileID: 11400000, guid: 1a9a16c38d6f7d3478dd20f0a3c366a1, type: 2}
   gridManager: {fileID: 943782627}
   mainCamera: {fileID: 0}

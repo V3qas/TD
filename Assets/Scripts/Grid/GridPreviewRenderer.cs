@@ -1,12 +1,13 @@
 using System.Collections.Generic;
 using UnityEngine;
+using TD.Core;
 using TD.Level;
 
 namespace TD.Grid
 {
     /// <summary>
     /// Renders the debug/preview tile overlay used by the map-editor flows.
-    /// Owns all preview GameObjects, the shared preview sprite and the per-cell
+    /// Owns all preview GameObjects and per-cell
     /// visual lookups, keeping <see cref="GridManager"/> focused on grid state
     /// and placement rules. Runtime gameplay must not create these visuals.
     /// </summary>
@@ -16,8 +17,6 @@ namespace TD.Grid
         private readonly Dictionary<Vector2Int, SpriteRenderer> cellRenderers = new Dictionary<Vector2Int, SpriteRenderer>();
         private readonly Dictionary<Vector2Int, OccupantType> previewOccupants = new Dictionary<Vector2Int, OccupantType>();
         private readonly Dictionary<Vector2Int, GroundType> previewGroundOverrides = new Dictionary<Vector2Int, GroundType>();
-        private Sprite previewSprite;
-
         public void Build(GridManager grid, GameObject previewCellPrefab, float cellSize, Transform parent, LevelMapDefinition definition)
         {
             Clear();
@@ -49,18 +48,6 @@ namespace TD.Grid
 
             if (cellRenderers.TryGetValue(position, out SpriteRenderer renderer) && renderer != null)
                 renderer.color = GetPreviewCellColor(grid, position);
-        }
-
-        public void DisposeSprite()
-        {
-            if (previewSprite == null)
-                return;
-
-            Texture2D texture = previewSprite.texture;
-            DestroyUnityObject(previewSprite);
-            if (texture != null)
-                DestroyUnityObject(texture);
-            previewSprite = null;
         }
 
         private void CacheLookups(LevelMapDefinition definition)
@@ -113,7 +100,7 @@ namespace TD.Grid
                         cellObj.transform.position = worldPos;
 
                         SpriteRenderer sr = cellObj.AddComponent<SpriteRenderer>();
-                        sr.sprite = GetOrCreatePreviewSprite();
+                        sr.sprite = RuntimeSpriteResources.WhiteSprite;
                         sr.sortingOrder = -1;
                     }
 
@@ -176,21 +163,6 @@ namespace TD.Grid
                 return Color.blue;
 
             return Color.white;
-        }
-
-        private Sprite GetOrCreatePreviewSprite()
-        {
-            if (previewSprite != null)
-                return previewSprite;
-
-            Texture2D texture = new Texture2D(1, 1);
-            texture.hideFlags = HideFlags.HideAndDontSave;
-            texture.SetPixel(0, 0, Color.white);
-            texture.Apply();
-
-            previewSprite = Sprite.Create(texture, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
-            previewSprite.hideFlags = HideFlags.HideAndDontSave;
-            return previewSprite;
         }
 
         private static void DestroyUnityObject(Object objectToDestroy)

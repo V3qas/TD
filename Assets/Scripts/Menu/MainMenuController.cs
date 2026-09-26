@@ -2,12 +2,12 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
-using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TD.Core;
 using TD.Level;
 using TD.Towers;
+using TD.UI;
 
 namespace TD.Menu
 {
@@ -83,17 +83,7 @@ namespace TD.Menu
         internal IReadOnlyList<Vector2Int> AvailableResolutions => availableResolutions;
         internal CanvasGroup MenuContentCanvasGroup => menuContentCanvasGroup;
 
-        private Font RuntimeFont
-        {
-            get
-            {
-                if (font != null)
-                    return font;
-
-                Font legacyFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                return legacyFont != null ? legacyFont : Resources.GetBuiltinResource<Font>("Arial.ttf");
-            }
-        }
+        private Font RuntimeFont => RuntimeUiFactory.ResolveFont(font);
 
         private void Start()
         {
@@ -130,32 +120,17 @@ namespace TD.Menu
 
         private void EnsureCanvas()
         {
-            if (targetCanvas == null)
-                targetCanvas = FindAnyObjectByType<Canvas>();
-
-            if (targetCanvas == null)
-            {
-                GameObject canvasObject = new GameObject("MainMenuCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-                targetCanvas = canvasObject.GetComponent<Canvas>();
-                targetCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            }
-
-            CanvasScaler scaler = targetCanvas.GetComponent<CanvasScaler>();
-            if (scaler == null)
-                scaler = targetCanvas.gameObject.AddComponent<CanvasScaler>();
-
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = MenuReferenceResolution;
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
+            targetCanvas = RuntimeUiFactory.EnsureCanvas(
+                targetCanvas,
+                "MainMenuCanvas",
+                MenuReferenceResolution,
+                true,
+                CanvasScaler.ScreenMatchMode.Expand);
         }
 
         private void EnsureEventSystem()
         {
-            if (FindAnyObjectByType<EventSystem>() != null)
-                return;
-
-            GameObject eventSystemObject = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
-            eventSystemObject.transform.SetParent(transform, false);
+            RuntimeUiFactory.EnsureEventSystem(transform);
         }
 
         private void BuildMenu()
@@ -1079,54 +1054,12 @@ namespace TD.Menu
 
         private Text CreateText(string objectName, Transform parent, string text, int fontSize, TextAnchor alignment, Color color)
         {
-            GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(Text));
-            textObject.transform.SetParent(parent, false);
-
-            Text textComponent = textObject.GetComponent<Text>();
-            textComponent.text = text;
-            textComponent.font = RuntimeFont;
-            textComponent.fontSize = fontSize;
-            textComponent.alignment = alignment;
-            textComponent.color = color;
-            textComponent.horizontalOverflow = HorizontalWrapMode.Wrap;
-            textComponent.verticalOverflow = VerticalWrapMode.Overflow;
-
-            return textComponent;
+            return RuntimeUiFactory.CreateText(objectName, parent, text, fontSize, alignment, color, RuntimeFont);
         }
 
         private Button CreateButton(Transform parent, string label, UnityAction onClick, bool interactable)
         {
-            GameObject buttonObject = new GameObject(label + "Button", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
-            buttonObject.transform.SetParent(parent, false);
-
-            LayoutElement layoutElement = buttonObject.GetComponent<LayoutElement>();
-            layoutElement.preferredWidth = 340f;
-            layoutElement.preferredHeight = 48f;
-
-            Image image = buttonObject.GetComponent<Image>();
-            image.color = Color.white;
-
-            Button button = buttonObject.GetComponent<Button>();
-            button.interactable = interactable;
-            button.targetGraphic = image;
-            button.onClick.AddListener(onClick);
-
-            ColorBlock colors = button.colors;
-            colors.normalColor = new Color(0.04f, 0.10f, 0.18f, 0.92f);
-            colors.highlightedColor = new Color(0.04f, 0.48f, 0.78f, 0.96f);
-            colors.pressedColor = new Color(0.52f, 0.08f, 0.42f, 0.96f);
-            colors.selectedColor = colors.highlightedColor;
-            colors.disabledColor = new Color(0.08f, 0.08f, 0.11f, 0.76f);
-            button.colors = colors;
-
-            Text labelText = CreateText("Label", buttonObject.transform, label, 18, TextAnchor.MiddleCenter, Color.white);
-            RectTransform labelRect = labelText.GetComponent<RectTransform>();
-            labelRect.anchorMin = Vector2.zero;
-            labelRect.anchorMax = Vector2.one;
-            labelRect.offsetMin = Vector2.zero;
-            labelRect.offsetMax = Vector2.zero;
-
-            return button;
+            return RuntimeUiFactory.CreateMenuButton(parent, label, onClick, interactable, RuntimeFont);
         }
 
         private void HandleMainMenuAction(MainMenuButtonConfig buttonConfig)

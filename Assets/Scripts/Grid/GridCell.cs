@@ -22,11 +22,6 @@ namespace TD.Grid
             IsOccupied = false;
         }
 
-        public bool IsWalkable()
-        {
-            return !IsBlocked && !IsOccupied;
-        }
-
         public void SetBlocked(bool blocked)
         {
             IsBlocked = blocked;

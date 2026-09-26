@@ -1,5 +1,5 @@
 using UnityEngine;
-using TD.Towers;
+using UnityEngine.Serialization;
 
 namespace TD.Bullets
 {
@@ -51,8 +51,9 @@ namespace TD.Bullets
         [Tooltip("Hits all enemies in the impact radius. Zero disables splash.")]
         public float splashRadius = 0f;
 
-        [Tooltip("Passes through enemies and continues until its range ends.")]
-        public bool isPiercing = false;
+        [FormerlySerializedAs("isPiercing")]
+        [Tooltip("When enabled, a laser damages every valid target along its beam. Ignored for projectiles.")]
+        public bool laserPiercing = false;
 
         [Header("Slow Effect")]
         [Tooltip("Speed factor after impact. One disables slow.")]
@@ -68,9 +69,6 @@ namespace TD.Bullets
 
         [Tooltip("Projectile prefab. Must contain a Bullet component.")]
         public GameObject bulletPrefab;
-
-        [Tooltip("Optional animator for impact animations.")]
-        public RuntimeAnimatorController hitAnimator;
 
         public float ModifyDamage(float baseDamage)
         {
