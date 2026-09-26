@@ -18,6 +18,10 @@ namespace TD.Tests.EditMode
         private const string BasicTowerPrefabPath = "Assets/Prefabs/Towers/Tower_Basic.prefab";
         private const string LaserTowerPrefabPath = "Assets/Prefabs/Towers/Tower_Laser.prefab";
         private const string LongRangeTowerPrefabPath = "Assets/Prefabs/Towers/Tower_LongRange.prefab";
+        private const string SharedTowerBaseSpritePath = "Assets/Art/Towers/Tower_Base.png";
+        private const string SharedTowerBaseAccentSpritePath = "Assets/Art/Towers/Tower_BaseAccent.png";
+        private const string BasicTowerHeadSpritePath = "Assets/Art/Towers/Basic/Tower_BasicHead.png";
+        private const string BasicTowerHeadAccentSpritePath = "Assets/Art/Towers/Basic/Tower_BasicHeadAccent.png";
 
         [Test]
         public void LaserTower_UsesRequestedCombatProfile()
@@ -31,6 +35,7 @@ namespace TD.Tests.EditMode
             Assert.That(basic.bulletData.damageMultiplier, Is.EqualTo(1f));
             Assert.That(basic.bulletData.attackSpeedMultiplier, Is.EqualTo(1f));
             Assert.That(basic.bulletData.rangeMultiplier, Is.EqualTo(1f));
+            Assert.That(basic.bulletData.towerAccentColor, Is.EqualTo(Color.white));
             Assert.That(laser.damage, Is.EqualTo(basic.damage), "Tower variants must share base damage.");
             Assert.That(laser.range, Is.EqualTo(basic.range), "Tower variants must share base range.");
             Assert.That(laser.attackSpeed, Is.EqualTo(basic.attackSpeed), "Tower variants must share base fire rate.");
@@ -39,6 +44,9 @@ namespace TD.Tests.EditMode
             Assert.That(laser.bulletData.damageMultiplier, Is.EqualTo(1.5f).Within(0.001f));
             Assert.That(laser.bulletData.attackSpeedMultiplier, Is.EqualTo(0.7f).Within(0.001f));
             Assert.That(laser.bulletData.rangeMultiplier, Is.EqualTo(1.5f).Within(0.001f));
+            Assert.That(
+                laser.bulletData.towerAccentColor,
+                Is.EqualTo(new Color(0.33333334f, 0.8745098f, 1f, 1f)));
             Assert.That(laser.DamagePerShot, Is.EqualTo(30f).Within(0.001f));
             Assert.That(laser.AttacksPerSecond, Is.EqualTo(0.7f).Within(0.001f));
             Assert.That(laser.TargetingRange, Is.EqualTo(4.5f).Within(0.001f));
@@ -119,20 +127,115 @@ namespace TD.Tests.EditMode
             Assert.That(prefab, Is.Not.Null);
 
             Tower tower = prefab.GetComponent<Tower>();
+            SpriteRenderer baseRenderer = prefab.GetComponent<SpriteRenderer>();
+            Transform baseAccent = prefab.transform.Find("BaseAccent");
             Transform turretPivot = prefab.transform.Find("TurretPivot");
             Transform head = turretPivot != null ? turretPivot.Find("Head") : null;
             Transform firePoint = turretPivot != null ? turretPivot.Find("FirePoint") : null;
 
             Assert.That(tower, Is.Not.Null, "Tower component must remain on the fixed prefab root.");
-            Assert.That(prefab.GetComponent<SpriteRenderer>(), Is.Not.Null, "The fixed root needs the base visual.");
+            Assert.That(baseRenderer, Is.Not.Null, "The fixed root needs the base visual.");
+            Assert.That(baseRenderer.sprite, Is.Not.Null, "The tower base sprite is missing.");
+            Assert.That(AssetDatabase.GetAssetPath(baseRenderer.sprite), Is.EqualTo(SharedTowerBaseSpritePath));
+            Assert.That(baseRenderer.sprite.pixelsPerUnit, Is.EqualTo(440f).Within(0.001f));
+            Assert.That(baseRenderer.color, Is.EqualTo(Color.white), "The authored base colors must not be multiplied by a prefab tint.");
+            Assert.That(baseAccent, Is.Not.Null, "The fixed base accent visual is missing.");
+            SpriteRenderer accentRenderer = baseAccent.GetComponent<SpriteRenderer>();
+            Assert.That(accentRenderer, Is.Not.Null, "The base accent needs a sprite renderer.");
+            Assert.That(accentRenderer.sprite, Is.Not.Null, "The base accent sprite is missing.");
+            Assert.That(AssetDatabase.GetAssetPath(accentRenderer.sprite), Is.EqualTo(SharedTowerBaseAccentSpritePath));
+            Assert.That(accentRenderer.sprite.pixelsPerUnit, Is.EqualTo(440f).Within(0.001f));
+            Assert.That(accentRenderer.sortingOrder, Is.GreaterThan(baseRenderer.sortingOrder));
             Assert.That(turretPivot, Is.Not.Null, "The rotating turret pivot is missing.");
             Assert.That(head, Is.Not.Null, "The turret head visual is missing.");
-            Assert.That(head.GetComponent<SpriteRenderer>(), Is.Not.Null, "The turret head needs a sprite renderer.");
+            SpriteRenderer headRenderer = head.GetComponent<SpriteRenderer>();
+            Assert.That(headRenderer, Is.Not.Null, "The turret head needs a sprite renderer.");
+            Assert.That(headRenderer.sortingOrder, Is.GreaterThan(accentRenderer.sortingOrder));
             Assert.That(firePoint, Is.Not.Null, "The projectile spawn point is missing.");
+
+            SpriteRenderer headAccentRenderer = null;
+            int expectedAccentRendererCount = 1;
+            if (prefabPath == BasicTowerPrefabPath)
+            {
+                Transform headAccent = head.Find("HeadAccent");
+                Assert.That(headAccent, Is.Not.Null, "The Basic Tower head accent is missing.");
+                headAccentRenderer = headAccent.GetComponent<SpriteRenderer>();
+                Assert.That(headAccentRenderer, Is.Not.Null, "The Basic Tower head accent needs a sprite renderer.");
+                Assert.That(headRenderer.sprite, Is.Not.Null, "The authored Basic Tower head sprite is missing.");
+                Assert.That(headAccentRenderer.sprite, Is.Not.Null, "The authored Basic Tower head accent sprite is missing.");
+                Assert.That(AssetDatabase.GetAssetPath(headRenderer.sprite), Is.EqualTo(BasicTowerHeadSpritePath));
+                Assert.That(AssetDatabase.GetAssetPath(headAccentRenderer.sprite), Is.EqualTo(BasicTowerHeadAccentSpritePath));
+                Assert.That(headRenderer.sprite.pixelsPerUnit, Is.EqualTo(440f).Within(0.001f));
+                Assert.That(headAccentRenderer.sprite.pixelsPerUnit, Is.EqualTo(440f).Within(0.001f));
+                Assert.That(headRenderer.sprite.rect, Is.EqualTo(headAccentRenderer.sprite.rect));
+                Assert.That(head.localPosition, Is.EqualTo(new Vector3(0.18f, 0f, 0f)));
+                Assert.That(head.localScale, Is.EqualTo(Vector3.one));
+                Assert.That(headAccent.localPosition, Is.EqualTo(Vector3.zero));
+                Assert.That(headAccent.localScale, Is.EqualTo(Vector3.one));
+                Assert.That(headAccentRenderer.sortingOrder, Is.GreaterThan(headRenderer.sortingOrder));
+                Assert.That(firePoint.localPosition.x, Is.EqualTo(0.72f).Within(0.001f));
+
+                TextureImporter headImporter = AssetImporter.GetAtPath(BasicTowerHeadSpritePath) as TextureImporter;
+                TextureImporter headAccentImporter = AssetImporter.GetAtPath(BasicTowerHeadAccentSpritePath) as TextureImporter;
+                Assert.That(headImporter, Is.Not.Null);
+                Assert.That(headAccentImporter, Is.Not.Null);
+                Assert.That(headImporter.spriteImportMode, Is.EqualTo(SpriteImportMode.Single));
+                Assert.That(headAccentImporter.spriteImportMode, Is.EqualTo(SpriteImportMode.Single));
+                TextureImporterSettings headImporterSettings = new TextureImporterSettings();
+                TextureImporterSettings headAccentImporterSettings = new TextureImporterSettings();
+                headImporter.ReadTextureSettings(headImporterSettings);
+                headAccentImporter.ReadTextureSettings(headAccentImporterSettings);
+                Assert.That(headImporterSettings.spriteMeshType, Is.EqualTo(SpriteMeshType.FullRect));
+                Assert.That(headAccentImporterSettings.spriteMeshType, Is.EqualTo(SpriteMeshType.FullRect));
+                Assert.That(headImporter.textureCompression, Is.EqualTo(TextureImporterCompression.Uncompressed));
+                Assert.That(headAccentImporter.textureCompression, Is.EqualTo(TextureImporterCompression.Uncompressed));
+                expectedAccentRendererCount = 2;
+            }
 
             SerializedObject serializedTower = new SerializedObject(tower);
             Assert.That(serializedTower.FindProperty("turretPivot").objectReferenceValue, Is.EqualTo(turretPivot));
             Assert.That(serializedTower.FindProperty("firePoint").objectReferenceValue, Is.EqualTo(firePoint));
+            SerializedProperty accentRenderers = serializedTower.FindProperty("ammunitionAccentRenderers");
+            Assert.That(accentRenderers.arraySize, Is.EqualTo(expectedAccentRendererCount));
+            Assert.That(accentRenderers.GetArrayElementAtIndex(0).objectReferenceValue, Is.EqualTo(accentRenderer));
+            if (headAccentRenderer != null)
+                Assert.That(accentRenderers.GetArrayElementAtIndex(1).objectReferenceValue, Is.EqualTo(headAccentRenderer));
+        }
+
+        [TestCase(BasicTowerPrefabPath, BasicTowerDataPath, 1f, 1f, 1f)]
+        [TestCase(BasicTowerPrefabPath, LaserTowerDataPath, 0.33333334f, 0.8745098f, 1f)]
+        [TestCase(LaserTowerPrefabPath, LaserTowerDataPath, 0.33333334f, 0.8745098f, 1f)]
+        [TestCase(LongRangeTowerPrefabPath, LongRangeTowerDataPath, 1f, 1f, 1f)]
+        public void TowerInitialization_AppliesActiveAmmunitionColor(
+            string prefabPath,
+            string towerDataPath,
+            float red,
+            float green,
+            float blue)
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            TowerData towerData = AssetDatabase.LoadAssetAtPath<TowerData>(towerDataPath);
+            Assert.That(prefab, Is.Not.Null);
+            Assert.That(towerData, Is.Not.Null);
+
+            GameObject instance = Object.Instantiate(prefab);
+            try
+            {
+                Tower tower = instance.GetComponent<Tower>();
+                SpriteRenderer accentRenderer = instance.transform.Find("BaseAccent").GetComponent<SpriteRenderer>();
+                Transform headAccent = instance.transform.Find("TurretPivot/Head/HeadAccent");
+
+                tower.Initialize(towerData, towerData.upgradeData);
+
+                Color expectedColor = new Color(red, green, blue, 1f);
+                Assert.That(accentRenderer.color, Is.EqualTo(expectedColor));
+                if (headAccent != null)
+                    Assert.That(headAccent.GetComponent<SpriteRenderer>().color, Is.EqualTo(expectedColor));
+            }
+            finally
+            {
+                Object.DestroyImmediate(instance);
+            }
         }
 
         private static T FindComponent<T>(Scene scene) where T : Component

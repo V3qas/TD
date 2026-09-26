@@ -25,5 +25,6 @@ MonoBehaviour:
   isPiercing: 1
   slowFactor: 1
   slowDuration: 0
+  towerAccentColor: {r: 0.33333334, g: 0.8745098, b: 1, a: 1}
   bulletPrefab: {fileID: 610000000000000001, guid: 5f19a2c8b6d44380a7319ea3c40fd511, type: 3}
   hitAnimator: {fileID: 0}

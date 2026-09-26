@@ -63,6 +63,9 @@ namespace TD.Bullets
         public float slowDuration = 0f;
 
         [Header("Visuals")]
+        [Tooltip("Color applied to the tower's ammunition accent visuals while this bullet type is active.")]
+        public Color towerAccentColor = Color.white;
+
         [Tooltip("Projectile prefab. Must contain a Bullet component.")]
         public GameObject bulletPrefab;
 

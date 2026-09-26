@@ -16,6 +16,9 @@ namespace TD.Towers
         [SerializeField, Min(0f)] private float rotationSpeed = 540f;
         [SerializeField, Range(0f, 45f)] private float firingAngleTolerance = 5f;
 
+        [Header("Visuals")]
+        [SerializeField] private SpriteRenderer[] ammunitionAccentRenderers;
+
         private TowerData data;
         private TowerUpgradeData upgradeData;
         private int currentUpgradeLevel;
@@ -115,7 +118,7 @@ namespace TD.Towers
                     }
                 }
 
-                return data.bulletData;
+                return data != null ? data.bulletData : null;
             }
         }
 
@@ -136,6 +139,7 @@ namespace TD.Towers
             currentTarget = null;
             if (targetProvider == null)
                 targetProvider = DefaultTargetProvider.Instance;
+            RefreshAmmunitionVisuals();
         }
 
         /// <summary>
@@ -186,7 +190,23 @@ namespace TD.Towers
 
             totalInvested += upgradeData.levels[currentUpgradeLevel].cost;
             currentUpgradeLevel++;
+            RefreshAmmunitionVisuals();
             return true;
+        }
+
+        private void RefreshAmmunitionVisuals()
+        {
+            if (ammunitionAccentRenderers == null)
+                return;
+
+            BulletData bulletData = EffectiveBulletData;
+            Color accentColor = bulletData != null ? bulletData.towerAccentColor : Color.white;
+            for (int index = 0; index < ammunitionAccentRenderers.Length; index++)
+            {
+                SpriteRenderer accentRenderer = ammunitionAccentRenderers[index];
+                if (accentRenderer != null)
+                    accentRenderer.color = accentColor;
+            }
         }
 
         /// <summary>Returns the sell value (50% of invested gold).</summary>
