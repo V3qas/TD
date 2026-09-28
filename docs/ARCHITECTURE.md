@@ -55,13 +55,13 @@ Runtime code is grouped by domain:
 | Core        | `Assets/Scripts/Core/`        | Session state, match lifecycle/cleanup, build placement, difficulty, pooling, shared runtime sprite resources |
 | Grid        | `Assets/Scripts/Grid/`        | Grid cells, build/path occupancy, cached enemy paths; preview overlay rendering split into `GridPreviewRenderer` |
 | Pathfinding | `Assets/Scripts/Pathfinding/` | BFS over the read-only `IPathGrid` contract |
-| Enemy       | `Assets/Scripts/Enemy/`       | Enemy stats, runtime enemies, round spawning; round composition split into `WavePlanner` |
+| Enemy       | `Assets/Scripts/Enemy/`       | Enemy stats, runtime enemies, distance-driven frame animation, round spawning; round composition split into `WavePlanner` |
 | Towers      | `Assets/Scripts/Towers/`      | Towers, upgrades, selection, range indicators; per-instance targeting modes via `ITargetProvider` |
 | Bullets     | `Assets/Scripts/Bullets/`     | Projectile stats and straight predictive projectile flight |
-| Combat      | `Assets/Scripts/Combat/`      | Shared damage contract, physics synchronization, rocks, destructible blockers |
+| Combat      | `Assets/Scripts/Combat/`      | Shared damage contract, pending projectile damage, physics synchronization, rocks, destructible blockers |
 | Level       | `Assets/Scripts/Level/`       | Level data, map seeds, loading, camera framing, map occupants |
 | UI          | `Assets/Scripts/UI/`          | HUD and runtime map editor; shared runtime uGUI construction via `RuntimeUiFactory` |
-| Menu        | `Assets/Scripts/Menu/`        | Title screen and main menu |
+| Menu        | `Assets/Scripts/Menu/`        | Title screen, main menu, persisted volume settings, and cross-scene music playback |
 | Theming     | `Assets/Scripts/Theming/`     | Map theme definitions and theme application |
 | Editor      | `Assets/Editor/`              | Editor-only map and export tooling |
 
@@ -114,6 +114,13 @@ the authoritative `Playing` / `Won` / `Lost` match state. MVP restarts reload th
 Selecting a campaign level or custom map clears editor/test flags. Entering the map
 editor clears gameplay selection, so a previous session cannot leak into the next
 mode even when navigation did not follow the normal menu cleanup path.
+
+`MenuMusicPlayer` is created at runtime and persists across scene transitions. It loops
+the title track continuously through Boot, Menu, runtime map editing, and editor test
+runs; regular campaign and custom-map sessions switch it to configured level tracks
+without immediate repeats. `AudioVolumeSettings` stores master and music volume in
+`PlayerPrefs`; master volume is applied through `AudioListener`, while music volume
+controls the persistent music source.
 
 `InGameHudController` observes the match state. It displays lives and finite wave
 progress, blocks build/selection actions after the match, and presents the final
@@ -241,7 +248,10 @@ public method or property is added, removed, or renamed.
 - `Enemy` - `ActiveEnemies`, `IsDead`, `Data`, `Reward`, `GoalDamage`,
   `CurrentHealth`, `MaxHealth`, `CurrentSpeed`, `PathProgress`, `WorldPosition`;
   events `OnDied`, `OnReachedGoal`; methods `Initialize`, `SetWaypoints`,
-  `PredictPosition`, `TakeDamage`, `ApplySlow`.
+  `PredictPosition`, `WouldBeDestroyedBy`, `TakeDamage`, `ApplySlow`.
+- `EnemyFrameAnimator` - advances configured movement sprites by travelled world
+  distance, so animation cadence follows movement speed and slow effects. Pool
+  activation establishes a new position baseline before distance is accumulated.
 - `EnemyPath` - immutable waypoint snapshot shared by all enemies on a route;
   `Count`, indexer, `Advance(position, ref waypointIndex, distance)`, `GetProgress`.
   Movement and prediction use the same distance-budget traversal. Cached suffix
@@ -257,14 +267,19 @@ public method or property is added, removed, or renamed.
   fallback)`, `IsValid(entry)`. Pure round-composition logic extracted from
   `EnemySpawner` for testability.
 - `IDamageable` - `CurrentHealth`, `MaxHealth`, `IsDead`, `WorldPosition`,
-  `TakeDamage`.
+  `WouldBeDestroyedBy(incomingDamages)`, `TakeDamage`. Damage prediction applies
+  target-specific shield and armor rules in impact order.
 - `Destructible` - `MarkedTargets`, `ActiveTargets`, `IsMarked`,
-  `ClearMarkedTargets`, `Initialize`, `TakeDamage`, `Mark`,
+  `ClearMarkedTargets`, `Initialize`, `WouldBeDestroyedBy`, `TakeDamage`, `Mark`,
   `Unmark`.
 - `ITargetProvider` - `FindTarget(origin, range, targetingMode)`; abstraction that decouples
   towers from the global enemy/destructible registries.
 - `Rock` - marker component for indestructible occupant objects.
 - `CombatPhysics` (static) - `Synchronize`, `Invalidate`; see combat update order above.
+- `PendingDamageReservations` (internal static) - tracks damage carried by active
+  projectiles in estimated impact order. Towers skip a target only when timely
+  reservations are lethal; damage expected after an enemy reaches the goal is ignored.
+  Projectile disable/destruction and damageable disable release reservations.
 
 ### Towers & Bullets
 
@@ -283,7 +298,8 @@ public method or property is added, removed, or renamed.
   `Tower.TryUpgrade` remains the low-level stat mutation, without payment.
 - `DefaultTargetProvider` - `ITargetProvider` implementation (singleton
   `Instance`); marked destructibles first, then an enemy selected per tower by
-  path progress, current health, or effective speed.
+  path progress, current health, or effective speed. Targets already covered by
+  timely lethal projectile damage are excluded.
   Each candidate's metric is evaluated once per search. Towers without a target
   retry at 0.1-second intervals instead of every frame; firing cadence is unchanged.
 - `TowerData` - public fields `towerName`, `icon`, `cost`, `damage`,
@@ -304,6 +320,11 @@ public method or property is added, removed, or renamed.
   and damage only an enemy or marked destructible they actually intersect. A
   missed direct shot deals no damage; splash resolves at its impact or endpoint.
   Lasers damage only targets intersected by the configured beam.
+  Travelling projectiles with a clear launch path reserve their modified damage
+  until impact, pool release, or destruction so other towers can avoid avoidable
+  overkill without suppressing shots needed before an enemy reaches the goal.
+  A projectile already intercepted by another valid target does not reserve damage
+  against its originally intended target.
   Queries reuse per-instance result lists and a target set; splash and piercing
   lasers damage each target once even with multiple colliders. The serialized
   `hitLayers` mask defaults to all layers for existing prefab compatibility.
@@ -362,7 +383,11 @@ public method or property is added, removed, or renamed.
   on mouse release; save/test buttons are disabled while validation is pending.
   Loading/resizing/generating a map still performs a full preview rebuild.
 - `MainMenuController` - `ShowMainMenu`, `HideMenu`.
-- `TitleScreenController` - drives splash and transition to Menu.
+- `TitleScreenController` - drives splash, starts title music, and transitions to Menu.
+- `AudioVolumeSettings` (internal static) - persists and applies normalized master
+  and music volume settings.
+- `MenuMusicPlayer` (internal) - persistent two-dimensional audio source for the
+  title loop and non-repeating random level-track rotation.
 - `MainMenuConfig` - `title`, `mainButtons`, `campaignTitle`, `campaignLevels`.
 - `MainMenuAction` - enum `SingleCampaign`, `Infinite`, `Challenge`,
   `TowerUpgrade`, `Options`, `MapEditor`, `CustomMaps`, `Exit`.
@@ -483,3 +508,9 @@ Append a one-line entry whenever this document is updated.
   lasers explicitly, and cleaned stale imports, comments, and the empty Utilities folder.
 - 2026-09-26: Centralized runtime uGUI element construction and replaced per-component
   generated white textures/sprites with one lifecycle-managed shared sprite.
+- 2026-09-27: Added enemy movement-frame animation, distinct basic/runner visuals,
+  menu and gameplay music with persisted volume controls, and impact-ordered pending
+  damage reservations that avoid overkill without suppressing shots arriving before
+  an enemy reaches the goal.
+- 2026-09-27: Kept the title track playing continuously through runtime map editing
+  and its test runs.

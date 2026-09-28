@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 5169753262685860481}
   - component: {fileID: 4615976333109570792}
   - component: {fileID: 625582223796429465}
+  - component: {fileID: 4519036377201840132}
   - component: {fileID: 7667829053863625775}
   m_Layer: 0
   m_Name: Enemy_Basic
@@ -83,8 +84,8 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0.759434, g: 0.121796034, b: 0.12490007, a: 1}
+  m_Sprite: {fileID: 8169460797141704402, guid: da0daa1929b0a314ca75553e9db88718, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -105,6 +106,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b0dc44fd3ec9a104f9a91b7b83770a83, type: 3}
   m_Name: 
   m_EditorClassIdentifier: TD.Runtime::TD.Enemies.Enemy
+--- !u!114 &4519036377201840132
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 980771424573500425}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2b6e8f14f0b4a08b4d87a2e63c19f55, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: TD.Runtime::TD.Enemies.EnemyFrameAnimator
+  targetRenderer: {fileID: 4615976333109570792}
+  movementFrames:
+  - {fileID: 8169460797141704402, guid: da0daa1929b0a314ca75553e9db88718, type: 3}
+  - {fileID: 8280973981309965861, guid: e9146b7b6c7020040ae0d3c54de5439b, type: 3}
+  - {fileID: -9032713559278462693, guid: f065a3e270b247e41a42b6e08995be81, type: 3}
+  - {fileID: -4753206444915831360, guid: 15bd569f4c956e84abbd7ebbafd5d7aa, type: 3}
+  framesPerWorldUnit: 4
 --- !u!58 &7667829053863625775
 CircleCollider2D:
   m_ObjectHideFlags: 0
@@ -140,4 +160,4 @@ CircleCollider2D:
   m_CompositeOperation: 0
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
-  m_Radius: 0.4
+  m_Radius: 0.3

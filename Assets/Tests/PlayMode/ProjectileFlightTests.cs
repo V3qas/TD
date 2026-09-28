@@ -4,8 +4,10 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 using TD.Bullets;
+using TD.Combat;
 using TD.Core;
 using TD.Enemies;
+using TD.Towers;
 
 namespace TD.Tests.PlayMode
 {
@@ -128,6 +130,41 @@ namespace TD.Tests.PlayMode
             Assert.That(bullet.gameObject.activeSelf, Is.False);
             yield return null;
             Assert.That(enemy.CurrentHealth, Is.EqualTo(100f));
+        }
+
+        [UnityTest]
+        public IEnumerator DisabledProjectile_ReleasesReservedDamageForRetargeting()
+        {
+            Vector3 towerPosition = new Vector3(1000f, 1000f, 0f);
+            Enemy enemy = CreateEnemy(towerPosition + Vector3.right * 3f, 0f);
+            BulletData bulletData = CreateBulletData(1f);
+            Bullet first = CreateBullet(towerPosition);
+            first.Initialize(bulletData, 60f, enemy);
+            Bullet second = CreateBullet(towerPosition);
+            second.Initialize(bulletData, 60f, enemy);
+
+            Assert.That(DefaultTargetProvider.Instance.FindTarget(towerPosition, 10f), Is.Null);
+
+            second.gameObject.SetActive(false);
+            yield return null;
+
+            Assert.That(DefaultTargetProvider.Instance.FindTarget(towerPosition, 10f), Is.SameAs(enemy));
+        }
+
+        [UnityTest]
+        public IEnumerator ProjectileObstructedByEnemy_DoesNotCoverIntendedTarget()
+        {
+            Vector3 origin = new Vector3(1000f, 1000f, 0f);
+            CreateEnemy(origin + Vector3.right, 0f);
+            Enemy intendedTarget = CreateEnemy(origin + Vector3.right * 3f, 0f);
+            Bullet bullet = CreateBullet(origin);
+            bullet.Initialize(CreateBulletData(10f), 100f, intendedTarget);
+
+            Assert.That(PendingDamageReservations.IsLethallyCovered(intendedTarget), Is.False,
+                "Damage intercepted by a nearer enemy must not suppress fire at the intended target.");
+
+            yield return WaitUntilReleased(bullet);
+            Assert.That(intendedTarget.CurrentHealth, Is.EqualTo(100f));
         }
 
         private Enemy CreateEnemy(Vector3 position, float speed)

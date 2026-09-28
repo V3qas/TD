@@ -28,7 +28,7 @@ namespace TD.Towers
             for (int index = 0; index < markedTargets.Count; index++)
             {
                 Destructible marked = markedTargets[index];
-                if (marked == null || marked.IsDead)
+                if (marked == null || marked.IsDead || PendingDamageReservations.IsLethallyCovered(marked))
                     continue;
 
                 float sqr = (origin - marked.WorldPosition).sqrMagnitude;
@@ -49,7 +49,7 @@ namespace TD.Towers
             for (int index = 0; index < enemies.Count; index++)
             {
                 Enemy enemy = enemies[index];
-                if (enemy == null || enemy.IsDead)
+                if (enemy == null || enemy.IsDead || PendingDamageReservations.IsLethallyCovered(enemy))
                     continue;
 
                 float sqrDist = (origin - enemy.transform.position).sqrMagnitude;

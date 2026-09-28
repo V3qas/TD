@@ -36,6 +36,7 @@ namespace TD.UI
         [SerializeField] private Camera mainCamera;
         [SerializeField] private MapCameraController mapCameraController;
         [SerializeField] private Font font;
+        [SerializeField] private AudioClip titleMusic;
         [SerializeField] private string menuSceneName = "Menu";
         private const int defaultWidth = 44;
         private const int defaultHeight = 32;
@@ -114,6 +115,7 @@ namespace TD.UI
 
         public void Open()
         {
+            MenuMusicPlayer.EnsurePlaying(titleMusic);
             ResolveReferences();
             EnsureCanvas();
             EnsureEventSystem();
@@ -169,6 +171,7 @@ namespace TD.UI
             }
 
             pendingTestDefinition = definition;
+            MenuMusicPlayer.EnsurePlaying(titleMusic);
             GameSession.BeginTestRun(selectedDifficulty);
 
             if (hudController != null)

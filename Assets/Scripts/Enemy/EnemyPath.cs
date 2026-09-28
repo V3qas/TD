@@ -46,9 +46,17 @@ namespace TD.Enemies
             if (waypointIndex >= Count)
                 return 1f;
 
-            int index = Mathf.Max(0, waypointIndex);
-            float remaining = Vector3.Distance(position, points[index]) + remainingLengths[index];
+            float remaining = GetRemainingDistance(position, waypointIndex);
             return 1f - Mathf.Clamp01(remaining / remainingLengths[0]);
+        }
+
+        internal float GetRemainingDistance(Vector3 position, int waypointIndex)
+        {
+            if (Count == 0 || waypointIndex >= Count)
+                return 0f;
+
+            int index = Mathf.Max(0, waypointIndex);
+            return Vector3.Distance(position, points[index]) + remainingLengths[index];
         }
     }
 }

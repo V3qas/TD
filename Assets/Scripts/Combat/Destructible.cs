@@ -62,6 +62,19 @@ namespace TD.Combat
         public bool IsDead => currentHealth <= 0f;
         public Vector3 WorldPosition => transform.position;
 
+        public bool WouldBeDestroyedBy(IReadOnlyList<float> incomingDamages)
+        {
+            float projectedHealth = currentHealth;
+            for (int index = 0; index < incomingDamages.Count; index++)
+            {
+                projectedHealth -= Mathf.Max(0f, incomingDamages[index]);
+                if (projectedHealth <= 0f)
+                    return true;
+            }
+
+            return IsDead;
+        }
+
         public void Initialize(int initialMaxHp, int rewardOnDeath, SpriteRenderer renderer, GridManager owningGridManager = null, Vector2Int? cell = null)
         {
             CombatPhysics.Invalidate();
@@ -127,6 +140,7 @@ namespace TD.Combat
 
         private void OnDisable()
         {
+            PendingDamageReservations.ReleaseAll(this);
             CombatPhysics.Invalidate();
             // Defensive: if disabled before Die() (e.g. scene unload), drop registry entry.
             if (isMarked)

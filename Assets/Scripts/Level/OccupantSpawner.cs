@@ -204,6 +204,11 @@ namespace TD.Level
             renderer.color = new Color(0.32f, 0.32f, 0.34f);
             renderer.sortingOrder = 5;
 
+            BoxCollider2D collider = rockObject.GetComponent<BoxCollider2D>();
+            collider.size = Vector2.one;
+            collider.offset = Vector2.zero;
+            collider.isTrigger = false;
+
             spawned.Add(rockObject);
         }
 
@@ -218,6 +223,11 @@ namespace TD.Level
             SpriteRenderer renderer = blockObject.GetComponent<SpriteRenderer>();
             renderer.sprite = RuntimeSpriteResources.WhiteSprite;
             renderer.sortingOrder = 5;
+
+            BoxCollider2D collider = blockObject.GetComponent<BoxCollider2D>();
+            collider.size = Vector2.one;
+            collider.offset = Vector2.zero;
+            collider.isTrigger = false;
 
             Destructible destructible = blockObject.GetComponent<Destructible>();
             destructible.Initialize(entry.maxHp, entry.reward, renderer, gridManager, entry.cell);

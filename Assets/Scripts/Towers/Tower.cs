@@ -226,8 +226,11 @@ namespace TD.Towers
             attackTimer -= Time.deltaTime;
             targetSearchTimer -= Time.deltaTime;
 
-            if (!IsValidTarget(currentTarget))
+            if (currentTarget != null && !IsValidTarget(currentTarget))
+            {
                 currentTarget = null;
+                targetSearchTimer = 0f;
+            }
 
             if (targetSearchTimer <= 0f && (currentTarget == null || attackTimer <= 0f))
             {
@@ -249,7 +252,7 @@ namespace TD.Towers
 
         private bool IsValidTarget(IDamageable target)
         {
-            if (target == null)
+            if (target == null || PendingDamageReservations.IsLethallyCovered(target))
                 return false;
 
             if (target is Component component && (component == null || !component.gameObject.activeInHierarchy))

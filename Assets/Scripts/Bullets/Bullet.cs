@@ -21,6 +21,7 @@ namespace TD.Bullets
         private Vector3 destination;
         private bool isLaser;
         private float laserLifetime;
+        private PendingDamageReservations.Reservation damageReservation;
         private SpriteRenderer spriteRenderer;
         private Collider2D projectileCollider;
         private Vector3 defaultLocalScale;
@@ -86,10 +87,12 @@ namespace TD.Bullets
                 transform.position,
                 target,
                 bulletData != null ? bulletData.travelSpeed : 0f);
+            ReservePendingDamage();
         }
 
         private void OnDisable()
         {
+            ReleasePendingDamage();
             activeBullets.Remove(this);
             castHits.Clear();
             splashHits.Clear();
@@ -103,6 +106,41 @@ namespace TD.Bullets
             laserLifetime = 0f;
             data = null;
             transform.localScale = defaultLocalScale;
+        }
+
+        private void OnDestroy()
+        {
+            // Unpooled test/runtime objects may be destroyed without first going
+            // through the normal pool deactivation path.
+            ReleasePendingDamage();
+            activeBullets.Remove(this);
+        }
+
+        private void ReservePendingDamage()
+        {
+            if (data == null || target == null || HasInterceptingTarget())
+                return;
+
+            float finalDamage = data.ModifyDamage(damage);
+            float travelSpeed = Mathf.Max(0.01f, data.travelSpeed);
+            float estimatedFlightTime = Vector3.Distance(transform.position, destination) / travelSpeed;
+            damageReservation = PendingDamageReservations.Reserve(
+                target,
+                finalDamage,
+                estimatedFlightTime);
+        }
+
+        private bool HasInterceptingTarget()
+        {
+            Vector2 movement = destination - transform.position;
+            return TryFindClosestDamageable(movement, out IDamageable closestTarget, out _)
+                && !ReferenceEquals(closestTarget, target);
+        }
+
+        private void ReleasePendingDamage()
+        {
+            PendingDamageReservations.Release(damageReservation);
+            damageReservation = default;
         }
 
         private void Update()
@@ -142,34 +180,43 @@ namespace TD.Bullets
         private bool TryHitAlongPath(Vector3 nextPosition)
         {
             Vector2 movement = nextPosition - transform.position;
+            if (!TryFindClosestDamageable(
+                    movement,
+                    out IDamageable closestTarget,
+                    out float closestDistance))
+                return false;
+
+            Vector2 direction = movement.normalized;
+            transform.position += (Vector3)(direction * closestDistance);
+            hasHit = true;
+            if (data.splashRadius > 0f)
+                HitSplash();
+            else
+                ApplyHit(closestTarget);
+
+            PrefabPool.Release(gameObject);
+            return true;
+        }
+
+        private bool TryFindClosestDamageable(
+            Vector2 movement,
+            out IDamageable closestTarget,
+            out float closestDistance)
+        {
+            closestTarget = null;
+            closestDistance = float.PositiveInfinity;
             float distance = movement.magnitude;
             if (distance <= Mathf.Epsilon)
                 return false;
 
             CombatPhysics.Synchronize();
-            ContactFilter2D filter = CreateHitFilter();
-            Vector2 direction = movement / distance;
-            float hitRadius = 0.05f;
-            if (projectileCollider is CircleCollider2D circleCollider)
-            {
-                Vector3 scale = transform.lossyScale;
-                hitRadius = circleCollider.radius * Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
-            }
-            else if (projectileCollider != null)
-            {
-                Bounds bounds = projectileCollider.bounds;
-                hitRadius = Mathf.Max(bounds.extents.x, bounds.extents.y);
-            }
-
             int hitCount = Physics2D.CircleCast(
                 transform.position,
-                Mathf.Max(0.01f, hitRadius),
-                direction,
-                filter,
+                GetHitRadius(),
+                movement / distance,
+                CreateHitFilter(),
                 castHits,
                 distance);
-            IDamageable closestTarget = null;
-            float closestDistance = float.PositiveInfinity;
 
             for (int index = 0; index < hitCount; index++)
             {
@@ -185,18 +232,24 @@ namespace TD.Bullets
                 closestDistance = hit.distance;
             }
 
-            if (closestTarget == null)
-                return false;
+            return closestTarget != null;
+        }
 
-            transform.position += (Vector3)(direction * closestDistance);
-            hasHit = true;
-            if (data.splashRadius > 0f)
-                HitSplash();
-            else
-                ApplyHit(closestTarget);
+        private float GetHitRadius()
+        {
+            float hitRadius = 0.05f;
+            if (projectileCollider is CircleCollider2D circleCollider)
+            {
+                Vector3 scale = transform.lossyScale;
+                hitRadius = circleCollider.radius * Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
+            }
+            else if (projectileCollider != null)
+            {
+                Bounds bounds = projectileCollider.bounds;
+                hitRadius = Mathf.Max(bounds.extents.x, bounds.extents.y);
+            }
 
-            PrefabPool.Release(gameObject);
-            return true;
+            return Mathf.Max(0.01f, hitRadius);
         }
 
         private void FireLaser()

@@ -40,6 +40,19 @@ namespace TD.Enemies
         public float CurrentSpeed => Mathf.Max(0f, scaledSpeed * slowFactor);
         public float PathProgress => waypoints != null ? waypoints.GetProgress(transform.position, waypointIndex) : 0f;
         public Vector3 WorldPosition => transform.position;
+        internal float EstimatedSecondsToGoal
+        {
+            get
+            {
+                if (waypoints == null || waypointIndex >= waypoints.Count)
+                    return 0f;
+
+                float speed = CurrentSpeed;
+                return speed <= Mathf.Epsilon
+                    ? float.PositiveInfinity
+                    : waypoints.GetRemainingDistance(transform.position, waypointIndex) / speed;
+            }
+        }
 
         private void OnEnable()
         {
@@ -48,6 +61,7 @@ namespace TD.Enemies
 
         private void OnDisable()
         {
+            PendingDamageReservations.ReleaseAll(this);
             activeEnemies.Remove(this);
             CombatPhysics.Invalidate();
             OnDied = null;
@@ -147,6 +161,33 @@ namespace TD.Enemies
             return waypoints.Advance(transform.position, ref targetIndex, CurrentSpeed * seconds);
         }
 
+        public bool WouldBeDestroyedBy(IReadOnlyList<float> incomingDamages)
+        {
+            if (IsDead)
+                return true;
+
+            float projectedHealth = currentHealth;
+            float projectedShield = currentShield;
+            float armor = data != null ? Mathf.Max(0f, data.armor) : 0f;
+
+            for (int index = 0; index < incomingDamages.Count; index++)
+            {
+                float projectedDamage = Mathf.Max(0f, incomingDamages[index]);
+                if (projectedShield > 0f)
+                {
+                    float absorbed = Mathf.Min(projectedShield, projectedDamage);
+                    projectedShield -= absorbed;
+                    projectedDamage -= absorbed;
+                }
+
+                projectedHealth -= Mathf.Max(0f, projectedDamage - armor);
+                if (projectedHealth <= 0f)
+                    return true;
+            }
+
+            return false;
+        }
+
         private void Update()
         {
             if (!GameplayLifecycle.CanRunCombat || IsDead || waypoints == null || waypointIndex >= waypoints.Count)
@@ -189,7 +230,7 @@ namespace TD.Enemies
                 damage -= absorbed;
             }
 
-            damage = Mathf.Max(0f, damage - data.armor);
+            damage = Mathf.Max(0f, damage - Mathf.Max(0f, data.armor));
             currentHealth -= damage;
 
             if (currentHealth <= 0f)

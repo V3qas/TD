@@ -18,6 +18,8 @@ namespace TD.Tests.EditMode
         private const string BasicTowerPrefabPath = "Assets/Prefabs/Towers/Tower_Basic.prefab";
         private const string LaserTowerPrefabPath = "Assets/Prefabs/Towers/Tower_Laser.prefab";
         private const string LongRangeTowerPrefabPath = "Assets/Prefabs/Towers/Tower_LongRange.prefab";
+        private const float NormalizedTowerHeadHeight = 277f;
+        private const string BasicBulletSpritePath = "Assets/Art/Bullets/Bullet.png";
         private const string LaserBulletSpritePath = "Assets/Art/Bullets/Bullet_Laser.png";
         private const string SharedTowerBaseSpritePath = "Assets/Art/Towers/Tower_Base.png";
         private const string SharedTowerBaseAccentSpritePath = "Assets/Art/Towers/Tower_BaseAccent.png";
@@ -41,6 +43,12 @@ namespace TD.Tests.EditMode
             Assert.That(basic.bulletData.attackSpeedMultiplier, Is.EqualTo(1f));
             Assert.That(basic.bulletData.rangeMultiplier, Is.EqualTo(1f));
             Assert.That(basic.bulletData.towerAccentColor, Is.EqualTo(Color.white));
+            Assert.That(basic.bulletData.bulletPrefab, Is.Not.Null);
+            SpriteRenderer basicRenderer = basic.bulletData.bulletPrefab.GetComponent<SpriteRenderer>();
+            Assert.That(basicRenderer, Is.Not.Null);
+            Assert.That(basicRenderer.sprite, Is.Not.Null);
+            Assert.That(AssetDatabase.GetAssetPath(basicRenderer.sprite), Is.EqualTo(BasicBulletSpritePath));
+            Assert.That(basicRenderer.color, Is.EqualTo(Color.white));
             Assert.That(laser.damage, Is.EqualTo(basic.damage), "Tower variants must share base damage.");
             Assert.That(laser.range, Is.EqualTo(basic.range), "Tower variants must share base range.");
             Assert.That(laser.attackSpeed, Is.EqualTo(basic.attackSpeed), "Tower variants must share base fire rate.");
@@ -170,8 +178,13 @@ namespace TD.Tests.EditMode
             Assert.That(headRenderer.sprite, Is.Not.Null, "The turret head sprite is missing.");
             Assert.That(headRenderer.sprite.pixelsPerUnit, Is.EqualTo(440f).Within(0.001f));
             Assert.That(
+                head.localScale.x,
+                Is.EqualTo(head.localScale.y).Within(0.0001f),
+                "Tower heads should be scaled uniformly to preserve their aspect ratio.");
+            Assert.That(head.localScale.z, Is.EqualTo(1f).Within(0.0001f));
+            Assert.That(
                 headRenderer.sprite.rect.height * head.localScale.y,
-                Is.EqualTo(277f).Within(0.01f),
+                Is.EqualTo(NormalizedTowerHeadHeight).Within(0.01f),
                 "Every tower head should render at the same normalized height.");
             Assert.That(headRenderer.sortingOrder, Is.GreaterThan(accentRenderer.sortingOrder));
             Assert.That(firePoint, Is.Not.Null, "The projectile spawn point is missing.");
@@ -198,7 +211,6 @@ namespace TD.Tests.EditMode
                 Assert.That(headAccentRenderer.sprite.pixelsPerUnit, Is.EqualTo(440f).Within(0.001f));
                 Assert.That(headRenderer.sprite.rect, Is.EqualTo(headAccentRenderer.sprite.rect));
                 Assert.That(head.localPosition, Is.EqualTo(new Vector3(0.18f, 0f, 0f)));
-                Assert.That(head.localScale, Is.EqualTo(Vector3.one));
                 Assert.That(headAccent.localPosition, Is.EqualTo(Vector3.zero));
                 Assert.That(headAccent.localScale, Is.EqualTo(Vector3.one));
                 Assert.That(headAccentRenderer.sortingOrder, Is.GreaterThan(headRenderer.sortingOrder));
@@ -222,7 +234,6 @@ namespace TD.Tests.EditMode
             }
             else if (prefabPath == LaserTowerPrefabPath)
             {
-                const float expectedScale = 277f / 335f;
                 Transform headAccent = head.Find("HeadAccent");
                 Assert.That(headAccent, Is.Not.Null, "The Laser Tower head accent is missing.");
                 headAccentRenderer = headAccent.GetComponent<SpriteRenderer>();
@@ -232,8 +243,6 @@ namespace TD.Tests.EditMode
                 Assert.That(AssetDatabase.GetAssetPath(headAccentRenderer.sprite), Is.EqualTo(LaserTowerHeadAccentSpritePath));
                 Assert.That(headRenderer.sprite.rect, Is.EqualTo(headAccentRenderer.sprite.rect));
                 Assert.That(head.localPosition, Is.EqualTo(new Vector3(0.18f, 0f, 0f)));
-                Assert.That(head.localScale.x, Is.EqualTo(expectedScale).Within(0.0001f));
-                Assert.That(head.localScale.y, Is.EqualTo(expectedScale).Within(0.0001f));
                 Assert.That(headAccent.localPosition, Is.EqualTo(Vector3.zero));
                 Assert.That(headAccent.localScale, Is.EqualTo(Vector3.one));
                 Assert.That(headAccentRenderer.sortingOrder, Is.GreaterThan(headRenderer.sortingOrder));

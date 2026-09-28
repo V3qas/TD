@@ -9,6 +9,7 @@ using TD.Combat;
 using TD.Core;
 using TD.Enemies;
 using TD.Level;
+using TD.Menu;
 using TD.Towers;
 using TD.UI;
 
@@ -27,6 +28,7 @@ namespace TD.Tests.PlayMode
             GameSession.EndTestRun();
             GameSession.EndMapEditorMode();
             GameSession.ClearSelectedLevel();
+            MenuMusicPlayer.StopAndDestroy();
             PrefabPool.Clear();
             yield return null;
         }
@@ -51,10 +53,22 @@ namespace TD.Tests.PlayMode
             Invoke(editor, "LoadDefinition", authoring.BuildDefinition());
             editor.Open();
 
+            MenuMusicPlayer musicPlayer = Object.FindAnyObjectByType<MenuMusicPlayer>();
+            Assert.That(musicPlayer, Is.Not.Null, "The map editor should keep the title music player alive.");
+            AudioSource musicSource = musicPlayer.GetComponent<AudioSource>();
+            Assert.That(musicSource, Is.Not.Null);
+            Assert.That(musicSource.clip, Is.Not.Null);
+            Assert.That(musicSource.clip.name, Is.EqualTo("Title_Main"));
+            Assert.That(musicSource.loop, Is.True);
+
             for (int run = 0; run < 2; run++)
             {
                 Invoke(editor, "StartTestRun");
                 yield return null;
+                Assert.That(Object.FindAnyObjectByType<MenuMusicPlayer>(), Is.SameAs(musicPlayer),
+                    "Starting an editor test run must not replace or destroy the title music player.");
+                Assert.That(musicSource.clip.name, Is.EqualTo("Title_Main"));
+                Assert.That(musicSource.loop, Is.True);
                 Assert.That(loader.HasLoadedLevel, Is.True);
                 Assert.That(state.Money, Is.EqualTo(100));
                 Assert.That(Destructible.ActiveTargets.Count, Is.EqualTo(1));
@@ -66,8 +80,20 @@ namespace TD.Tests.PlayMode
                 builder.SelectTowerToBuild(builder.AvailableTowers[0]);
                 BulletData data = builder.AvailableTowers[0].bulletData;
                 GameObject bulletObject = PrefabPool.Spawn(data.bulletPrefab, Vector3.zero, Quaternion.identity);
-                bulletObject.GetComponent<Bullet>().Initialize(data, 10f, obstacle);
+                Bullet bullet = bulletObject.GetComponent<Bullet>();
+                bullet.Initialize(data, obstacle.MaxHealth, obstacle);
                 state.TrySpendMoney(50);
+
+                float timeout = Time.realtimeSinceStartup + 2f;
+                while (bulletObject.activeInHierarchy && Time.realtimeSinceStartup < timeout)
+                    yield return null;
+
+                Assert.That(bulletObject.activeInHierarchy, Is.False,
+                    "The normal projectile did not finish its flight to the destructible.");
+                yield return null;
+                Assert.That(obstacle == null, Is.True,
+                    "A marked destructible should be destroyed by lethal projectile damage during an editor test run.");
+                Assert.That(Destructible.ActiveTargets, Is.Empty);
 
                 Invoke(editor, "ReturnFromTest");
                 Assert.That(GameSession.IsEditorTestRun, Is.False);

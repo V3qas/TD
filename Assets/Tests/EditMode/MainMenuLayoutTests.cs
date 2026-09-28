@@ -199,6 +199,16 @@ namespace TD.Tests.EditMode
             Assert.That(controller.ResolutionDropdown, Is.Not.Null);
             Assert.That(controller.ResolutionDropdown.options.Count, Is.EqualTo(controller.AvailableResolutions.Count));
             Assert.That(controller.AvailableResolutions.Count, Is.GreaterThan(0));
+            Assert.That(controller.MasterVolumeSlider, Is.Not.Null);
+            Assert.That(controller.MasterVolumeSlider.minValue, Is.EqualTo(0f));
+            Assert.That(controller.MasterVolumeSlider.maxValue, Is.EqualTo(100f));
+            Assert.That(controller.MasterVolumeSlider.wholeNumbers, Is.True);
+            Assert.That(controller.MasterVolumeInput, Is.Not.Null);
+            Assert.That(controller.MasterVolumeInput.contentType, Is.EqualTo(InputField.ContentType.IntegerNumber));
+            Assert.That(controller.MusicVolumeSlider, Is.Not.Null);
+            Assert.That(controller.MusicVolumeInput, Is.Not.Null);
+            Assert.That(controller.MasterVolumeInput.text, Is.EqualTo(controller.MasterVolumeSlider.value.ToString("0")));
+            Assert.That(controller.MusicVolumeInput.text, Is.EqualTo(controller.MusicVolumeSlider.value.ToString("0")));
 
             Assert.That(PlayerPrefs.GetInt(ResolutionWidthPlayerPrefsKey), Is.EqualTo(int.MaxValue));
             Assert.That(PlayerPrefs.GetInt(ResolutionHeightPlayerPrefsKey), Is.EqualTo(int.MaxValue));

@@ -19,7 +19,7 @@ namespace TD.Enemies
         public float shield = 0f;
 
         [Tooltip("Flat damage reduction per hit after shield damage.")]
-        public float armor = 0f;
+        [Min(0f)] public float armor = 0f;
 
         [Tooltip("Base lives removed when this enemy reaches the goal.")]
         [Min(1)] public int goalDamage = 1;

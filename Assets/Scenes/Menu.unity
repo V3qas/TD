@@ -418,6 +418,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: TD.Runtime::TD.Menu.MainMenuController
   config: {fileID: 11400000, guid: 416033981194e4e4982b2d8dee237a08, type: 2}
   backgroundSprite: {fileID: 21300000, guid: e2ac623e73e94b32bc6be8f1c338c80a, type: 3}
+  titleMusic: {fileID: 8300000, guid: a96f7e73cb852f648b46e7278672abad, type: 3}
+  levelMusic:
+  - {fileID: 8300000, guid: ca0af464b4ae04749ba4767f6b8ec072, type: 3}
+  - {fileID: 8300000, guid: 5a645a8de83c30749894e3ea64697e37, type: 3}
   targetCanvas: {fileID: 0}
   font: {fileID: 0}
   gameplaySceneName: Gameplay

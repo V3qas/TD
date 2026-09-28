@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
@@ -43,6 +44,9 @@ namespace TD.Menu
 
         [SerializeField] private MainMenuConfig config;
         [SerializeField] private Sprite backgroundSprite;
+        [SerializeField] private AudioClip titleMusic;
+        [Tooltip("Tracks randomly rotated while a level is running.")]
+        [SerializeField] private AudioClip[] levelMusic;
         [SerializeField] private Canvas targetCanvas;
         [SerializeField] private Font font;
         [SerializeField] private string gameplaySceneName = "Gameplay";
@@ -62,6 +66,10 @@ namespace TD.Menu
         private Dropdown languageDropdown;
         private Toggle fullscreenToggle;
         private Dropdown resolutionDropdown;
+        private Slider masterVolumeSlider;
+        private InputField masterVolumeInput;
+        private Slider musicVolumeSlider;
+        private InputField musicVolumeInput;
         private Text placeholderTitle;
         private Text placeholderBody;
         private bool playMenuExpanded;
@@ -80,6 +88,10 @@ namespace TD.Menu
         internal Dropdown LanguageDropdown => languageDropdown;
         internal Toggle FullscreenToggle => fullscreenToggle;
         internal Dropdown ResolutionDropdown => resolutionDropdown;
+        internal Slider MasterVolumeSlider => masterVolumeSlider;
+        internal InputField MasterVolumeInput => masterVolumeInput;
+        internal Slider MusicVolumeSlider => musicVolumeSlider;
+        internal InputField MusicVolumeInput => musicVolumeInput;
         internal IReadOnlyList<Vector2Int> AvailableResolutions => availableResolutions;
         internal CanvasGroup MenuContentCanvasGroup => menuContentCanvasGroup;
 
@@ -87,6 +99,7 @@ namespace TD.Menu
 
         private void Start()
         {
+            MenuMusicPlayer.EnsurePlaying(titleMusic);
             currentLanguage = (MenuLanguage)Mathf.Clamp(PlayerPrefs.GetInt(LanguagePlayerPrefsKey, 0), 0, 1);
             EnsureCanvas();
             EnsureEventSystem();
@@ -574,7 +587,7 @@ namespace TD.Menu
             windowRect.anchorMin = new Vector2(0.5f, 0.5f);
             windowRect.anchorMax = new Vector2(0.5f, 0.5f);
             windowRect.pivot = new Vector2(0.5f, 0.5f);
-            windowRect.sizeDelta = new Vector2(520f, 520f);
+            windowRect.sizeDelta = new Vector2(520f, 680f);
 
             Image windowImage = windowObject.GetComponent<Image>();
             windowImage.color = new Color(0.025f, 0.055f, 0.11f, 0.98f);
@@ -596,6 +609,24 @@ namespace TD.Menu
             title.fontStyle = FontStyle.Bold;
             title.gameObject.AddComponent<LayoutElement>().preferredHeight = 48f;
 
+            CreateVolumeControl(
+                windowObject.transform,
+                "MasterVolume",
+                Localize("Master Volume", "Gesamtlautstärke"),
+                AudioVolumeSettings.MasterVolume,
+                true,
+                out masterVolumeSlider,
+                out masterVolumeInput);
+
+            CreateVolumeControl(
+                windowObject.transform,
+                "MusicVolume",
+                Localize("Music Volume", "Musiklautstärke"),
+                AudioVolumeSettings.MusicVolume,
+                false,
+                out musicVolumeSlider,
+                out musicVolumeInput);
+
             Text languageLabel = CreateText("LanguageLabel", windowObject.transform, Localize("Language", "Sprache"), 18, TextAnchor.MiddleLeft, Color.white);
             LayoutElement languageLabelLayout = languageLabel.gameObject.AddComponent<LayoutElement>();
             languageLabelLayout.preferredWidth = 360f;
@@ -614,6 +645,204 @@ namespace TD.Menu
             CreateButton(windowObject.transform, Localize("Close", "Schließen"), CloseOptionsWindow, true);
 
             optionsOverlay.SetActive(false);
+        }
+
+        private void CreateVolumeControl(
+            Transform parent,
+            string objectName,
+            string labelText,
+            float normalizedValue,
+            bool controlsMasterVolume,
+            out Slider slider,
+            out InputField input)
+        {
+            GameObject rowObject = new GameObject(
+                objectName + "Control",
+                typeof(RectTransform),
+                typeof(HorizontalLayoutGroup),
+                typeof(LayoutElement));
+            rowObject.transform.SetParent(parent, false);
+
+            LayoutElement rowLayout = rowObject.GetComponent<LayoutElement>();
+            rowLayout.preferredWidth = 436f;
+            rowLayout.preferredHeight = 48f;
+
+            HorizontalLayoutGroup layout = rowObject.GetComponent<HorizontalLayoutGroup>();
+            layout.spacing = 10f;
+            layout.childAlignment = TextAnchor.MiddleCenter;
+            layout.childControlHeight = true;
+            layout.childControlWidth = true;
+            layout.childForceExpandHeight = false;
+            layout.childForceExpandWidth = false;
+
+            Text label = CreateText(objectName + "Label", rowObject.transform, labelText, 17, TextAnchor.MiddleLeft, Color.white);
+            LayoutElement labelLayout = label.gameObject.AddComponent<LayoutElement>();
+            labelLayout.preferredWidth = 120f;
+            labelLayout.preferredHeight = 48f;
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 12;
+            label.resizeTextMaxSize = 17;
+
+            slider = CreateVolumeSlider(rowObject.transform, objectName + "Slider", normalizedValue * 100f);
+            input = CreateVolumeInput(rowObject.transform, objectName + "Input", normalizedValue * 100f);
+
+            Text percentLabel = CreateText(objectName + "Percent", rowObject.transform, "%", 17, TextAnchor.MiddleLeft, Color.white);
+            LayoutElement percentLayout = percentLabel.gameObject.AddComponent<LayoutElement>();
+            percentLayout.preferredWidth = 18f;
+            percentLayout.preferredHeight = 48f;
+
+            Slider capturedSlider = slider;
+            InputField capturedInput = input;
+            slider.onValueChanged.AddListener(
+                value => HandleVolumeSliderChanged(value, controlsMasterVolume, capturedInput));
+            input.onEndEdit.AddListener(
+                value => HandleVolumeInputCommitted(value, controlsMasterVolume, capturedSlider, capturedInput));
+        }
+
+        private Slider CreateVolumeSlider(Transform parent, string objectName, float percentage)
+        {
+            GameObject sliderObject = new GameObject(
+                objectName,
+                typeof(RectTransform),
+                typeof(Slider),
+                typeof(LayoutElement));
+            sliderObject.transform.SetParent(parent, false);
+
+            LayoutElement sliderLayout = sliderObject.GetComponent<LayoutElement>();
+            sliderLayout.preferredWidth = 206f;
+            sliderLayout.preferredHeight = 48f;
+
+            GameObject backgroundObject = new GameObject("Background", typeof(RectTransform), typeof(Image));
+            backgroundObject.transform.SetParent(sliderObject.transform, false);
+            RectTransform backgroundRect = backgroundObject.GetComponent<RectTransform>();
+            backgroundRect.anchorMin = new Vector2(0f, 0.5f);
+            backgroundRect.anchorMax = new Vector2(1f, 0.5f);
+            backgroundRect.sizeDelta = new Vector2(0f, 12f);
+            backgroundObject.GetComponent<Image>().color = new Color(0.07f, 0.15f, 0.25f, 1f);
+
+            GameObject fillAreaObject = new GameObject("Fill Area", typeof(RectTransform));
+            fillAreaObject.transform.SetParent(sliderObject.transform, false);
+            RectTransform fillAreaRect = fillAreaObject.GetComponent<RectTransform>();
+            fillAreaRect.anchorMin = new Vector2(0f, 0.5f);
+            fillAreaRect.anchorMax = new Vector2(1f, 0.5f);
+            fillAreaRect.sizeDelta = new Vector2(-12f, 12f);
+
+            GameObject fillObject = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+            fillObject.transform.SetParent(fillAreaObject.transform, false);
+            RectTransform fillRect = fillObject.GetComponent<RectTransform>();
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            fillRect.offsetMin = Vector2.zero;
+            fillRect.offsetMax = Vector2.zero;
+            fillObject.GetComponent<Image>().color = new Color(0.04f, 0.62f, 0.95f, 1f);
+
+            GameObject handleAreaObject = new GameObject("Handle Slide Area", typeof(RectTransform));
+            handleAreaObject.transform.SetParent(sliderObject.transform, false);
+            RectTransform handleAreaRect = handleAreaObject.GetComponent<RectTransform>();
+            handleAreaRect.anchorMin = Vector2.zero;
+            handleAreaRect.anchorMax = Vector2.one;
+            handleAreaRect.offsetMin = new Vector2(10f, 0f);
+            handleAreaRect.offsetMax = new Vector2(-10f, 0f);
+
+            GameObject handleObject = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+            handleObject.transform.SetParent(handleAreaObject.transform, false);
+            RectTransform handleRect = handleObject.GetComponent<RectTransform>();
+            handleRect.sizeDelta = new Vector2(20f, 30f);
+            Image handleImage = handleObject.GetComponent<Image>();
+            handleImage.color = Color.white;
+
+            Slider volumeSlider = sliderObject.GetComponent<Slider>();
+            volumeSlider.fillRect = fillRect;
+            volumeSlider.handleRect = handleRect;
+            volumeSlider.targetGraphic = handleImage;
+            volumeSlider.direction = Slider.Direction.LeftToRight;
+            volumeSlider.minValue = 0f;
+            volumeSlider.maxValue = 100f;
+            volumeSlider.wholeNumbers = true;
+            volumeSlider.SetValueWithoutNotify(Mathf.Round(Mathf.Clamp(percentage, 0f, 100f)));
+            return volumeSlider;
+        }
+
+        private InputField CreateVolumeInput(Transform parent, string objectName, float percentage)
+        {
+            GameObject inputObject = new GameObject(
+                objectName,
+                typeof(RectTransform),
+                typeof(Image),
+                typeof(InputField),
+                typeof(LayoutElement));
+            inputObject.transform.SetParent(parent, false);
+
+            LayoutElement inputLayout = inputObject.GetComponent<LayoutElement>();
+            inputLayout.preferredWidth = 62f;
+            inputLayout.preferredHeight = 42f;
+
+            Image inputBackground = inputObject.GetComponent<Image>();
+            inputBackground.color = new Color(0.07f, 0.15f, 0.25f, 1f);
+
+            Text valueText = CreateText("Text", inputObject.transform, string.Empty, 17, TextAnchor.MiddleCenter, Color.white);
+            RectTransform valueRect = valueText.GetComponent<RectTransform>();
+            valueRect.anchorMin = Vector2.zero;
+            valueRect.anchorMax = Vector2.one;
+            valueRect.offsetMin = new Vector2(5f, 2f);
+            valueRect.offsetMax = new Vector2(-5f, -2f);
+
+            InputField volumeInput = inputObject.GetComponent<InputField>();
+            volumeInput.targetGraphic = inputBackground;
+            volumeInput.textComponent = valueText;
+            volumeInput.contentType = InputField.ContentType.IntegerNumber;
+            volumeInput.lineType = InputField.LineType.SingleLine;
+            volumeInput.characterLimit = 3;
+            volumeInput.SetTextWithoutNotify(
+                Mathf.RoundToInt(Mathf.Clamp(percentage, 0f, 100f)).ToString(CultureInfo.InvariantCulture));
+            return volumeInput;
+        }
+
+        private void HandleVolumeSliderChanged(float percentage, bool controlsMasterVolume, InputField valueInput)
+        {
+            int roundedPercentage = Mathf.RoundToInt(Mathf.Clamp(percentage, 0f, 100f));
+            valueInput.SetTextWithoutNotify(roundedPercentage.ToString(CultureInfo.InvariantCulture));
+            SetVolume(controlsMasterVolume, roundedPercentage, false);
+        }
+
+        private void HandleVolumeInputCommitted(
+            string value,
+            bool controlsMasterVolume,
+            Slider volumeSlider,
+            InputField valueInput)
+        {
+            if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int percentage))
+            {
+                RefreshVolumeControl(controlsMasterVolume, volumeSlider, valueInput);
+                return;
+            }
+
+            int clampedPercentage = Mathf.Clamp(percentage, 0, 100);
+            volumeSlider.SetValueWithoutNotify(clampedPercentage);
+            valueInput.SetTextWithoutNotify(clampedPercentage.ToString(CultureInfo.InvariantCulture));
+            SetVolume(controlsMasterVolume, clampedPercentage, true);
+        }
+
+        private static void SetVolume(bool controlsMasterVolume, int percentage, bool saveImmediately)
+        {
+            float normalizedVolume = percentage / 100f;
+            if (controlsMasterVolume)
+                AudioVolumeSettings.SetMasterVolume(normalizedVolume, saveImmediately);
+            else
+                AudioVolumeSettings.SetMusicVolume(normalizedVolume, saveImmediately);
+        }
+
+        private static void RefreshVolumeControl(
+            bool controlsMasterVolume,
+            Slider volumeSlider,
+            InputField valueInput)
+        {
+            float normalizedVolume = controlsMasterVolume
+                ? AudioVolumeSettings.MasterVolume
+                : AudioVolumeSettings.MusicVolume;
+            int percentage = Mathf.RoundToInt(normalizedVolume * 100f);
+            volumeSlider.SetValueWithoutNotify(percentage);
+            valueInput.SetTextWithoutNotify(percentage.ToString(CultureInfo.InvariantCulture));
         }
 
         private Dropdown CreateLanguageDropdown(Transform parent)
@@ -952,6 +1181,7 @@ namespace TD.Menu
                 return;
 
             RefreshDisplayControls();
+            RefreshAudioControls();
 
             if (!optionsOverlay.activeSelf)
             {
@@ -992,8 +1222,18 @@ namespace TD.Menu
             resolutionDropdown.RefreshShownValue();
         }
 
+        private void RefreshAudioControls()
+        {
+            if (masterVolumeSlider != null && masterVolumeInput != null)
+                RefreshVolumeControl(true, masterVolumeSlider, masterVolumeInput);
+
+            if (musicVolumeSlider != null && musicVolumeInput != null)
+                RefreshVolumeControl(false, musicVolumeSlider, musicVolumeInput);
+        }
+
         private void CloseOptionsWindow()
         {
+            AudioVolumeSettings.Save();
             bool wasOpen = optionsOverlay != null && optionsOverlay.activeSelf;
             if (optionsOverlay != null)
                 optionsOverlay.SetActive(false);
@@ -1147,6 +1387,7 @@ namespace TD.Menu
             }
 
             GameSession.SelectLevel(selectedLevel);
+            MenuMusicPlayer.StartRandomRotation(levelMusic);
             SceneManager.LoadScene(gameplaySceneName);
         }
 
@@ -1166,12 +1407,14 @@ namespace TD.Menu
                 return;
             }
 
+            MenuMusicPlayer.StartRandomRotation(levelMusic);
             SceneManager.LoadScene(gameplaySceneName);
         }
 
         private void OpenMapEditor()
         {
             GameSession.BeginMapEditorMode();
+            MenuMusicPlayer.EnsurePlaying(titleMusic);
             SceneManager.LoadScene(gameplaySceneName);
         }
 

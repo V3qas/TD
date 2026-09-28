@@ -16,6 +16,8 @@ namespace TD.Menu
         [Header("References")]
         [Tooltip("Splash-art sprite shown on the title screen.")]
         [SerializeField] private Sprite splashSprite;
+        [Tooltip("Music that starts on the title screen and continues into the main menu.")]
+        [SerializeField] private AudioClip titleMusic;
 
         [Header("Settings")]
         [SerializeField] private string menuSceneName = "Menu";
@@ -31,6 +33,7 @@ namespace TD.Menu
 
         private void Awake()
         {
+            MenuMusicPlayer.EnsurePlaying(titleMusic);
             BuildUi();
         }
 
