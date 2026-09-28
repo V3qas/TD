@@ -10,7 +10,7 @@ namespace TD.Towers
                 return false;
 
             int cost = tower.GetNextUpgradeCost();
-            if (cost < 0 || !gameState.TrySpendMoney(cost))
+            if (cost <= 0 || !gameState.TrySpendMoney(cost))
                 return false;
             if (tower.TryUpgrade())
                 return true;

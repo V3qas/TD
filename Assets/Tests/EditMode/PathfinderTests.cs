@@ -59,19 +59,21 @@ namespace TD.Tests.EditMode
         {
             LogAssert.Expect(LogType.Error, "GridManager: Map data is invalid (Start and goal are not connected.).");
 
-            gridManager.BuildGrid(new LevelMapDefinition
-            {
-                width = 3,
-                height = 3,
-                startCell = new Vector2Int(0, 0),
-                goalCell = new Vector2Int(2, 2),
-                blockedCells = new List<Vector2Int>
+            Assert.That(
+                gridManager.BuildGrid(new LevelMapDefinition
                 {
-                    new Vector2Int(2, 0),
-                    new Vector2Int(2, 1),
-                    new Vector2Int(1, 2)
-                }
-            });
+                    width = 3,
+                    height = 3,
+                    startCell = new Vector2Int(0, 0),
+                    goalCell = new Vector2Int(2, 2),
+                    blockedCells = new List<Vector2Int>
+                    {
+                        new Vector2Int(2, 0),
+                        new Vector2Int(2, 1),
+                        new Vector2Int(1, 2)
+                    }
+                }),
+                Is.False);
 
             Pathfinder pathfinder = new Pathfinder(gridManager);
             List<GridCell> path = pathfinder.FindPath(new Vector2Int(0, 0), new Vector2Int(2, 2));

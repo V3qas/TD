@@ -62,7 +62,7 @@ namespace TD.Level
             CustomMapEntry entry = collection.maps.Find(map => map != null && map.seed == normalizedSeed);
             if (entry == null)
             {
-                entry = new CustomMapEntry { label = $"Custom Map {collection.maps.Count + 1}", seed = normalizedSeed };
+                entry = new CustomMapEntry { label = GetNextLabel(collection.maps), seed = normalizedSeed };
                 collection.maps.Add(entry);
             }
             while (collection.maps.Count > MaxCustomMaps)
@@ -113,7 +113,28 @@ namespace TD.Level
                 if (!string.IsNullOrWhiteSpace(json))
                     collection = JsonUtility.FromJson<CustomMapCollection>(json);
                 if (collection?.maps != null)
+                {
+                    List<CustomMapEntry> validMaps = new List<CustomMapEntry>();
+                    for (int index = collection.maps.Count - 1;
+                         index >= 0 && validMaps.Count < MaxCustomMaps;
+                         index--)
+                    {
+                        CustomMapEntry entry = collection.maps[index];
+                        if (entry == null
+                            || !LevelMapSeedUtility.TryDecodeValidated(
+                                entry.seed,
+                                true,
+                                out _,
+                                out _))
+                        {
+                            continue;
+                        }
+                        validMaps.Add(entry);
+                    }
+                    validMaps.Reverse();
+                    collection.maps = validMaps;
                     return true;
+                }
             }
             catch (ArgumentException)
             {
@@ -121,6 +142,34 @@ namespace TD.Level
             }
             error = "The custom map file is damaged. Restore a backup before saving new maps.";
             return false;
+        }
+
+        private static string GetNextLabel(List<CustomMapEntry> maps)
+        {
+            const string prefix = "Custom Map ";
+            int highestNumber = 0;
+            HashSet<int> usedNumbers = new HashSet<int>();
+            for (int index = 0; index < maps.Count; index++)
+            {
+                string label = maps[index]?.label;
+                if (string.IsNullOrEmpty(label)
+                    || !label.StartsWith(prefix, StringComparison.Ordinal)
+                    || !int.TryParse(label.Substring(prefix.Length), out int number)
+                    || number < 1)
+                {
+                    continue;
+                }
+                usedNumbers.Add(number);
+                highestNumber = Math.Max(highestNumber, number);
+            }
+
+            if (highestNumber < int.MaxValue)
+                return prefix + (highestNumber + 1);
+
+            int availableNumber = 1;
+            while (usedNumbers.Contains(availableNumber))
+                availableNumber++;
+            return prefix + availableNumber;
         }
 
         private bool TryWrite(CustomMapCollection collection, out string error)

@@ -5,14 +5,18 @@ namespace TD.Enemies
     [CreateAssetMenu(fileName = "EnemyData", menuName = "TowerDefense/Enemy Data")]
     public class EnemyData : ScriptableObject
     {
+        public const float MinimumSpeed = 0.01f;
+
         [Header("Info")]
         public string enemyName;
 
         [Header("Stats")]
         [Tooltip("Total hit points.")]
+        [Min(1f)]
         public float maxHealth = 100f;
 
         [Tooltip("Movement speed in units per second.")]
+        [Min(MinimumSpeed)]
         public float speed = 2f;
 
         [Tooltip("Shield points. Shield absorbs damage before health and ignores armor.")]

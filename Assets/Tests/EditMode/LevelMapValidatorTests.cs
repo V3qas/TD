@@ -153,6 +153,56 @@ namespace TD.Tests.EditMode
         }
 
         [Test]
+        public void Validate_RejectsUnknownOccupantType()
+        {
+            LevelMapDefinition definition = new LevelMapDefinition
+            {
+                width = 3,
+                height = 3,
+                startCell = new Vector2Int(0, 0),
+                goalCell = new Vector2Int(2, 2),
+                occupants = new List<OccupantEntry>
+                {
+                    new OccupantEntry
+                    {
+                        cell = new Vector2Int(1, 1),
+                        type = (OccupantType)byte.MaxValue
+                    }
+                }
+            };
+
+            bool valid = LevelMapValidator.Validate(definition, false, out string message);
+
+            Assert.IsFalse(valid);
+            Assert.IsTrue(message.Contains("unknown occupant type"), message);
+        }
+
+        [Test]
+        public void Validate_RejectsUnknownGroundType()
+        {
+            LevelMapDefinition definition = new LevelMapDefinition
+            {
+                width = 3,
+                height = 3,
+                startCell = new Vector2Int(0, 0),
+                goalCell = new Vector2Int(2, 2),
+                groundOverrides = new List<GroundOverrideEntry>
+                {
+                    new GroundOverrideEntry
+                    {
+                        cell = new Vector2Int(1, 1),
+                        type = (GroundType)byte.MaxValue
+                    }
+                }
+            };
+
+            bool valid = LevelMapValidator.Validate(definition, false, out string message);
+
+            Assert.IsFalse(valid);
+            Assert.IsTrue(message.Contains("unknown ground type"), message);
+        }
+
+        [Test]
         public void Validate_RejectsPathSequenceThroughOccupant()
         {
             List<Vector2Int> path = new List<Vector2Int>

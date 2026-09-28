@@ -55,6 +55,17 @@ namespace TD.Tests.EditMode
             Assert.That(tower.CurrentUpgradeLevel, Is.Zero);
         }
 
+        [TestCase(0)]
+        [TestCase(-25)]
+        public void Purchase_NonPositiveCostChangesNeitherTowerNorMoney(int cost)
+        {
+            upgrades.levels[0].cost = cost;
+
+            Assert.That(TowerUpgradeService.TryPurchase(tower, state), Is.False);
+            Assert.That(state.Money, Is.EqualTo(100));
+            Assert.That(tower.CurrentUpgradeLevel, Is.Zero);
+        }
+
         [Test]
         public void Purchase_AfterMatchEndIsRejected()
         {

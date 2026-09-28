@@ -15,7 +15,8 @@ namespace TD.Towers
             public string upgradeName;
 
             [Tooltip("Cost of this upgrade level.")]
-            public int cost;
+            [Min(1)]
+            public int cost = 1;
 
             [Header("Stat Bonuses")]
             public float damageBonus;

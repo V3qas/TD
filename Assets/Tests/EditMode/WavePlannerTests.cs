@@ -5,6 +5,8 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using TD.Core;
 using TD.Enemies;
+using TD.Grid;
+using TD.Level;
 
 namespace TD.Tests.EditMode
 {
@@ -189,6 +191,67 @@ namespace TD.Tests.EditMode
 
             LogAssert.Expect(LogType.Error, "EnemySpawner: Cannot spawn an enemy without a valid path.");
             Assert.DoesNotThrow(() => spawnEnemy.Invoke(spawner, new object[] { entry }));
+        }
+
+        [Test]
+        public void SpawnerCyclesAcrossAllAuthoredPaths()
+        {
+            GameObject gridObject = new GameObject("GridManager");
+            try
+            {
+                GridManager gridManager = gridObject.AddComponent<GridManager>();
+                LevelMapDefinition definition = new LevelMapDefinition
+                {
+                    width = 3,
+                    height = 3,
+                    startCell = new Vector2Int(0, 1),
+                    goalCell = new Vector2Int(2, 1),
+                    pathSequences = new List<PathSequence>
+                    {
+                        new PathSequence(new List<Vector2Int>
+                        {
+                            new Vector2Int(0, 1), new Vector2Int(0, 2),
+                            new Vector2Int(1, 2), new Vector2Int(2, 2),
+                            new Vector2Int(2, 1)
+                        }),
+                        new PathSequence(new List<Vector2Int>
+                        {
+                            new Vector2Int(0, 1), new Vector2Int(0, 0),
+                            new Vector2Int(1, 0), new Vector2Int(2, 0),
+                            new Vector2Int(2, 1)
+                        })
+                    }
+                };
+                Assert.That(gridManager.BuildGrid(definition), Is.True);
+
+                EnemySpawner spawner = dummyPrefab.AddComponent<EnemySpawner>();
+                SetField(spawner, "gridManager", gridManager);
+                MethodInfo buildPath = typeof(EnemySpawner).GetMethod(
+                    "BuildPath",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(buildPath, Is.Not.Null);
+                buildPath.Invoke(spawner, null);
+
+                EnemyPath first = spawner.TakeNextSpawnPath(out int firstIndex);
+                EnemyPath second = spawner.TakeNextSpawnPath(out int secondIndex);
+                EnemyPath third = spawner.TakeNextSpawnPath(out int thirdIndex);
+
+                Assert.That(new[] { firstIndex, secondIndex, thirdIndex }, Is.EqualTo(new[] { 0, 1, 0 }));
+                Assert.That(first[1].y, Is.EqualTo(2.5f));
+                Assert.That(second[1].y, Is.EqualTo(0.5f));
+                Assert.That(third, Is.SameAs(first));
+            }
+            finally
+            {
+                Object.DestroyImmediate(gridObject);
+            }
+        }
+
+        private static void SetField<T>(EnemySpawner target, string fieldName, T value)
+        {
+            FieldInfo field = typeof(EnemySpawner).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null);
+            field.SetValue(target, value);
         }
     }
 }

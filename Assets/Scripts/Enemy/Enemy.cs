@@ -88,10 +88,12 @@ namespace TD.Enemies
             RegisterActiveEnemy();
             data = enemyData;
             DifficultySettings difficulty = GameSession.SelectedDifficulty;
-            maxHealth = enemyData.maxHealth * difficulty.healthMultiplier;
+            maxHealth = Mathf.Max(1f, enemyData.maxHealth * difficulty.healthMultiplier);
             currentHealth = maxHealth;
             currentShield = enemyData.shield;
-            scaledSpeed = enemyData.speed * difficulty.speedMultiplier;
+            scaledSpeed = Mathf.Max(
+                EnemyData.MinimumSpeed,
+                enemyData.speed * difficulty.speedMultiplier);
             scaledReward = Mathf.RoundToInt(enemyData.reward * difficulty.rewardMultiplier);
             waypoints = path;
             waypointIndex = 0;

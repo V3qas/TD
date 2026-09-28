@@ -21,9 +21,11 @@ namespace TD.Grid
 
         private readonly GridPreviewRenderer previewRenderer = new GridPreviewRenderer();
 
-        // Cached Start-to-goal path (BFS result). Recomputed on grid build and occupancy changes.
-        private List<GridCell> cachedEnemyPath;
-        private HashSet<Vector2Int> cachedEnemyPathLookup = new HashSet<Vector2Int>();
+        // Explicit maps retain every authored sequence in its authored order. Open maps contain
+        // one dynamic BFS route. The lookup is the union and keeps build checks inexpensive.
+        private readonly List<List<GridCell>> cachedEnemyPaths = new List<List<GridCell>>();
+        private readonly HashSet<Vector2Int> cachedEnemyPathLookup = new HashSet<Vector2Int>();
+        private readonly List<List<Vector2Int>> authoredEnemyPaths = new List<List<Vector2Int>>();
         private bool usesExplicitPath;
 
         public event Action OnPathChanged;
@@ -35,43 +37,52 @@ namespace TD.Grid
         public bool UsesExplicitPath => usesExplicitPath;
         public int Width => grid != null ? grid.GetLength(0) : 0;
         public int Height => grid != null ? grid.GetLength(1) : 0;
+        public int CachedEnemyPathCount => cachedEnemyPaths.Count;
 
         public List<Vector3> GetCachedEnemyPathWorld()
         {
-            if (cachedEnemyPath == null || cachedEnemyPath.Count == 0)
+            return GetCachedEnemyPathWorld(0);
+        }
+
+        public List<Vector3> GetCachedEnemyPathWorld(int pathIndex)
+        {
+            if (pathIndex < 0 || pathIndex >= cachedEnemyPaths.Count)
                 return null;
 
-            List<Vector3> world = new List<Vector3>(cachedEnemyPath.Count);
-            for (int i = 0; i < cachedEnemyPath.Count; i++)
-                world.Add(CellToWorld(cachedEnemyPath[i].Position));
+            List<GridCell> path = cachedEnemyPaths[pathIndex];
+            List<Vector3> world = new List<Vector3>(path.Count);
+            for (int i = 0; i < path.Count; i++)
+                world.Add(CellToWorld(path[i].Position));
             return world;
         }
 
-        public void BuildGrid(LevelData levelData)
+        public bool BuildGrid(LevelData levelData)
         {
             if (levelData == null)
             {
                 Debug.LogError("GridManager: LevelData is missing.");
-                return;
+                return false;
             }
 
             if (!levelData.TryGetMapDefinition(out LevelMapDefinition definition, out string validationError))
             {
                 Debug.LogError($"GridManager: LevelData is invalid ({validationError}).");
-                return;
+                return false;
             }
 
-            BuildGrid(definition);
+            return BuildGrid(definition);
         }
 
-        public void BuildGrid(LevelMapDefinition definition)
+        public bool BuildGrid(LevelMapDefinition definition)
         {
-            BuildGridInternal(definition, true);
+            return BuildGridInternal(definition, true);
         }
 
         public void BuildGridPreview(LevelMapDefinition definition)
         {
-            BuildGridInternal(definition, false);
+            if (!BuildGridInternal(definition, false))
+                return;
+
             previewRenderer.Build(this, previewCellPrefab, cellSize, transform, definition);
         }
 
@@ -102,32 +113,33 @@ namespace TD.Grid
                 reservedPathCells.Add(position);
             else
                 reservedPathCells.Remove(position);
-            cachedEnemyPath = null;
+            cachedEnemyPaths.Clear();
             cachedEnemyPathLookup.Clear();
+            authoredEnemyPaths.Clear();
             previewRenderer.UpdateCell(this, authoringState, position);
         }
 
-        private void BuildGridInternal(LevelMapDefinition definition, bool validateMap)
+        private bool BuildGridInternal(LevelMapDefinition definition, bool validateMap)
         {
-            ClearGrid();
-
             if (definition == null)
             {
                 Debug.LogError("GridManager: Map data is missing.");
-                return;
+                return false;
             }
 
             if (validateMap && !LevelMapValidator.Validate(definition, false, out string validationError))
             {
                 Debug.LogError($"GridManager: Map data is invalid ({validationError}).");
-                return;
+                return false;
             }
 
+            ClearGrid();
             LevelMapDefinition normalizedDefinition = definition.CloneNormalized();
 
             StartCell = normalizedDefinition.startCell;
             GoalCell = normalizedDefinition.goalCell;
             usesExplicitPath = normalizedDefinition.HasExplicitPath;
+            CacheAuthoredEnemyPaths(normalizedDefinition.pathSequences);
 
             HashSet<Vector2Int> blockedCells = new HashSet<Vector2Int>();
             HashSet<Vector2Int> pathCells = new HashSet<Vector2Int>(normalizedDefinition.pathCells);
@@ -169,6 +181,7 @@ namespace TD.Grid
             }
 
             BuildReservedPathCells(validateMap);
+            return true;
         }
 
         public GridCell GetCell(int x, int y)
@@ -306,7 +319,7 @@ namespace TD.Grid
                 return true;
 
             // Fast path: cells outside the current enemy path cannot block it.
-            if (cachedEnemyPath != null && cachedEnemyPath.Count > 0
+            if (cachedEnemyPaths.Count > 0
                 && !cachedEnemyPathLookup.Contains(cellPosition))
             {
                 return false;
@@ -338,11 +351,17 @@ namespace TD.Grid
                             reservedPathCells.Add(cell.Position);
                     }
                 }
+
+                List<List<GridCell>> explicitPaths = BuildAuthoredEnemyPaths();
+                SetCachedEnemyPaths(explicitPaths);
+                if (cachedEnemyPaths.Count == 0 && warnIfNoPath)
+                    Debug.LogWarning("GridManager: No valid authored enemy paths found.");
+                return;
             }
-            else if (!warnIfNoPath)
+
+            if (!warnIfNoPath)
             {
-                cachedEnemyPath = null;
-                cachedEnemyPathLookup.Clear();
+                SetCachedEnemyPaths(null);
                 return;
             }
 
@@ -354,16 +373,14 @@ namespace TD.Grid
                 if (warnIfNoPath)
                     Debug.LogWarning("GridManager: No reserved enemy path found.");
 
-                cachedEnemyPath = null;
-                cachedEnemyPathLookup.Clear();
+                SetCachedEnemyPaths(null);
                 return;
             }
 
             foreach (GridCell pathCell in path)
                 reservedPathCells.Add(pathCell.Position);
 
-            cachedEnemyPath = path;
-            RebuildCachedPathLookup();
+            SetCachedEnemyPaths(new List<List<GridCell>> { path });
         }
 
         private void RecomputeCachedPath()
@@ -371,25 +388,92 @@ namespace TD.Grid
             if (grid == null)
                 return;
 
-            Pathfinder pathfinder = new Pathfinder(this);
-            List<GridCell> path = pathfinder.FindPath(StartCell, GoalCell);
+            List<List<GridCell>> paths;
+            if (usesExplicitPath)
+            {
+                paths = BuildAuthoredEnemyPaths();
+            }
+            else
+            {
+                Pathfinder pathfinder = new Pathfinder(this);
+                List<GridCell> path = pathfinder.FindPath(StartCell, GoalCell);
+                paths = path != null && path.Count > 0
+                    ? new List<List<GridCell>> { path }
+                    : null;
+            }
 
-            bool changed = !PathsAreEqual(cachedEnemyPath, path);
-
-            cachedEnemyPath = (path != null && path.Count > 0) ? path : null;
-            RebuildCachedPathLookup();
+            bool changed = !PathCollectionsAreEqual(cachedEnemyPaths, paths);
+            SetCachedEnemyPaths(paths);
 
             if (changed)
                 OnPathChanged?.Invoke();
         }
 
-        private void RebuildCachedPathLookup()
+        private void CacheAuthoredEnemyPaths(List<PathSequence> sequences)
         {
-            cachedEnemyPathLookup.Clear();
-            if (cachedEnemyPath == null)
+            authoredEnemyPaths.Clear();
+            if (sequences == null)
                 return;
-            for (int i = 0; i < cachedEnemyPath.Count; i++)
-                cachedEnemyPathLookup.Add(cachedEnemyPath[i].Position);
+
+            for (int i = 0; i < sequences.Count; i++)
+            {
+                PathSequence sequence = sequences[i];
+                if (sequence?.cells == null || sequence.cells.Count == 0)
+                    continue;
+                authoredEnemyPaths.Add(new List<Vector2Int>(sequence.cells));
+            }
+        }
+
+        private List<List<GridCell>> BuildAuthoredEnemyPaths()
+        {
+            if (authoredEnemyPaths.Count == 0)
+                return null;
+
+            List<List<GridCell>> paths = new List<List<GridCell>>(authoredEnemyPaths.Count);
+            for (int pathIndex = 0; pathIndex < authoredEnemyPaths.Count; pathIndex++)
+            {
+                List<Vector2Int> authoredPath = authoredEnemyPaths[pathIndex];
+                List<GridCell> path = new List<GridCell>(authoredPath.Count);
+                for (int cellIndex = 0; cellIndex < authoredPath.Count; cellIndex++)
+                {
+                    GridCell cell = GetCell(authoredPath[cellIndex]);
+                    if (!CanEnemyWalkOn(cell))
+                        return null;
+                    path.Add(cell);
+                }
+                paths.Add(path);
+            }
+            return paths;
+        }
+
+        private void SetCachedEnemyPaths(List<List<GridCell>> paths)
+        {
+            cachedEnemyPaths.Clear();
+            cachedEnemyPathLookup.Clear();
+            if (paths == null)
+                return;
+
+            for (int pathIndex = 0; pathIndex < paths.Count; pathIndex++)
+            {
+                List<GridCell> path = paths[pathIndex];
+                if (path == null || path.Count == 0)
+                    continue;
+                cachedEnemyPaths.Add(path);
+                for (int cellIndex = 0; cellIndex < path.Count; cellIndex++)
+                    cachedEnemyPathLookup.Add(path[cellIndex].Position);
+            }
+        }
+
+        private static bool PathCollectionsAreEqual(List<List<GridCell>> current, List<List<GridCell>> next)
+        {
+            int currentCount = current?.Count ?? 0;
+            int nextCount = next?.Count ?? 0;
+            if (currentCount != nextCount)
+                return false;
+            for (int i = 0; i < currentCount; i++)
+                if (!PathsAreEqual(current[i], next[i]))
+                    return false;
+            return true;
         }
 
         private static bool PathsAreEqual(List<GridCell> a, List<GridCell> b)
@@ -411,8 +495,9 @@ namespace TD.Grid
             previewRenderer.Clear();
 
             reservedPathCells.Clear();
-            cachedEnemyPath = null;
+            cachedEnemyPaths.Clear();
             cachedEnemyPathLookup.Clear();
+            authoredEnemyPaths.Clear();
             usesExplicitPath = false;
             grid = null;
         }

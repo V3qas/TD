@@ -13,6 +13,7 @@ namespace TD.Towers
         public Sprite icon;
 
         [Tooltip("Cost to place this tower.")]
+        [Min(1)]
         public int cost = 50;
 
         [Header("Combat")]

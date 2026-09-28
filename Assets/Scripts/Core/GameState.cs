@@ -103,7 +103,7 @@ namespace TD.Core
                 return false;
 
             if (amount <= 0)
-                return true;
+                return false;
 
             if (Money < amount)
                 return false;

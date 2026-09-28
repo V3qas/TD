@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -71,7 +72,14 @@ namespace TD.Level
                 HashSet<Vector2Int> occupantSeen = new HashSet<Vector2Int>();
                 foreach (OccupantEntry entry in definition.occupants)
                 {
-                    if (entry == null || entry.type == OccupantType.None)
+                    if (entry == null)
+                        continue;
+                    if (!Enum.IsDefined(typeof(OccupantType), entry.type))
+                    {
+                        message = $"Object at {entry.cell} has an unknown occupant type ({(byte)entry.type}).";
+                        return false;
+                    }
+                    if (entry.type == OccupantType.None)
                         continue;
                     if (!IsInBounds(entry.cell, width, height))
                     {
@@ -312,6 +320,11 @@ namespace TD.Level
             {
                 if (entry == null)
                     continue;
+                if (!Enum.IsDefined(typeof(GroundType), entry.type))
+                {
+                    message = $"Ground override at {entry.cell} has an unknown ground type ({(byte)entry.type}).";
+                    return false;
+                }
                 if (!IsInBounds(entry.cell, definition.width, definition.height))
                 {
                     message = $"Ground tile {entry.cell} is outside the map.";

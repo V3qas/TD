@@ -1485,6 +1485,8 @@ namespace TD.Menu
             {
                 foreach (CustomMapEntry customMap in customMaps)
                 {
+                    if (customMap == null)
+                        continue;
                     CustomMapEntry capturedMap = customMap;
                     string label = string.IsNullOrWhiteSpace(customMap.label)
                         ? Localize("Custom Map", "Benutzerkarte")

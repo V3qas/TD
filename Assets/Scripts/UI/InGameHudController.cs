@@ -206,7 +206,7 @@ namespace TD.UI
         private string GetUpgradeText(Tower tower)
         {
             int cost = tower.GetNextUpgradeCost();
-            return cost >= 0 ? cost.ToString() : "max";
+            return cost > 0 ? cost.ToString() : "max";
         }
 
         private void UpdateRoundText(int round)
@@ -508,7 +508,7 @@ namespace TD.UI
             }
 
             int cost = currentSelectedTower.GetNextUpgradeCost();
-            bool canUpgrade = cost >= 0;
+            bool canUpgrade = cost > 0;
             bool canAfford = gameState == null || gameState.Money >= cost;
 
             upgradeButton.gameObject.SetActive(canUpgrade);

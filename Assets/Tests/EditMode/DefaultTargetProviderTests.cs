@@ -94,6 +94,30 @@ namespace TD.Tests.EditMode
             Assert.IsNull(result);
         }
 
+        [TestCase(0f)]
+        [TestCase(-10f)]
+        public void Initialize_NonPositiveMaxHealth_CreatesLivingEnemy(float configuredHealth)
+        {
+            EnemyData invalidData = CreateEnemyData(configuredHealth, 2f);
+
+            Enemy enemy = SpawnEnemy(Vector3.zero, invalidData);
+
+            Assert.That(enemy.MaxHealth, Is.EqualTo(1f));
+            Assert.That(enemy.CurrentHealth, Is.EqualTo(1f));
+            Assert.That(enemy.IsDead, Is.False);
+        }
+
+        [TestCase(0f)]
+        [TestCase(-2f)]
+        public void Initialize_NonPositiveSpeed_UsesPositiveRuntimeSpeed(float configuredSpeed)
+        {
+            EnemyData invalidData = CreateEnemyData(100f, configuredSpeed);
+
+            Enemy enemy = SpawnEnemy(Vector3.zero, invalidData);
+
+            Assert.That(enemy.CurrentSpeed, Is.EqualTo(EnemyData.MinimumSpeed));
+        }
+
         [Test]
         public void FindTarget_EnemyInRange_ReturnsEnemy()
         {

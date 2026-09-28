@@ -105,6 +105,54 @@ namespace TD.Tests.EditMode
             Assert.That(loaded.maps.Count, Is.EqualTo(1));
         }
 
+        [Test]
+        public void Load_RemovesNullEntriesAndInvalidSeeds()
+        {
+            string validSeed = CreateSeed(3);
+            File.WriteAllText(filePath, JsonUtility.ToJson(new CustomMapCollection
+            {
+                maps = new List<CustomMapEntry>
+                {
+                    null,
+                    new CustomMapEntry { label = "Broken", seed = "not-a-seed" },
+                    new CustomMapEntry { label = "Valid", seed = validSeed }
+                }
+            }));
+
+            Assert.That(store.TryLoad(out CustomMapCollection loaded, out string error), Is.True, error);
+            Assert.That(loaded.maps.Count, Is.EqualTo(1));
+            Assert.That(loaded.maps[0].label, Is.EqualTo("Valid"));
+            Assert.That(loaded.maps[0].seed, Is.EqualTo(validSeed));
+        }
+
+        [Test]
+        public void Save_AtCapacityKeepsGeneratedLabelsUnique()
+        {
+            string existingSeed = CreateSeed(3);
+            Assert.That(store.Save(existingSeed, out _, out string setupError), Is.True, setupError);
+            CustomMapCollection fullCollection = new CustomMapCollection();
+            for (int number = 1; number <= 100; number++)
+            {
+                fullCollection.maps.Add(new CustomMapEntry
+                {
+                    label = $"Custom Map {number}",
+                    seed = existingSeed
+                });
+            }
+            File.WriteAllText(filePath, JsonUtility.ToJson(fullCollection));
+
+            Assert.That(store.Save(CreateSeed(4), out CustomMapEntry first, out string firstError), Is.True, firstError);
+            Assert.That(store.Save(CreateSeed(5), out CustomMapEntry second, out string secondError), Is.True, secondError);
+            Assert.That(first.label, Is.EqualTo("Custom Map 101"));
+            Assert.That(second.label, Is.EqualTo("Custom Map 102"));
+
+            Assert.That(store.TryLoad(out CustomMapCollection loaded, out string loadError), Is.True, loadError);
+            Assert.That(loaded.maps.Count, Is.EqualTo(100));
+            HashSet<string> labels = new HashSet<string>();
+            foreach (CustomMapEntry map in loaded.maps)
+                Assert.That(labels.Add(map.label), Is.True, $"Duplicate label: {map.label}");
+        }
+
         private static string CreateSeed(int width)
         {
             LevelMapAuthoringState state = new LevelMapAuthoringState();

@@ -52,16 +52,17 @@ namespace TD.Tests.PlayMode
         [UnityTest]
         public IEnumerator Projectile_MissesWhenEnemyLeavesTheStraightPath()
         {
-            Enemy enemy = CreateEnemy(new Vector3(1005f, 1000f, 0f), 0f);
+            Enemy enemy = CreateEnemy(new Vector3(1005f, 1000f, 0f), 2f);
             BulletData bulletData = CreateBulletData(40f);
             Bullet bullet = CreateBullet(new Vector3(1000f, 1000f, 0f));
             bullet.Initialize(bulletData, 10f, enemy);
             Vector3 launchDestination = bullet.Destination;
 
             enemy.transform.position = new Vector3(1005f, 1004f, 0f);
+            Assert.That(bullet.Destination, Is.EqualTo(launchDestination),
+                "A projectile must keep the destination calculated at launch instead of homing toward its target.");
             yield return WaitUntilReleased(bullet);
 
-            Assert.That(launchDestination, Is.EqualTo(new Vector3(1005f, 1000f, 0f)));
             Assert.That(enemy.CurrentHealth, Is.EqualTo(100f).Within(0.001f));
         }
 

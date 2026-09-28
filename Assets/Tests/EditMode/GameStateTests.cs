@@ -79,6 +79,16 @@ namespace TD.Tests.EditMode
             Assert.That(gameState.CurrentRound, Is.EqualTo(1));
         }
 
+        [TestCase(0)]
+        [TestCase(-25)]
+        public void TrySpendMoney_NonPositiveAmount_IsRejected(int amount)
+        {
+            bool spent = gameState.TrySpendMoney(amount);
+
+            Assert.That(spent, Is.False);
+            Assert.That(gameState.Money, Is.EqualTo(100));
+        }
+
         [Test]
         public void ResetState_RestoresCompleteStartingState()
         {

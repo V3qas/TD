@@ -46,7 +46,8 @@ namespace TD.Enemies
         [Header("Round Enemy Types")]
         [SerializeField] private List<EnemySpawnEntry> spawnEntries = new List<EnemySpawnEntry>();
 
-        private EnemyPath cachedPath;
+        private List<EnemyPath> cachedPaths = new List<EnemyPath>();
+        private readonly Dictionary<Enemy, int> enemyPathIndices = new Dictionary<Enemy, int>();
         private readonly Queue<EnemySpawnEntry> spawnQueue = new Queue<EnemySpawnEntry>();
         private readonly List<Enemy> spawnedEnemies = new List<Enemy>();
         private float spawnTimer;
@@ -55,6 +56,7 @@ namespace TD.Enemies
         private Coroutine startRoutine;
         private int currentRound = 1;
         private int aliveEnemies;
+        private int nextPathIndex;
         private bool subscribedToGridPathChanged;
         private bool subscribedToMatchEnded;
 
@@ -71,7 +73,7 @@ namespace TD.Enemies
 
         private void Update()
         {
-            if (!isSpawning || cachedPath == null || gameState == null || !gameState.IsPlaying)
+            if (!isSpawning || cachedPaths.Count == 0 || gameState == null || !gameState.IsPlaying)
                 return;
 
             if (spawnQueue.Count > 0)
@@ -139,7 +141,9 @@ namespace TD.Enemies
             }
 
             spawnQueue.Clear();
-            cachedPath = null;
+            cachedPaths.Clear();
+            enemyPathIndices.Clear();
+            nextPathIndex = 0;
             spawnTimer = 0f;
             roundBreakTimer = 0f;
             aliveEnemies = 0;
@@ -172,7 +176,7 @@ namespace TD.Enemies
             BuildPath();
             currentRound = gameState != null ? gameState.CurrentRound : 1;
 
-            if (cachedPath != null)
+            if (cachedPaths.Count > 0)
                 StartRound(currentRound);
 
             startRoutine = null;
@@ -211,16 +215,20 @@ namespace TD.Enemies
             if (gridManager == null)
             {
                 Debug.LogError("EnemySpawner: GridManager is missing.");
-                cachedPath = null;
+                cachedPaths.Clear();
                 return;
             }
 
-            // Use the path cached by GridManager during grid build and occupancy changes.
-            if (!TryCreatePath(out cachedPath))
+            // Preserve all ordered paths cached by GridManager. SpawnEnemy distributes new
+            // enemies across them in round-robin order.
+            if (!TryCreatePaths(out List<EnemyPath> paths))
             {
                 Debug.LogError("EnemySpawner: No path from start to goal found.");
+                cachedPaths.Clear();
                 return;
             }
+            cachedPaths = paths;
+            nextPathIndex = 0;
 
             if (!subscribedToGridPathChanged)
             {
@@ -234,38 +242,51 @@ namespace TD.Enemies
             if (gridManager == null)
                 return;
 
-            if (!TryCreatePath(out EnemyPath newPath))
+            if (!TryCreatePaths(out List<EnemyPath> newPaths))
             {
                 Debug.LogError("EnemySpawner: The updated grid has no valid enemy path. Spawning was stopped.");
-                cachedPath = null;
+                cachedPaths.Clear();
                 spawnQueue.Clear();
                 isSpawning = false;
                 return;
             }
 
-            cachedPath = newPath;
+            cachedPaths = newPaths;
 
-            // Move active enemies to the updated path.
+            // Keep each active enemy on its assigned route when paths are refreshed.
             for (int i = spawnedEnemies.Count - 1; i >= 0; i--)
             {
                 Enemy enemy = spawnedEnemies[i];
                 if (enemy == null)
                 {
                     spawnedEnemies.RemoveAt(i);
+                    if (!ReferenceEquals(enemy, null))
+                        enemyPathIndices.Remove(enemy);
                     continue;
                 }
-                enemy.SetWaypoints(newPath);
+
+                if (!enemyPathIndices.TryGetValue(enemy, out int pathIndex))
+                    pathIndex = i;
+                pathIndex %= cachedPaths.Count;
+                enemyPathIndices[enemy] = pathIndex;
+                enemy.SetWaypoints(cachedPaths[pathIndex]);
             }
         }
 
-        private bool TryCreatePath(out EnemyPath path)
+        private bool TryCreatePaths(out List<EnemyPath> paths)
         {
-            path = null;
-            IReadOnlyList<Vector3> worldPath = gridManager?.GetCachedEnemyPathWorld();
-            if (worldPath == null || worldPath.Count == 0)
-                return false;
+            paths = new List<EnemyPath>();
+            int pathCount = gridManager != null ? gridManager.CachedEnemyPathCount : 0;
+            for (int pathIndex = 0; pathIndex < pathCount; pathIndex++)
+            {
+                IReadOnlyList<Vector3> worldPath = gridManager.GetCachedEnemyPathWorld(pathIndex);
+                if (worldPath == null || worldPath.Count == 0)
+                    return false;
+                paths.Add(new EnemyPath(worldPath));
+            }
 
-            path = new EnemyPath(worldPath);
+            if (paths.Count == 0)
+                return false;
             return true;
         }
 
@@ -320,7 +341,7 @@ namespace TD.Enemies
 
         private void SpawnEnemy(EnemySpawnEntry spawnEntry)
         {
-            if (cachedPath == null || cachedPath.Count == 0)
+            if (cachedPaths.Count == 0)
             {
                 Debug.LogError("EnemySpawner: Cannot spawn an enemy without a valid path.");
                 spawnQueue.Clear();
@@ -334,7 +355,9 @@ namespace TD.Enemies
                 return;
             }
 
-            GameObject enemyObject = PrefabPool.Spawn(spawnEntry.enemyPrefab, cachedPath[0], Quaternion.identity);
+            EnemyPath path = TakeNextSpawnPath(out int pathIndex);
+
+            GameObject enemyObject = PrefabPool.Spawn(spawnEntry.enemyPrefab, path[0], Quaternion.identity);
             Enemy enemy = enemyObject.GetComponent<Enemy>();
 
             if (enemy == null)
@@ -344,11 +367,25 @@ namespace TD.Enemies
                 return;
             }
 
-            enemy.Initialize(spawnEntry.enemyData, cachedPath);
+            enemy.Initialize(spawnEntry.enemyData, path);
             enemy.OnDied += HandleEnemyDied;
             enemy.OnReachedGoal += HandleEnemyReachedGoal;
             spawnedEnemies.Add(enemy);
+            enemyPathIndices[enemy] = pathIndex;
             aliveEnemies++;
+        }
+
+        internal EnemyPath TakeNextSpawnPath(out int pathIndex)
+        {
+            if (cachedPaths.Count == 0)
+            {
+                pathIndex = -1;
+                return null;
+            }
+
+            pathIndex = nextPathIndex % cachedPaths.Count;
+            nextPathIndex = (pathIndex + 1) % cachedPaths.Count;
+            return cachedPaths[pathIndex];
         }
 
         private void HandleEnemyDied(Enemy enemy)
@@ -373,6 +410,7 @@ namespace TD.Enemies
 
             enemy.OnDied -= HandleEnemyDied;
             enemy.OnReachedGoal -= HandleEnemyReachedGoal;
+            enemyPathIndices.Remove(enemy);
             spawnedEnemies.Remove(enemy);
         }
 
@@ -390,6 +428,7 @@ namespace TD.Enemies
             }
 
             spawnedEnemies.Clear();
+            enemyPathIndices.Clear();
 
             // Also remove stray enemies from earlier runs that are no longer tracked.
             Enemy[] strays = FindObjectsByType<Enemy>(FindObjectsInactive.Exclude);

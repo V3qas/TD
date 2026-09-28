@@ -79,8 +79,8 @@ namespace TD.Level
         public List<OccupantEntry> occupants = new List<OccupantEntry>();
 
         // v3: ordered, 4-connected enemy paths from startCell to goalCell. Multiple sequences
-        // are allowed and may share cells; shared cells form natural split / merge junctions for
-        // future enemy AI. Single-path maps simply have pathSequences.Count == 1.
+        // may share cells; the runtime preserves their authored order and distributes enemies
+        // across them. Single-path maps simply have pathSequences.Count == 1.
         public List<PathSequence> pathSequences = new List<PathSequence>();
 
         public bool HasExplicitPath => (pathSequences != null && pathSequences.Count > 0)

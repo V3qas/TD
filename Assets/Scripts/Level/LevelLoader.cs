@@ -101,7 +101,9 @@ namespace TD.Level
                 return;
             }
 
-            BuildGridForCurrentSession(definition);
+            if (!BuildGridForCurrentSession(definition))
+                return;
+
             FrameCameraOnMap(definition);
             HasLoadedLevel = true;
             OnLevelLoaded?.Invoke(levelData);
@@ -115,35 +117,43 @@ namespace TD.Level
                 return false;
             }
 
-            LoadMap(definition);
-            return true;
+            return LoadMap(definition);
         }
 
-        public void LoadMap(LevelMapDefinition definition)
+        public bool LoadMap(LevelMapDefinition definition)
         {
             if (definition == null)
             {
                 Debug.LogError("LevelLoader: Map data is missing.");
-                return;
+                return false;
             }
 
             if (gridManager == null)
             {
                 Debug.LogError("LevelLoader: No GridManager assigned.");
-                return;
+                return false;
             }
 
-            levelData = null;
+            if (!LevelMapValidator.Validate(definition, false, out string validationError))
+            {
+                Debug.LogError($"LevelLoader: Map data is invalid ({validationError}).");
+                return false;
+            }
+
             LevelMapDefinition normalizedDefinition = definition.CloneNormalized();
-            BuildGridForCurrentSession(normalizedDefinition);
+            if (!BuildGridForCurrentSession(normalizedDefinition))
+                return false;
+
+            levelData = null;
             FrameCameraOnMap(normalizedDefinition);
             HasLoadedLevel = true;
             OnMapLoaded?.Invoke(normalizedDefinition);
+            return true;
         }
 
-        private void BuildGridForCurrentSession(LevelMapDefinition definition)
+        private bool BuildGridForCurrentSession(LevelMapDefinition definition)
         {
-            gridManager.BuildGrid(definition);
+            return gridManager.BuildGrid(definition);
         }
 
         public void ClearLoadedLevel()
