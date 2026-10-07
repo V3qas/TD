@@ -127,6 +127,10 @@ playlist. Returning from a regular level to Menu starts again with `Title1`.
 `PlayerPrefs`; master volume is applied through `AudioListener`, while music volume
 controls the persistent music source.
 
+`Boss1` through `Boss3` and `WorldBoss1` are reserved music assets for future boss
+encounters. They are not referenced by runtime scenes because bosses are not yet
+implemented.
+
 `InGameHudController` observes the match state. It displays lives and finite wave
 progress, blocks build/selection actions after the match, and presents the final
 result. Restart reloads `Gameplay`; returning to the menu clears transient session
@@ -520,3 +524,4 @@ Append a one-line entry whenever this document is updated.
 - 2026-09-27: Kept the title track playing continuously through runtime map editing
   and its test runs.
 - 2026-10-07: Replaced old music references with a continuous Title1/Title2 playlist and one random looping Fight1-Fight5 track per regular level load.
+- 2026-10-07: Added reserved Boss1-Boss3 and WorldBoss1 music assets for future boss encounters.
