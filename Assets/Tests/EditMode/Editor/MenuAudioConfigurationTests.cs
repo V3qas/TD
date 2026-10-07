@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using TD.Menu;
+using TD.Level;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -10,11 +11,18 @@ namespace TD.Tests.EditMode.Editor
 {
     public class MenuAudioConfigurationTests
     {
-        private const string MusicPath = "Assets/Art/Sound/Music/Title_Main.mp3";
+        private static readonly string[] TitleMusicPaths =
+        {
+            "Assets/Art/Sound/Music/Title1.mp3",
+            "Assets/Art/Sound/Music/Title2.mp3"
+        };
         private static readonly string[] LevelMusicPaths =
         {
-            "Assets/Art/Sound/Music/Level1.mp3",
-            "Assets/Art/Sound/Music/Level2.mp3"
+            "Assets/Art/Sound/Music/Fight1.mp3",
+            "Assets/Art/Sound/Music/Fight2.mp3",
+            "Assets/Art/Sound/Music/Fight3.mp3",
+            "Assets/Art/Sound/Music/Fight4.mp3",
+            "Assets/Art/Sound/Music/Fight5.mp3"
         };
 
         [Test]
@@ -24,7 +32,7 @@ namespace TD.Tests.EditMode.Editor
             {
                 TitleScreenController controller = FindComponent<TitleScreenController>(scene);
                 Assert.That(controller, Is.Not.Null);
-                AssertTitleMusic(controller);
+                AssertMusicClips(controller, "titleMusic", TitleMusicPaths);
             });
         }
 
@@ -35,8 +43,7 @@ namespace TD.Tests.EditMode.Editor
             {
                 MainMenuController controller = FindComponent<MainMenuController>(scene);
                 Assert.That(controller, Is.Not.Null);
-                AssertTitleMusic(controller);
-                AssertLevelMusic(controller);
+                AssertMusicClips(controller, "titleMusic", TitleMusicPaths);
             });
         }
 
@@ -47,31 +54,24 @@ namespace TD.Tests.EditMode.Editor
             {
                 RuntimeMapEditorController controller = FindComponent<RuntimeMapEditorController>(scene);
                 Assert.That(controller, Is.Not.Null);
-                AssertTitleMusic(controller);
+                AssertMusicClips(controller, "titleMusic", TitleMusicPaths);
+                LevelLoader loader = FindComponent<LevelLoader>(scene);
+                Assert.That(loader, Is.Not.Null);
+                AssertMusicClips(loader, "levelMusic", LevelMusicPaths);
             });
         }
 
-        private static void AssertTitleMusic(Component controller)
+        private static void AssertMusicClips(Component controller, string propertyName, string[] paths)
         {
-            AudioClip expectedClip = AssetDatabase.LoadAssetAtPath<AudioClip>(MusicPath);
-            Assert.That(expectedClip, Is.Not.Null, "Title music asset is missing.");
+            SerializedProperty musicClips = new SerializedObject(controller).FindProperty(propertyName);
+            Assert.That(musicClips, Is.Not.Null);
+            Assert.That(musicClips.arraySize, Is.EqualTo(paths.Length));
 
-            SerializedProperty titleMusic = new SerializedObject(controller).FindProperty("titleMusic");
-            Assert.That(titleMusic, Is.Not.Null);
-            Assert.That(titleMusic.objectReferenceValue, Is.EqualTo(expectedClip));
-        }
-
-        private static void AssertLevelMusic(MainMenuController controller)
-        {
-            SerializedProperty levelMusic = new SerializedObject(controller).FindProperty("levelMusic");
-            Assert.That(levelMusic, Is.Not.Null);
-            Assert.That(levelMusic.arraySize, Is.EqualTo(LevelMusicPaths.Length));
-
-            for (int index = 0; index < LevelMusicPaths.Length; index++)
+            for (int index = 0; index < paths.Length; index++)
             {
-                AudioClip expectedClip = AssetDatabase.LoadAssetAtPath<AudioClip>(LevelMusicPaths[index]);
-                Assert.That(expectedClip, Is.Not.Null, $"Level music asset {index + 1} is missing.");
-                Assert.That(levelMusic.GetArrayElementAtIndex(index).objectReferenceValue, Is.EqualTo(expectedClip));
+                AudioClip expectedClip = AssetDatabase.LoadAssetAtPath<AudioClip>(paths[index]);
+                Assert.That(expectedClip, Is.Not.Null, $"Music asset is missing: {paths[index]}");
+                Assert.That(musicClips.GetArrayElementAtIndex(index).objectReferenceValue, Is.EqualTo(expectedClip));
             }
         }
 

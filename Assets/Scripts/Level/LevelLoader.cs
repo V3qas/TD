@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using TD.Core;
 using TD.Grid;
+using TD.Menu;
 using TD.Theming;
 using TD.UI;
 
@@ -11,6 +12,8 @@ namespace TD.Level
     {
         [SerializeField] private LevelData levelData;
         [SerializeField] private GridManager gridManager;
+        [Tooltip("One randomly selected track loops for each campaign or custom-map level.")]
+        [SerializeField] private AudioClip[] levelMusic;
         [SerializeField] private Camera mainCamera;
         [SerializeField] private MapCameraController mapCameraController;
         [SerializeField] private Canvas targetCanvas;
@@ -106,6 +109,7 @@ namespace TD.Level
 
             FrameCameraOnMap(definition);
             HasLoadedLevel = true;
+            StartLevelMusic();
             OnLevelLoaded?.Invoke(levelData);
         }
 
@@ -147,8 +151,15 @@ namespace TD.Level
             levelData = null;
             FrameCameraOnMap(normalizedDefinition);
             HasLoadedLevel = true;
+            StartLevelMusic();
             OnMapLoaded?.Invoke(normalizedDefinition);
             return true;
+        }
+
+        private void StartLevelMusic()
+        {
+            if (!GameSession.IsMapEditorSession && !GameSession.IsEditorTestRun)
+                MenuMusicPlayer.StartRandomLoop(levelMusic);
         }
 
         private bool BuildGridForCurrentSession(LevelMapDefinition definition)

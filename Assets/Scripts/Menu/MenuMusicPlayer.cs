@@ -9,25 +9,32 @@ namespace TD.Menu
         private static MenuMusicPlayer instance;
 
         private AudioSource audioSource;
-        private AudioClip[] rotationClips = System.Array.Empty<AudioClip>();
-        private int previousRotationIndex = -1;
-        private bool rotationActive;
+        private AudioClip[] playlistClips = System.Array.Empty<AudioClip>();
+        private int playlistIndex = -1;
         private double earliestNextTrackDspTime;
 
-        internal static void EnsurePlaying(AudioClip clip)
+        internal static void EnsurePlaylist(AudioClip[] clips)
         {
             AudioVolumeSettings.ApplyMasterVolume();
 
-            if (clip == null)
+            AudioClip[] validClips = GetValidUniqueClips(clips);
+            if (validClips.Length == 0)
                 return;
 
-            GetOrCreate().PlayLooping(clip);
+            GetOrCreate().PlayPlaylist(validClips);
         }
 
-        internal static void StartRandomRotation(AudioClip[] clips)
+        internal static void StartRandomLoop(AudioClip[] clips)
         {
             AudioVolumeSettings.ApplyMasterVolume();
-            GetOrCreate().StartRotation(clips);
+            AudioClip[] validClips = GetValidUniqueClips(clips);
+            if (validClips.Length == 0)
+            {
+                StopAndDestroy();
+                return;
+            }
+
+            GetOrCreate().PlayLooping(validClips[Random.Range(0, validClips.Length)]);
         }
 
         internal static void SetVolume(float volume)
@@ -37,21 +44,6 @@ namespace TD.Menu
 
             if (instance != null)
                 instance.GetAudioSource().volume = Mathf.Clamp01(volume);
-        }
-
-        internal static int ChooseNextRotationIndex(int clipCount, int previousIndex, int randomValue)
-        {
-            if (clipCount <= 0)
-                return -1;
-
-            if (clipCount == 1)
-                return 0;
-
-            if (previousIndex < 0 || previousIndex >= clipCount)
-                return Mathf.Clamp(randomValue, 0, clipCount - 1);
-
-            int candidate = Mathf.Clamp(randomValue, 0, clipCount - 2);
-            return candidate >= previousIndex ? candidate + 1 : candidate;
         }
 
         internal static void StopAndDestroy()
@@ -93,66 +85,61 @@ namespace TD.Menu
 
         private void Update()
         {
-            if (!rotationActive || rotationClips.Length == 0)
+            if (playlistClips.Length == 0)
                 return;
 
             AudioSource source = GetAudioSource();
             if (!source.isPlaying && AudioSettings.dspTime >= earliestNextTrackDspTime)
-                PlayNextRotationTrack();
+                PlayNextPlaylistTrack();
         }
 
         private void PlayLooping(AudioClip clip)
         {
             AudioSource source = GetAudioSource();
             ConfigureAudioSource(source);
-            rotationActive = false;
-            rotationClips = System.Array.Empty<AudioClip>();
-            previousRotationIndex = -1;
+            playlistClips = System.Array.Empty<AudioClip>();
+            playlistIndex = -1;
+            source.Stop();
             source.loop = true;
-
-            if (source.clip == clip && source.isPlaying)
-                return;
 
             source.clip = clip;
             source.Play();
         }
 
-        private void StartRotation(AudioClip[] clips)
+        private void PlayPlaylist(AudioClip[] clips)
         {
-            rotationClips = GetValidUniqueClips(clips);
-            previousRotationIndex = -1;
-            rotationActive = rotationClips.Length > 0;
-
             AudioSource source = GetAudioSource();
             ConfigureAudioSource(source);
-            source.Stop();
-            source.loop = false;
 
-            if (rotationActive)
-                PlayNextRotationTrack();
-        }
-
-        private void PlayNextRotationTrack()
-        {
-            int randomValue;
-            if (rotationClips.Length == 1)
-            {
-                randomValue = 0;
-            }
-            else
-            {
-                randomValue = previousRotationIndex >= 0 && previousRotationIndex < rotationClips.Length
-                    ? Random.Range(0, rotationClips.Length - 1)
-                    : Random.Range(0, rotationClips.Length);
-            }
-
-            int nextIndex = ChooseNextRotationIndex(rotationClips.Length, previousRotationIndex, randomValue);
-            if (nextIndex < 0)
+            if (HasSamePlaylist(clips))
                 return;
 
-            previousRotationIndex = nextIndex;
+            playlistClips = clips;
+            playlistIndex = -1;
+            source.Stop();
+            source.loop = false;
+            PlayNextPlaylistTrack();
+        }
+
+        private bool HasSamePlaylist(AudioClip[] clips)
+        {
+            if (playlistClips.Length != clips.Length)
+                return false;
+
+            for (int index = 0; index < clips.Length; index++)
+            {
+                if (playlistClips[index] != clips[index])
+                    return false;
+            }
+
+            return true;
+        }
+
+        private void PlayNextPlaylistTrack()
+        {
+            playlistIndex = (playlistIndex + 1) % playlistClips.Length;
             AudioSource source = GetAudioSource();
-            source.clip = rotationClips[nextIndex];
+            source.clip = playlistClips[playlistIndex];
             source.Play();
 
             // Prevent a clip that is still loading from being mistaken for a finished track.

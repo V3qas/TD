@@ -241,7 +241,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: TD.Runtime::TD.Menu.TitleScreenController
   splashSprite: {fileID: 7064631625748757826, guid: 9ba83f17faf192246bb11677b32c1013, type: 3}
-  titleMusic: {fileID: 8300000, guid: a96f7e73cb852f648b46e7278672abad, type: 3}
+  titleMusic:
+  - {fileID: 8300000, guid: 73bce2e26f86aea43af455549bfec0b6, type: 3}
+  - {fileID: 8300000, guid: 56b6b549620e1874a9b895596e96c110, type: 3}
   menuSceneName: Menu
   fadeDuration: 0.8
   pressTextBlinkSpeed: 1.4

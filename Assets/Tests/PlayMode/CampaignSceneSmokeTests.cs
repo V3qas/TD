@@ -7,6 +7,7 @@ using TD.Core;
 using TD.Enemies;
 using TD.Grid;
 using TD.Level;
+using TD.Menu;
 using TD.Towers;
 
 namespace TD.Tests.PlayMode
@@ -22,6 +23,7 @@ namespace TD.Tests.PlayMode
             GameSession.EndMapEditorMode();
             GameSession.ClearSelectedLevel();
             PrefabPool.Clear();
+            MenuMusicPlayer.StopAndDestroy();
             yield return null;
         }
 
@@ -39,6 +41,7 @@ namespace TD.Tests.PlayMode
             GameSession.EndTestRun();
             GameSession.EndMapEditorMode();
             GameSession.ClearSelectedLevel();
+            MenuMusicPlayer.StopAndDestroy();
             yield return null;
         }
 
@@ -68,6 +71,7 @@ namespace TD.Tests.PlayMode
 
             Assert.That(levelLoader.HasLoadedLevel, Is.True, "Campaign level did not load.");
             Assert.That(gridManager.HasGrid, Is.True, "Campaign grid was not built.");
+            AssertLoopingFightMusic();
 
             timeout = Time.realtimeSinceStartup + 3f;
             while (CountActiveEnemies() == 0 && Time.realtimeSinceStartup < timeout)
@@ -100,6 +104,7 @@ namespace TD.Tests.PlayMode
                 Assert.That(state.CurrentRound, Is.EqualTo(1));
                 Assert.That(state.IsPlaying, Is.True);
                 Assert.That(builder.GetComponentsInChildren<Tower>(), Is.Empty);
+                AssertLoopingFightMusic();
 
                 Vector2Int? buildCell = null;
                 for (int row = 0; row < grid.Height && !buildCell.HasValue; row++)
@@ -140,6 +145,30 @@ namespace TD.Tests.PlayMode
                 Assert.That(GameState.Instance, Is.Null);
                 Assert.That(Enemy.ActiveEnemies, Is.Empty);
             }
+        }
+
+        [UnityTest]
+        public IEnumerator GameplayScene_LoadsCustomMap_WithLoopingFightMusic()
+        {
+            LevelMapAuthoringState authoring = new LevelMapAuthoringState();
+            authoring.CreateNewMap(5, 3, true);
+            GameSession.SelectMapDefinition(authoring.BuildDefinition());
+            yield return SceneManager.LoadSceneAsync("Gameplay", LoadSceneMode.Additive);
+            gameplayScene = SceneManager.GetSceneByName("Gameplay");
+            yield return null;
+
+            Assert.That(FindComponent<LevelLoader>(gameplayScene).HasLoadedLevel, Is.True);
+            AssertLoopingFightMusic();
+        }
+
+        private static void AssertLoopingFightMusic()
+        {
+            MenuMusicPlayer player = Object.FindAnyObjectByType<MenuMusicPlayer>();
+            Assert.That(player, Is.Not.Null, "Loading a level must start music even without visiting the menu.");
+            AudioSource source = player.GetComponent<AudioSource>();
+            Assert.That(source.clip, Is.Not.Null);
+            Assert.That(new[] { "Fight1", "Fight2", "Fight3", "Fight4", "Fight5" }, Does.Contain(source.clip.name));
+            Assert.That(source.loop, Is.True);
         }
 
         private static T FindComponent<T>(Scene scene) where T : Component

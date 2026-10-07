@@ -58,8 +58,16 @@ namespace TD.Tests.PlayMode
             AudioSource musicSource = musicPlayer.GetComponent<AudioSource>();
             Assert.That(musicSource, Is.Not.Null);
             Assert.That(musicSource.clip, Is.Not.Null);
-            Assert.That(musicSource.clip.name, Is.EqualTo("Title_Main"));
-            Assert.That(musicSource.loop, Is.True);
+            Assert.That(musicSource.clip.name, Is.EqualTo("Title1"));
+            Assert.That(musicSource.loop, Is.False);
+
+            musicSource.Stop();
+            typeof(MenuMusicPlayer).GetField("earliestNextTrackDspTime", BindingFlags.Instance | BindingFlags.NonPublic)
+                .SetValue(musicPlayer, 0d);
+            Invoke(musicPlayer, "Update");
+            Assert.That(musicSource.clip.name, Is.EqualTo("Title2"));
+            editor.Open();
+            Assert.That(musicSource.clip.name, Is.EqualTo("Title2"));
 
             for (int run = 0; run < 2; run++)
             {
@@ -67,8 +75,8 @@ namespace TD.Tests.PlayMode
                 yield return null;
                 Assert.That(Object.FindAnyObjectByType<MenuMusicPlayer>(), Is.SameAs(musicPlayer),
                     "Starting an editor test run must not replace or destroy the title music player.");
-                Assert.That(musicSource.clip.name, Is.EqualTo("Title_Main"));
-                Assert.That(musicSource.loop, Is.True);
+                Assert.That(musicSource.clip.name, Is.EqualTo("Title2"));
+                Assert.That(musicSource.loop, Is.False);
                 Assert.That(loader.HasLoadedLevel, Is.True);
                 Assert.That(state.Money, Is.EqualTo(100));
                 Assert.That(Destructible.ActiveTargets.Count, Is.EqualTo(1));
@@ -96,6 +104,7 @@ namespace TD.Tests.PlayMode
                 Assert.That(Destructible.ActiveTargets, Is.Empty);
 
                 Invoke(editor, "ReturnFromTest");
+                Assert.That(musicSource.clip.name, Is.EqualTo("Title2"));
                 Assert.That(GameSession.IsEditorTestRun, Is.False);
                 Assert.That(loader.HasLoadedLevel, Is.False);
                 Assert.That(bulletObject.activeSelf, Is.False);

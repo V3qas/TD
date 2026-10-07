@@ -485,7 +485,9 @@ MonoBehaviour:
   mainCamera: {fileID: 1828375111}
   mapCameraController: {fileID: 0}
   font: {fileID: 0}
-  titleMusic: {fileID: 8300000, guid: a96f7e73cb852f648b46e7278672abad, type: 3}
+  titleMusic:
+  - {fileID: 8300000, guid: 73bce2e26f86aea43af455549bfec0b6, type: 3}
+  - {fileID: 8300000, guid: 56b6b549620e1874a9b895596e96c110, type: 3}
   menuSceneName: Menu
 --- !u!1 &1692385740
 GameObject:
@@ -568,6 +570,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: TD.Runtime::TD.Level.LevelLoader
   levelData: {fileID: 11400000, guid: 1a9a16c38d6f7d3478dd20f0a3c366a1, type: 2}
   gridManager: {fileID: 943782627}
+  levelMusic:
+  - {fileID: 8300000, guid: 81c72b6e9e5930d468f64ef97c765a18, type: 3}
+  - {fileID: 8300000, guid: c2e3dfc456f660b4b80be9a9856000cc, type: 3}
+  - {fileID: 8300000, guid: 60b145037b1c60b4f86cc79c9bc1be04, type: 3}
+  - {fileID: 8300000, guid: 267859a7bb6b1da42986fa3d65422a3e, type: 3}
+  - {fileID: 8300000, guid: e8d8edf5acab40944a5758f34e60557d, type: 3}
   mainCamera: {fileID: 0}
   mapCameraController: {fileID: 0}
   targetCanvas: {fileID: 0}

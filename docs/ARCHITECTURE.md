@@ -115,10 +115,15 @@ Selecting a campaign level or custom map clears editor/test flags. Entering the 
 editor clears gameplay selection, so a previous session cannot leak into the next
 mode even when navigation did not follow the normal menu cleanup path.
 
-`MenuMusicPlayer` is created at runtime and persists across scene transitions. It loops
-the title track continuously through Boot, Menu, runtime map editing, and editor test
-runs; regular campaign and custom-map sessions switch it to configured level tracks
-without immediate repeats. `AudioVolumeSettings` stores master and music volume in
+`MenuMusicPlayer` is created at runtime and persists across scene transitions. Its
+ordered playlist repeats `Title1` -> `Title2` through Boot, Menu (including the Custom
+Maps browser), runtime map editing, and editor test runs. Reapplying the same playlist
+preserves the current track and playback position. Each successful regular campaign
+or custom-map load selects one of `Fight1` through `Fight5` and loops that track for
+the level. `LevelLoader` owns the fight-track references and starts playback, including
+direct Gameplay entry and scene-reload restarts; editor tests preserve the title
+playlist. Returning from a regular level to Menu starts again with `Title1`.
+`AudioVolumeSettings` stores master and music volume in
 `PlayerPrefs`; master volume is applied through `AudioListener`, while music volume
 controls the persistent music source.
 
@@ -387,7 +392,7 @@ public method or property is added, removed, or renamed.
 - `AudioVolumeSettings` (internal static) - persists and applies normalized master
   and music volume settings.
 - `MenuMusicPlayer` (internal) - persistent two-dimensional audio source for the
-  title loop and non-repeating random level-track rotation.
+  ordered title playlist and a single randomly selected looping fight track per level.
 - `MainMenuConfig` - `title`, `mainButtons`, `campaignTitle`, `campaignLevels`.
 - `MainMenuAction` - enum `SingleCampaign`, `Infinite`, `Challenge`,
   `TowerUpgrade`, `Options`, `MapEditor`, `CustomMaps`, `Exit`.
@@ -514,3 +519,4 @@ Append a one-line entry whenever this document is updated.
   an enemy reaches the goal.
 - 2026-09-27: Kept the title track playing continuously through runtime map editing
   and its test runs.
+- 2026-10-07: Replaced old music references with a continuous Title1/Title2 playlist and one random looping Fight1-Fight5 track per regular level load.

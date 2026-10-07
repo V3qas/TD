@@ -44,9 +44,7 @@ namespace TD.Menu
 
         [SerializeField] private MainMenuConfig config;
         [SerializeField] private Sprite backgroundSprite;
-        [SerializeField] private AudioClip titleMusic;
-        [Tooltip("Tracks randomly rotated while a level is running.")]
-        [SerializeField] private AudioClip[] levelMusic;
+        [SerializeField] private AudioClip[] titleMusic;
         [SerializeField] private Canvas targetCanvas;
         [SerializeField] private Font font;
         [SerializeField] private string gameplaySceneName = "Gameplay";
@@ -99,7 +97,7 @@ namespace TD.Menu
 
         private void Start()
         {
-            MenuMusicPlayer.EnsurePlaying(titleMusic);
+            MenuMusicPlayer.EnsurePlaylist(titleMusic);
             currentLanguage = (MenuLanguage)Mathf.Clamp(PlayerPrefs.GetInt(LanguagePlayerPrefsKey, 0), 0, 1);
             EnsureCanvas();
             EnsureEventSystem();
@@ -1387,7 +1385,6 @@ namespace TD.Menu
             }
 
             GameSession.SelectLevel(selectedLevel);
-            MenuMusicPlayer.StartRandomRotation(levelMusic);
             SceneManager.LoadScene(gameplaySceneName);
         }
 
@@ -1407,14 +1404,13 @@ namespace TD.Menu
                 return;
             }
 
-            MenuMusicPlayer.StartRandomRotation(levelMusic);
             SceneManager.LoadScene(gameplaySceneName);
         }
 
         private void OpenMapEditor()
         {
             GameSession.BeginMapEditorMode();
-            MenuMusicPlayer.EnsurePlaying(titleMusic);
+            MenuMusicPlayer.EnsurePlaylist(titleMusic);
             SceneManager.LoadScene(gameplaySceneName);
         }
 
